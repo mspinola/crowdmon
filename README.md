@@ -33,9 +33,9 @@ either producer imports this package.
 
 ## Status
 
-**Layer 1 (ingestion) only.** `VintageCotSource` is the `CotSource` seam over `cotdata`'s
-vintage store. Layer 2 (contract master, notional, vol-scaled risk units) is designed but
-not built; see the proposal linked below.
+**Layer 1, plus the contract master.** `VintageCotSource` is the `CotSource` seam over
+`cotdata`'s vintage store; `ContractMaster` is the market-code to multiplier join. Notional
+and vol-scaled risk units are next; see the proposal linked below.
 
 ```python
 from crowdmon_futures.ingest import VintageCotSource, provenance_summary
@@ -58,6 +58,36 @@ Three things the adapter owns, none of which the store can do on its own:
 - **It validates on every load**, including the zero-sum identity (long total equals short
   total across categories, since every long is somebody's short). `cotdata` measured that
   at 149,412 of 149,412 weeks over 40 years, so a break means the category mapping moved.
+
+### The contract master
+
+```python
+from crowdmon_futures.normalize import ContractMaster
+
+cm = ContractMaster.load()
+print(cm.coverage_summary())      # 47 of 49 registry symbols joinable, over 49 codes
+panel = cm.annotate(panel)        # adds symbol, point_value, currency, contract_scale
+print(cm.unmatched(panel))        # and says what has no spec, rather than dropping it
+```
+
+Three things it refuses to do quietly:
+
+- **It never inner-joins.** The vintage store holds every market CFTC publishes (418 codes
+  in the 2026 capture) while the registry names 49. Measured on the real store, **371 codes
+  and about 87% of rows have no spec**: Nodal Exchange power zones, minor grains, and
+  everything else nobody here trades. An inner join would discard all of it in silence and
+  a "cross-market" result would then describe the 13% that survived. `annotate` adds
+  columns and leaves them null; `drop_unmatched=True` is an explicit opt-in.
+- **It applies the contract-size scale.** CFTC retires and reissues codes, and some
+  predecessors carry a size change: lumber's `058643` is 4.0, because the contract was
+  redefined. Using today's point value on an old row without it is wrong by 4x and looks
+  fine. `cotdata.get_cot` handles this when stitching history, but the vintage path does
+  not, so this layer must. Applied **by default**, so forgetting the argument gives the
+  correct answer. Latent today (the 2026 capture holds no retired codes) and live the
+  moment anyone backfills earlier years.
+- **It checks currency rather than assuming it.** All 47 specs are USD, which removes an FX
+  layer. That is a fact about the current universe, not a property of futures, so a non-USD
+  contract raises instead of producing a USD-labelled number that is not USD.
 
 ### The point-in-time asymmetry, stated up front
 
