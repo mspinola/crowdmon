@@ -118,6 +118,21 @@ from .notional import (
     coverage_report,
 )
 from .pressure import exit_pressure, rank_markets, top_by
+from .reflexivity import (
+    DEFAULT_TREND_FRACTION,
+    LG_CEILING,
+    STAIRCASE_COLUMNS,
+    ReflexivityError,
+    bracket,
+    effective_lambda,
+    implied_gross_pool,
+    staircase,
+)
+
+# Aliased rather than shadowing trigger's `format_block`, the same way riskunits'
+# `coverage_report` is aliased below. The two render different blocks and a caller silently
+# getting the wrong one would print a cascade where they asked for a trigger.
+from .reflexivity import format_block as format_cascade_block
 from .riskunits import (
     DEFAULT_MIN_PERIODS,
     DEFAULT_VOL_WINDOW,
@@ -186,6 +201,9 @@ __all__ = [
     # engines
     "trigger_prices", "trigger_block", "format_block", "vol_shock_reduction",
     "TriggerError", "DEFAULT_LOOKBACKS",
+    "staircase", "bracket", "implied_gross_pool", "effective_lambda",
+    "format_cascade_block", "ReflexivityError", "STAIRCASE_COLUMNS",
+    "DEFAULT_TREND_FRACTION", "LG_CEILING",
     "seasonal_profile", "deseasonalise", "seasonality_report", "week_of_year",
     "SeasonalError", "DEFAULT_MIN_YEARS",
     "plausible_variants", "reference_variants", "sweep", "summarise",
