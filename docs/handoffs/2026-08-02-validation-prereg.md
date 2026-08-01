@@ -315,6 +315,22 @@ silver squeeze both force **buying**, so both take `D_buy`.
 informative in the other direction, and because refusing to run them would let a reader assume
 they were tried and hidden.
 
+**March 2020 is additionally a wiring check, with its target stated here in advance.** The
+composite author's contamination is a liability everywhere else in this document and an asset
+in exactly one place: because §2 published the answer, this episode has a **known expected
+value**, and reproducing it tests the implementation rather than the market.
+
+> **Expected: the March 2020 lead-in returns approximately 0.76x baseline** under the shipped
+> percentile-ised reading, per §2. This is committed before the form is run.
+
+Judge that check on **reproduction, not implication**. A result far from 0.76x is a defect in
+the implementation of §7.4, not a finding about 2020, and it must be fixed before any clean
+episode in §7.2 is scored. A result near 0.76x says the wiring is right and says nothing
+whatever about whether `D` works, since 0.76x is *below* baseline and was the measurement that
+retired the apparent lead in the first place.
+
+This check has no bearing on §7.5. It is a precondition for running §7.5, not an input to it.
+
 ### 7.4 The statistic
 
 1. **Unit of observation: one number per (market, episode).** Not per week. §6.3 measures that
