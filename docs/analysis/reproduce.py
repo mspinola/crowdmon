@@ -16,7 +16,7 @@ Prints, in order:
   7. what the ranked universe is made of, by venue
   8. the price-series measurements behind amendments A8 and A9 (normalisation)
   9. the volume measurements behind amendment A13, and the real T = Q/(kappa V)
- 10. exit COST: the square-root law and Amihud (A18, A19)
+ 10. exit COST: the square-root law and Amihud (A19, A20)
 """
 import numpy as np
 import pandas as pd
@@ -362,7 +362,7 @@ def volume_and_exit_capacity() -> None:
 
 
 def exit_cost() -> None:
-    """Amendments A18 and A19: cost is not duration, and Amihud needs the multiplier."""
+    """Amendments A19 and A20: cost is not duration, and Amihud needs the multiplier."""
     import cotdata
 
     from crowdmon.futures import (
@@ -376,7 +376,7 @@ def exit_cost() -> None:
     )
     from crowdmon.futures.impact import _dollar_volume
 
-    rule("10. EXIT COST: the square-root law and Amihud (A18, A19)")
+    rule("10. EXIT COST: the square-root law and Amihud (A19, A20)")
 
     panel = ContractMaster.load().annotate(
         VintageCotSource(report_type="disaggregated").load("2026-07-31"))
@@ -402,7 +402,7 @@ def exit_cost() -> None:
     print(f"Q/V range : {(live['q_sell'] / live['adv']).min():.2f} to "
           f"{(live['q_sell'] / live['adv']).max():.2f} days of total volume")
 
-    print("\n--- A19: Amihud with and without the contract multiplier ---")
+    print("\n--- A20: Amihud with and without the contract multiplier ---")
     rows = []
     for _, r in live.dropna(subset=["symbol", "point_value"]).drop_duplicates(
             "symbol").iterrows():
