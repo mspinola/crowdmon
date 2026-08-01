@@ -127,6 +127,8 @@ src/crowdmon/
     fragility.py            A.2 Q_sell / Q_buy / Phi
     breadth.py              §6.2 breadth-depth quadrant
     extremity.py            §6.1 / A.4 vol-scaled positioning vs 3y of own history
+    volume.py               A.5 denominator. `front` is whole-market, `reconstructed` is not
+    composite.py            A.9 D = C x I x Phi. The whole system in one number
     volume.py               whole-market ADV + A.5 stress V. Refuses anything but "front"
     pressure.py             A.5 exit capacity. T = Q/(kappa V) is a real duration now
 ```

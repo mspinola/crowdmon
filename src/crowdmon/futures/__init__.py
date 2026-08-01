@@ -44,6 +44,13 @@ beside `notional` rather than in `crowdmon.core`: it is a fact about futures
 continuous-contract construction, not a general one.
 """
 from .breadth import decompose_breadth
+from .composite import (
+    COMPOSITE_COLUMNS,
+    CompositeError,
+    add_composite,
+    damage_report,
+    top_damage,
+)
 from .contract_master import (
     CONTRACT_COUNT_COLUMNS,
     SPEC_COLUMNS,
@@ -125,6 +132,8 @@ __all__ = [
     "add_risk_units", "risk_coverage_report", "RiskUnitsError", "RISK_COLUMNS",
     "RISK_ADJUSTMENT", "DEFAULT_VOL_WINDOW", "DEFAULT_MIN_PERIODS",
     # engines
+    "add_composite", "damage_report", "top_damage", "CompositeError",
+    "COMPOSITE_COLUMNS",
     "add_extremity", "extremity_report", "latest_extremes", "ExtremityError",
     "EXTREMITY_COLUMNS",
     "decompose", "state_distribution", "tolerance_sensitivity", "FLOW_STATES",

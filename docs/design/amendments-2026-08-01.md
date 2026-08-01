@@ -15,6 +15,13 @@ explicitly. **Apply them when the spec migrates into this repo** (see
 Every figure below is reproduced by `docs/analysis/reproduce.py` against
 `COTDATA_STORE=~/code/cotdata_store`, or by the offline fixtures in `tests/fixtures/`.
 
+> **Before appending, `grep '^## A' this file` and take the next free number.** Sections are
+> numbered by position and several sessions append here in parallel, so "the next number"
+> guessed from memory collides. It has happened twice: A8/A9 (riskunits versus extremity) and
+> A13/A14 (volume versus composite), both caught after the fact and renumbered. Numbers are
+> cited from commit messages and module docstrings once published, so the section that landed
+> first keeps its number and the later one moves.
+
 ---
 
 ## A1. The Oct-Nov 2025 shutdown did not create a gap in report dates
@@ -547,3 +554,75 @@ then withdrawn: the "42 of 95 joinable, 44%" headline in
 once it turned out all 42 deployed markets joined. Worth naming as a pattern. **A coverage
 ratio whose denominator nobody chose is not a measurement of anything**, and the denominator
 here is "every market the CFTC publishes", which was never the target.
+
+## A15. Taking §A.9 literally leaves `Phi` doing almost none of the work
+
+**Concerns:** appendix §A.9, which contradicts itself mildly. Its preamble says "each term
+expressed as a percentile of its own history so the product is dimensionless"; its formula
+wraps `C` and `I` in `pct()` and writes `Phi` out in full. The formula was taken literally,
+on instruction. This records what that costs, because the choice is worth making on purpose.
+
+**Measured** across 20,938 scored market-weeks, 27 markets:
+
+| factor | correlation with `D` | mean | std | min | max |
+|---|---|---|---|---|---|
+| `illiquidity_sell` | 0.857 | 0.455 | 0.308 | 0.006 | 1.000 |
+| `crowding_long` | 0.796 | 0.510 | 0.313 | 0.006 | 1.000 |
+| `phi` | **0.145** | 0.368 | **0.082** | 0.176 | 0.699 |
+
+The mechanism is structural, not empirical. `C` and `I` are percentiles and therefore uniform
+on `[0, 1]` with a standard deviation near 0.29. `Phi` is a raw share of gross open interest,
+which is a stable property of a market's participant mix: it spans 0.18 to 0.70 with a
+standard deviation of 0.082. **Two terms vary roughly four times as much as the third**, so
+`D` is close to `C x I` with a mild fragility tilt.
+
+**The package is named for the term the literal reading nearly removes.** Percentile-ising
+`Phi` as the preamble describes would give all three terms equal spread. Both forms are one
+argument apart in `composite.py`. Not changed, because the formula is what was specified and
+the instruction was to follow it; recorded so the decision can be revisited with a number
+attached rather than on precedence alone.
+
+## A16. `C = pct(z)` costs four years of warm-up, and removes 2008 from the replay list
+
+**Adds** a consequence of §A.9's `C = pct(z_t)` that neither §A.4 nor §A.9 states.
+
+`C` stacks two trailing three-year windows: `z` needs three years of position history, and
+its percentile needs three years of `z`. Measured on the real panel:
+
+    data begins   2006-06-13
+    first z       2008-06-03
+    first D       2010-05-25
+    warm-up       3.9 years
+
+**The composite cannot score anything before 2010-05-25**, so the 2008 GFC is unreachable and
+module spec §10's replay list loses the most useful episode on it. Reading `C` as `pct(x_t)`
+instead (which `extremity` already emits as `net_risk_usd_pct`) would halve the warm-up, and
+is a different formula rather than an optimisation.
+
+## A17. `D` falls during an unwind, because `Q` leaves with the crowd
+
+**Adds** an interpretive point that module spec §10's framing invites getting backwards. The
+spec asks the composite to "elevate **before** the drawdown rather than coincidentally with
+it", which is right, but the corollary is stronger than it sounds: `D` should be expected to
+*fall* during the event.
+
+**Measured**, March 2020, against the 2019 mean:
+
+    crowding_long        0.4635  ->  0.5339    1.15x
+    illiquidity_sell     0.3634  ->  0.3435    0.95x
+    dtl_sell             4.4762  ->  3.5994    0.80x
+    adv                 159,028  -> 170,044    1.07x
+
+`T = Q/(kappa V)` fell from both ends at once: volume rose 1.07x and `Q` shrank as positions
+were liquidated. Mean `D_sell` ran 1.18x baseline in the four months before, 0.75x during, and
+0.89x after.
+
+This is **not** §A.5's volume-spike trap, which `volume.py` closes by construction using
+trailing aggregates rather than spot readings. It is the slower version, running through a
+252-day average and compounded by the numerator genuinely shrinking. `D` describes a
+pre-condition and decays as the position it describes leaves, which is correct behaviour and
+not a defect.
+
+**None of the above is a validation.** Hand-chosen windows, computed after the fact, by the
+session that wrote the measure, on three reachable episodes. A real validation is
+pre-registered and runs through `crucible`.
