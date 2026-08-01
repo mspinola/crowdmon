@@ -49,9 +49,22 @@ category dominating is typical") are in amendments §A6.
 Precedence: **a measurement beats a doc, the appendix beats a handoff, and a handoff beats
 your own judgement about what would be nicer.**
 
-The first two documents were copied in on 2026-08-01 and **`cotdata` still holds its own
-copies**. This repo's are canonical; the cotdata ones should become pointers when something
-next brings that repo open. Do not edit both.
+Both were copied in on 2026-08-01. **This repo's copies are canonical**, and cotdata's copy of
+the module spec is a pointer here, so there is one of each and no "do not edit both" hazard
+left. The plain-language summary never existed in cotdata at all; an earlier version of this
+paragraph said it did.
+
+> **The copy lost 104 lines and nobody noticed for a day.** The 2026-08-01 copy of
+> `crowdmon_futures_cot_module.md` took a version predating the 2026-07-30 vintage
+> amendments, so this repo's "canonical" copy carried **zero** of the four amendment blocks
+> while cotdata's carried all four. The diff was strictly one-way: 104 lines only in cotdata,
+> zero only here. Restored 2026-08-01, before cotdata's copy became a pointer, because a
+> pointer to the inferior copy would have made the loss permanent and invisible.
+>
+> The lesson is procedural rather than about this file. **Duplicating a living document opens
+> a silent-regression window that closes only when someone diffs the copies**, and the only
+> reason anyone diffed these was an unrelated cleanup task. If a document must appear in two
+> repos, one of them is a pointer from the first commit, not eventually.
 
 ## Doc lifecycle — four directories, four different rules
 
