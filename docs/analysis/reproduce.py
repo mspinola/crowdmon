@@ -495,9 +495,42 @@ def commonality() -> None:
     print(bt.groupby(bt.index.year).mean().round(3).to_string())
 
 
+def trigger_guard() -> None:
+    """2026-08-02 B9: why `trigger_prices` refuses anything but propadj."""
+    import cotdata
+
+    rule("12. THE TRIGGER GUARD: sign versus distance (2026-08-02 B9)")
+    rows = []
+    for symbol in ("GC", "CL", "ZS", "ZW", "CC", "NG", "DC"):
+        back = cotdata.get_prices(symbol, adjustment="backadj")["Close"].dropna()
+        prop = cotdata.get_prices(symbol, adjustment="propadj")["Close"].dropna()
+        shared = back.index.intersection(prop.index)
+        back, prop = back.loc[shared], prop.loc[shared]
+        for k in (20, 60, 250):
+            sb = np.sign(back - back.shift(k)).dropna()
+            sp = np.sign(prop - prop.shift(k)).dropna()
+            both = sb.index.intersection(sp.index)
+            db = (back.shift(k) / back - 1).dropna()
+            dp = (prop.shift(k) / prop - 1).dropna()
+            shared_d = db.index.intersection(dp.index)
+            rows.append({"symbol": symbol, "k": k,
+                         "sign_agree": round(float((sb.loc[both] == sp.loc[both]).mean()), 4),
+                         "distance_p95_pp": round(float((db.loc[shared_d] - dp.loc[shared_d])
+                                                        .abs().quantile(0.95) * 100), 1)})
+    out = pd.DataFrame(rows)
+    print("\n" + out.pivot(index="symbol", columns="k",
+                            values="sign_agree").to_string())
+    print(f"\nsign agreement: min {out.sign_agree.min():.4f}  mean {out.sign_agree.mean():.4f}")
+    print("\ntrigger DISTANCE disagreement, percentage points at p95:")
+    print(out.pivot(index="symbol", columns="k", values="distance_p95_pp").to_string())
+    print("\nThe sign barely cares which series it reads. The distance is wrong by hundreds")
+    print("of points on backadj, which is why trigger_prices refuses it.")
+
+
 if __name__ == "__main__":
     main()
     normalisation()
     volume_and_exit_capacity()
     exit_cost()
     commonality()
+    trigger_guard()

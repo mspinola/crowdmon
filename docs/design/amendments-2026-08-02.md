@@ -216,3 +216,77 @@ Still open: seasonality of the **CR series itself** was not measured, only of ex
 And this is the Disaggregated 27-market panel; the ICE/Nodal power and REC universe has its own
 calendar (compliance years, delivery periods) that is plausibly much stronger and is
 unmeasured, since those markets lack the history a three-year profile needs.
+
+---
+
+## B8. §A.7 never needed the aggregate-capital estimate it was filed as blocked on
+
+**Contradicts:** the not-built table's A.7 row, "prices + a CTA replication model", which
+survived the module being built and is corrected in this commit.
+
+§A.7 models systematic position size as `q = s(F) . (sigma_target/sigma) . lambda(Sigma) . A`,
+and `A` is aggregate systematic capital calibrated against SG Trend or BTOP50. Neither index
+is in this workspace, so the whole section was recorded as blocked. Three of those four terms
+are positive scalars, and scalars do two things: they do not move where a signal crosses zero,
+and they cancel out of a proportional response.
+
+| §A.7 output | needs | was it blocked |
+|---|---|---|
+| trigger price `F* = F_{t-k}` | prices | **no** |
+| volatility trigger `dq/q = 1 - sigma_0/sigma_1` | sigma | **no**, unit elasticity |
+| forced flow `Q*` | `A`, **or an observed position** | not once COT is available |
+
+The third row is the substantive one, and `trigger.py` acts on it: **the replication model
+exists to estimate other people's positions, and COT reports them weekly.** An observed
+Managed Money net multiplied by a proportional response needs no capital estimate at all.
+That module's docstring makes the argument; this section records it against the table so the
+row stops saying otherwise.
+
+**Genuinely still absent:** module spec §9.2's *first* calibration target, a regression of
+modelled returns on SG Trend or BTOP50 at an R2 of 0.6-0.8. Declared, not approximated. Target
+2, reproducing the observed Managed Money panel, is available.
+
+**Genuinely still hard, and not a data problem:** the trend-following fraction of Managed
+Money. Spec §11.2 says the category blends CTAs, discretionary macro and risk parity, so a
+trend response applied to the whole of it is an upper bound. Estimating the fraction is fitted,
+therefore a search, therefore a `SearchSpaceLog` under npf governance.
+
+**This is the fourth "blocked on" row in that table to prove stale**, after volume
+([2026-08-01 §A13](amendments-2026-08-01.md)), extremity, and A.10's returns. Three of the four
+were re-testable in under an hour. A blocker recorded once is rarely re-tested, and that has
+now cost this project more time than any defect in the code has.
+
+---
+
+## B9. The trigger guard is about DISTANCE, not sign, and the numbers are three orders apart
+
+**Adds** a measurement behind `trigger_prices`'s refusal of anything but `propadj`. The guard
+is right; its stated reason ("backadj levels are not prices") is true but does not say how much
+it matters, and every other refusal in this package carries a number.
+
+| | `backadj` against `propadj` |
+|---|---|
+| agreement on the momentum SIGN | **99.4%** (min 97.1%, NG at 250 days) |
+| disagreement on trigger DISTANCE, p95 at 250 days | cocoa **420pp**, milk 397pp, soybeans 336pp, crude 93pp, gold 31pp |
+
+A module that only needed a direction could read either series. The trigger's useful output is
+a distance from spot, a ratio of price levels, and additive back-adjustment inflates historical
+levels. **Fourth appearance of this same failure**, after notional's price levels, riskunits'
+percentage returns and impact's dollar volume.
+
+**A note on §A.7's "solve `s(F*) = 0` numerically".** For an odd, equally weighted sign blend
+it does not need solving: `s` steps by `2/n` at each `F_{t-k}` and crosses zero exactly at
+their **median**. Recorded as documentation rather than built, because `trigger.py`
+deliberately reports each horizon separately and the universe justifies that choice: measured
+on the latest week, several markets have lookbacks pointing different ways at once, and gold's
+20- and 60-day signals are short and flip up while its 250-day is long and flips down. A
+blended trigger would average that away.
+
+**One defect this measurement chased, in a module that has since been discarded.** A first,
+duplicate implementation of this block computed `prices.iloc[-k]` where the signal compares
+against `prices.shift(k)`, whose last value is `prices.iloc[-1 - k]`. One bar adrift. Both
+outputs stayed individually plausible and the pair became inconsistent: soybeans reported a
+signal of +0.33, meaning spot above the median lookback price, alongside a trigger 0.7%
+**above** spot. `trigger.py` uses `iloc[-1 - k]` and is correct;
+`test_the_flip_side_agrees_with_the_signal_it_derives_from` now pins it on 50-odd
+lookback-market pairs so it cannot regress silently.

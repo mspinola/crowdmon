@@ -229,8 +229,9 @@ these are cheaper than they look:
 | A.5 | ~~stress-conditioned `V`, the volume-spike trap, `T = Q/(kappa V)`~~ | **built 2026-08-01**, see [A13](#a13-volume-was-in-the-store-all-along-under-a-parameter-named-for-the-front-month) |
 | A.5 | ~~square-root impact `I = Y σ sqrt(Q/V)`, Amihud `Λ`~~ | **built 2026-08-01**, see [A19](#a19-exit-cost-and-exit-duration-rank-markets-almost-independently) |
 | A.6 | ~~liquidity commonality `β̄`, `T_eff = T(1 + γβ̄)`~~ | **built 2026-08-01.** It cannot feed §A.9 as written, see [2026-08-02 §A1-A2](amendments-2026-08-02.md) |
-| A.7 | forced-seller model and trigger solver | prices + a CTA replication model |
-| A.8 | reflexivity amplification `1/(1 - ℓg)` | A.5 and A.7 |
+| A.7 | ~~trigger solver, volatility trigger, forced flow~~ | **built 2026-08-01** (`futures/trigger.py`). `A` was never needed, see [2026-08-02 §B8](amendments-2026-08-02.md) |
+| A.7 | the fitted replication model, and the trend-following FRACTION of Managed Money | a search, so a `SearchSpaceLog`. SG Trend / BTOP50 for §9.2 target 1 is genuinely absent |
+| A.8 | reflexivity amplification `1/(1 - ℓg)` | ~~A.5 and A.7~~ **both built.** Needs `ℓ` and `g`, estimable from the pieces now in place |
 | A.9 | ~~the composite `D = C x I x Φ`~~ | **built 2026-08-01**, see [A15](#a15-taking-a9-literally-leaves-phi-doing-almost-none-of-the-work). Uses `T`, not `T_eff` |
 | A.10 | unwind-versus-repricing classification during a drawdown | ~~returns~~ **nothing**: `riskunits.sigma_series` serves propadj returns per symbol, so residual correlation and dispersion are computable. Unchecked, not blocked |
 
