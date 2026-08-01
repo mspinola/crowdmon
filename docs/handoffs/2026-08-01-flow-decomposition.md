@@ -270,11 +270,15 @@ The guard that must survive any future move: `add_notional` **raises** on any ad
 exactly 0.0% today, growing monotonically backwards). The zero is the whole point — every
 spot check on recent data passes while the entire evaluation history is corrupted.
 
+**The rename completed 2026-08-01**, directory, remote and package together. Contained:
+no other repo's venv referenced this package, so only its own editable install, the git
+worktree registration, the remote URL and the workspace `CLAUDE.md` sibling table needed
+updating. The old name survives in `cotdata`'s design docs where it is historically correct
+("the crowdmon-futures step-1 build") and in the real filename
+`crowdmon_futures_cot_module.md`; neither is a stale reference.
+
 **Still open, needing a decision rather than more work:**
 
-- The repo directory and GitHub remote are still `crowdmon-futures`. The Python package,
-  `pyproject.toml` and CI are renamed; the directory rename touches workspace `CLAUDE.md`
-  sibling paths and the remote, so it is left for a deliberate step.
 - The design docs still live in `cotdata/docs/design/`, not here as §1's tree shows. That
   checkout is shared and clean on `main`, so the amendments were recorded here instead of
   edited into the originals.

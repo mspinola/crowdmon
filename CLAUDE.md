@@ -4,10 +4,11 @@ Guidance for Claude Code working in this repo. Workspace-wide rules are in
 `../CLAUDE.md` and the governance they point at (`npf/AGENTS.md`, `crucible/AGENTS.md`);
 this file covers what is specific to this package.
 
-> **The repo directory and GitHub remote are still named `crowdmon-futures`.** The Python
-> package, `pyproject.toml` and CI are `crowdmon`. The directory rename touches the
-> workspace `CLAUDE.md` sibling table and the remote, so it is a deliberate step that has
-> not been taken. Do not be surprised by the mismatch, and do not "fix" it in passing.
+> **Renamed from `crowdmon-futures` on 2026-08-01**, directory, remote and package
+> together. The old name survives only where it is historically correct: `cotdata`'s design
+> docs describe "the crowdmon-futures step-1 build", which is what it was called at the
+> time, and `crowdmon_futures_cot_module.md` is a real filename in that repo. Neither is a
+> stale reference to fix.
 
 ## The thesis, in one sentence
 

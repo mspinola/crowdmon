@@ -359,8 +359,8 @@ Three mismatches, none of them data findings, recorded so the next session is no
   question, "what was knowable on date *t*"), and `report.py` is split, with the markdown
   rendering in `core/` and the category tables and `Q`/`Phi` arithmetic in `futures/`.
   `core/store.py`, `core/aggregate.py` and `core/impact.py` are absent rather than stubbed.
-  The **repo directory and GitHub remote are still `crowdmon-futures`**: that rename touches
-  workspace sibling paths and the remote, so it is left as a deliberate step.
+  The **repo directory and remote were renamed to `crowdmon` in the same change**, so the
+  package, the checkout and the remote all now agree.
 - **`crowdmon_plain_language_summary.md` does not exist** in this repo or in
   `cotdata/docs/design/`. The handoff names its appendix as authoritative for every formula
   and as the source of the cocoa template. The formulas as given in the handoff were used

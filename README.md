@@ -20,9 +20,9 @@ two share.
 **It ships no strategy.** Every output is a statement about tail shape and forced-flow
 risk, not about next week's return. Positioning extremes persist for quarters.
 
-> **The repo directory and GitHub remote are still `crowdmon-futures`.** The package,
-> `pyproject.toml` and CI are `crowdmon`; the directory rename touches the workspace sibling
-> paths and the remote, so it is a deliberate step not yet taken.
+> **Renamed from `crowdmon-futures` on 2026-08-01.** The old name was wrong in a way that
+> would have got worse: it named the first asset class as though it were the system. The
+> monitor is `crowdmon`, and futures is where it starts.
 
 ## Layout
 
