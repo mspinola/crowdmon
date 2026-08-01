@@ -31,7 +31,7 @@ not about next week's return. Positioning extremes persist for quarters.
 | [`crowdmon_plain_language_summary.md`](docs/design/crowdmon_plain_language_summary.md) — the argument in prose, **and the authoritative appendix** | here |
 | [`crowdmon_futures_cot_module.md`](docs/design/crowdmon_futures_cot_module.md) — the primary spec, §13 build order | here |
 | [`amendments-2026-08-01.md`](docs/design/amendments-2026-08-01.md) — A1-A22, **closed** | here |
-| [`amendments-2026-08-02.md`](docs/design/amendments-2026-08-02.md) — B1-B7, commonality and seasonality. **The open file** | here |
+| [`amendments-2026-08-02.md`](docs/design/amendments-2026-08-02.md) — B1-B15, commonality through cascade amplification. **The open file** | here |
 | `crowdmon_step2_normalisation.md` — layer 2, proposed and measured, **not accepted** | `../cotdata/docs/design/` |
 | `cot_vintage.md` — the vintage store this reads | `../cotdata/docs/design/` |
 
@@ -156,6 +156,7 @@ src/crowdmon/
     extremity.py            §6.1 / A.4 vol-scaled positioning vs 3y of own history
     volume.py               A.5 denominator. `front` is whole-market, `reconstructed` is not
     composite.py            A.9 D = C x I x Phi. The whole system in one number
+    reflexivity.py          A.8 cascade. g is a STAIRCASE, and up/down never merge
     volume.py               whole-market ADV + A.5 stress V. Refuses anything but "front"
     pressure.py             A.5 exit capacity. T = Q/(kappa V) is a real duration now
 ```

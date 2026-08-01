@@ -419,3 +419,114 @@ here would have contaminated two of the four clean episodes to save them one com
 That is also the reason the pre-registration carries a deadline in its closing question. **The
 first session to score TFF for any purpose spends that cleanliness**, and it is currently the
 larger half of the only uncontaminated evidence this project has.
+
+---
+
+## B13. `l.g` grows as the square root of the pool, not linearly, and the linear reading invented a blow-up
+
+**Contradicts:** the §A.8 view as supplied, this file's own first draft of it, and a figure one
+session sent the other. Reproducer: `docs/analysis/reproduce.py` section 15.
+
+`l` is a secant on §A.5's square-root law, not a constant of the market:
+
+    l = I(Q)/Q = Y . sigma . sqrt(Q/V) / Q  =  Y . sigma / sqrt(Q.V)      so  l ~ Q^-1/2
+    g = Q/d                                                               so  g ~ Q
+    l.g ~ sqrt(Q) / d
+
+Measured: tripling the pool multiplies `l.g` by **1.7321**, which is `sqrt(3)` to four figures.
+
+The written-down version said "`P` scales `l.g` linearly". Under that reading gold's
+whole-gross case came out at `l.g = 1.231`, past 1, and was reported as **"no equilibrium"**.
+
+| gold reading | linear (wrong) | computed |
+|---|---|---|
+| 60d, pool = \|net\| | 0.058 | 0.049, 1.05x |
+| 20d cohort under the constraint | 0.410 | 0.347, 1.53x |
+| whole 3x gross pool at near distance | **1.231, no equilibrium** | **0.602, 2.51x** |
+
+**Nothing at gold crosses 1.** The cohort constraint still moves the headline by 64%, which is
+worth having, but the claim that getting it wrong produces a divergent cascade was an artifact
+of the linear assumption.
+
+Same correction to the trend fraction `f` (B8): the overstatement from attributing the whole
+net to trend cohorts is `1/sqrt(f)`, not `1/f`. At `f = 0.5` gold goes `0.602 -> 0.426` and
+2.51x -> 1.74x. **Milder than either session said**, in both directions.
+
+Worth naming the failure mode rather than only the number: an error that makes a risk measure
+look MORE alarming is the kind nobody double-checks. It survived being written into a handoff,
+a cross-session message and a module docstring before anyone computed it.
+
+---
+
+## B14. Which cascade step is worst is a race, and both written-down answers were wrong
+
+**Contradicts:** the §A.8 view (point 3) and the correction to it, which reached the right
+conclusion for GC and CL from a false premise. Reproducer: section 15.
+
+Two answers preceded the right one.
+
+1. **"Amplification grows as the move extends"**, because only the fastest slice of the pool is
+   in play near the first trigger. That counts only the numerator of a ratio.
+2. **"The nearest step is always the worst"**, because trigger distances grow faster than the
+   pool accumulates. **The premise is false.** Trigger distance is not monotonic in lookback:
+
+| | 20d | 60d | 250d |
+|---|---|---|---|
+| GC | **1.94%** | 13.71% | 13.44% |
+| ZC | 4.03% | 11.14% | **3.70%** |
+| CL | 19.60% | **13.86%** | 29.51% |
+
+ZC's 250-day trigger is its nearest and CL's 60-day is. A 20/60/250 ladder does not sit
+progressively further out, so the staircase must be sorted by distance rather than horizon.
+
+**The exact condition.** Since `l.g ~ sqrt(Q_cum)/d`, step `i` beats step `i+1` iff
+
+    d_(i+1) / d_i  >  sqrt( Q_(i+1) / Q_i )
+
+which under a uniform split is **1.414** at the first gap and **1.225** at the second. The
+nearer step wins only when the next trigger is more than 41% further out.
+
+**Measured within-direction across 33 markets: 6 of the 33 multi-step staircases peak PAST
+their nearest step.** 6E holds two up-triggers at a distance ratio of 1.005, far inside 1.414.
+So the headline is `max` over steps, not the nearest, and `headline` computes it.
+
+**The race is only ever run within a direction.** Pooling `up` and `down` into one
+distance-sorted ladder manufactures counterexamples that are artifacts of the pooling, because
+adjacent steps then belong to different cascades. ZC reads as a middle-step market exactly that
+way: its three steps sorted by distance are 250d-up, 20d-down, 60d-up, and it is monotone once
+separated. That mistake was made and caught during this work, which is why it is a test.
+
+A note on quoting: WHICH step wins is independent of the pool size, because
+`lg_2/lg_1 = sqrt(2) . d_1/d_2` and the net cancels. That is what makes the 6-of-33 count
+quotable without a real position per market. The amplification LEVELS are not net-independent,
+and an earlier draft quoted 6E levels computed against a placeholder net from a universe scan.
+Removed.
+
+---
+
+## B15. `sum(s) == 0` is reachable without touching the config, so the parity argument does not hold
+
+**Contradicts:** the claim that an odd lookback count structurally bars the zero-sum case.
+Reproducer: section 15.
+
+The measurement behind that claim stands: across 45 markets in the latest week the distribution
+of `sum(s)` is `{-3: 7, -1: 17, +1: 15, +3: 6}`, with no zeros. The inference does not.
+
+**Parity protects the count of CONTRIBUTING signals, not the length of `DEFAULT_LOOKBACKS`**,
+and two ordinary things reduce that count:
+
+- a **flat** lookback returns `signal = 0`, holds `w.P.s = 0` and contributes nothing
+- a lookback **longer than the price history** returns null
+
+Either leaves two contributing signals, and `(-1, +1)` sums to zero, making the implied gross
+pool infinite. A market with under 250 days of history reaches this with no configuration
+change at all. **Both cases arose by accident while writing the tests**, which is the evidence
+that they are ordinary rather than adversarial.
+
+So the sweep's clean result is a fact about 45 mature markets in one week, not a theorem, and
+the guard is load-bearing rather than defensive.
+
+**A live bug fell out of the same fact.** `trigger.format_block` tested `signal > 0` and sent
+everything else to "short, flips up", so a flat lookback rendered as a short whose trigger sits
+0.0% away, which reads as the most urgent row in a block when it is not a trigger at all. Its
+flip price is spot itself. Fixed, with a test.
