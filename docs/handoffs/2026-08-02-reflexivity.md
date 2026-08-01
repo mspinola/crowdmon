@@ -1,6 +1,6 @@
 # Handoff: §A.8 reflexivity, the cascade amplification factor
 
-**Status:** claimed, not started
+**Status:** **COMPLETE**, shipped as `futures/reflexivity.py`. See the closing section
 **Date:** 2026-08-02
 **Claimed by:** the session that built `trigger.py`, `composite.py`, `extremity.py`,
 `seasonal.py`, `concentration.py` and `weight_sensitivity.py`
