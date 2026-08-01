@@ -76,6 +76,31 @@ is exactly zero at the present date and back-adjusted volatility understates gol
 without ever producing an implausible number, so both are a `raise`, with the measured
 figures in the docstring and pinned by a live test.
 
+**The positioning engine is the first useful output and needs none of the modelling.**
+`extremity` standardises a market's positioning against its own trailing history,
+`concentration` reads the CFTC's own CR4/CR8 net shares, and `breadth` splits a change in
+position into how much came from more traders against bigger traders. Spec §13 calls this the
+step that earns its keep before any model, and it does: none of it consumes a price, a
+multiplier or a volatility. `seasonal` sits beside them for the ag markets whose positioning
+has a calendar, and `weight_sensitivity` exists because every fragility weight is judgement
+and a result that does not survive them moving is a result about `core/config.py`.
+
+**The composite is built, and it is the number the package exists to produce.**
+`add_composite` is §A.9's `D = C × I × Φ`, multiplicative so that a near-zero term carries the
+whole score toward zero, which is the thesis: a large position in a liquid market held by
+unconstrained hedgers is safe. Two readings of the formula had to be settled by measurement
+rather than by reading it again, and both are recorded in `docs/design/`. `Φ` enters as a
+percentile, following §A.9's preamble over its own formula, because the literal version
+correlates with `D` at **0.145** against 0.857 for `I`, so the term the package is named for
+almost disappeared.
+
+Two limits belong next to it rather than in a footnote. **`D` scores nothing before
+2010-05-25**, because `C = pct(z)` stacks two three-year windows, which puts the 2008 crisis
+permanently out of reach on this panel. And **`D` carries no first-moment content and must
+never be traded**: §A.10 is explicit that it estimates the shape of a conditional loss
+distribution and not its location. `tests/test_boundaries.py` is what stops that eroding by
+drift rather than by decision.
+
 **Exit capacity is a real duration now.** `T = Q / (κ·V)` was blocked on a volume source that
 turned out to have been in the store the whole time, under a `cotdata` parameter named
 `front` that reads like front-month and is whole-market. `futures/volume.py` supplies both a
@@ -99,6 +124,21 @@ sit at β 0.07-0.11, grains and energy at 0.95-1.02. But two findings mean §A.6
 bit-identical to `pct(T)`, because a percentile ignores a scalar multiple. `t_effective` is
 offered and deliberately not wired into `D`. See
 [amendments-2026-08-02.md](docs/design/amendments-2026-08-02.md).
+
+**The forced-seller model needed no estimate of CTA capital, which is why it exists.** §A.7
+models systematic position size as `q = s(F) · (σ_target/σ) · λ(Σ) · A`, and `A` is aggregate
+systematic capital calibrated against SG Trend or BTOP50. Neither index is in this workspace,
+so the whole section sat recorded as blocked. Three of those four terms are positive scalars,
+and a positive scalar moves neither where a signal crosses zero nor a proportional response.
+**The replication model exists to estimate other people's positions, and COT reports them
+weekly**, so `futures/trigger.py` uses the observed Managed Money net instead and reports, per
+market and horizon, the price at which the trend flips and how much is forced when it does.
+
+That was the **fourth** blocked-on row in the spec to prove stale, after volume, extremity and
+§A.10's returns, and three of the four were re-testable in under an hour. A blocker recorded
+once is rarely re-tested, which has now cost this project more time than any defect in the
+code. What is genuinely still absent is spec §9.2's first calibration target, a regression of
+modelled returns on SG Trend, declared rather than approximated.
 
 **The cascade has no single `g`, and asking which horizon to use was the wrong question.**
 §A.8 amplifies an initial liquidation by `1/(1 - λ·g)`, where `g` is the pool forced per unit
@@ -126,6 +166,37 @@ output. The tests are pre-registered in
 [docs/handoffs/2026-08-02-validation-prereg.md](docs/handoffs/2026-08-02-validation-prereg.md),
 which declares what has already been looked at and what is still clean, and is frozen awaiting
 a session that has written none of this.
+
+**Next for anyone who wants to build rather than judge**, checked against spec §13 rather than
+assumed: **step 5's cross-market engine is half unbuilt and is not blocked.** §13 step 5 asks
+for panel, **PCA** and **trend alignment**. The panel exists as `futures/commonality.py`;
+neither of the other two exists anywhere in `src/`, and neither needs data the workspace does
+not have.
+
+**Build the PCA the spec names, which is not the one nearest to hand.** §7's macro-book PCA
+runs on positioning **changes**, and reads PC1's variance share as the futures absorption ratio
+with loading rotation signalling the book being redefined. `commonality` builds an
+**illiquidity** panel, so a PCA over that is the closer object and answers a different
+question. Both are reachable, the positioning one from the same COT panel everything else
+consumes, but they are not interchangeable and only one of them is the absorption ratio.
+Trend alignment is reachable from the per-market, per-horizon signals `trigger` already
+computes.
+
+**Step 4 is two constraints, not one, and only one of them is blocked.** Treating them
+together is what kept the second sitting unbuilt.
+
+| §13 step 4 item | state |
+|---|---|
+| **limit moves** | **blocked on data.** No daily price limit table exists in `cotdata` or `marketdata`, and spec §3 says the source is "manually maintained" by nothing |
+| **roll congestion** | **not blocked.** `cotdata.roll_dates(symbol)` returns exact roll dates from the Delivery Month change, populated for every market checked with decades of depth |
+
+A per-expiry open-interest split, front against back, is genuinely absent. Roll congestion's
+useful question does not need it: `pressure` already says how many days the forced side needs
+to leave, and `roll_dates` says when the whole market has to move anyway, so whether an exit
+window collides with a roll is answerable today from two things already here.
+
+Step 7's report layer is buildable but is the last item, after validation, in the spec's own
+ordering.
 
 ```python
 from crowdmon.futures import decompose, fragility_frame, latest, top_by
