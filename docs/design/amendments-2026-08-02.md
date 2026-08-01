@@ -17,8 +17,9 @@ file it means; the next file takes `C`. Cross-file references still carry the da
 > before the `B` prefix landed. They are renumbered here so that "A1" means exactly one thing
 > across the whole directory. `6c2b488`'s commit message refers to them by the old labels.
 
-Figures below are reproduced by `docs/analysis/reproduce.py` (B1-B2),
-`docs/analysis/reproduce_seasonal.py` (B3-B7), or asserted in `tests/test_commonality_live.py`.
+Figures below are reproduced by `docs/analysis/reproduce.py` (B1-B2, B9-B12),
+`docs/analysis/reproduce_seasonal.py` (B3-B7), or asserted in `tests/test_commonality_live.py`
+and `tests/test_trigger_live.py`.
 
 ---
 
@@ -290,3 +291,131 @@ signal of +0.33, meaning spot above the median lookback price, alongside a trigg
 **above** spot. `trigger.py` uses `iloc[-1 - k]` and is correct;
 `test_the_flip_side_agrees_with_the_signal_it_derives_from` now pins it on 50-odd
 lookback-market pairs so it cannot regress silently.
+
+---
+
+> **B10 onward were measured on 2026-08-02**, not 08-01 like B1-B9 above, against
+> `COTDATA_STORE=~/code/cotdata_store`. They exist because writing §4, §5 and §7 of
+> [the validation pre-registration](../handoffs/2026-08-02-validation-prereg.md) required
+> measuring three things both sessions had been asserting.
+
+---
+
+## B10. The vintage store holds ZERO point-in-time observations, not one episode's worth
+
+**Contradicts:** both sessions, independently, and the first draft of the pre-registration's
+§4. Reproducer: `docs/analysis/reproduce.py` section 13.
+
+Both sessions measured that vintage report dates span 2025-01-07 to 2026-07-28 and concluded
+that **gold 2025 is point-in-time while the earlier episodes are not**. The span is right. The
+conclusion does not follow from it.
+
+| | measured |
+|---|---|
+| observations | 224,280 |
+| distinct keys | 224,280 |
+| **keys observed more than once** | **0** |
+| capture timestamps | 2026-07-31 and 2026-08-01 only |
+
+A report date records when the **CFTC measured a position**, not when this store first saw the
+value. All 82 report weeks were backfilled from current state this week, after every revision
+they have ever received. There is no as-published value for any week in the store, gold 2025
+included. Point-in-time coverage is **0 of 6** episodes, not 1 of 6.
+
+**The consequence that would otherwise be found by an evaluator, downstream, as a pass.**
+Module spec §10 asks that "vintage replay reproduces historical values exactly". With one
+observation per key an as-of replay at any date returns the same values **by construction**,
+so that test cannot fail. A test that cannot fail has not passed. It becomes executable once
+the store has sat through a revision, which needs releases after 2026-08-01 to accumulate.
+
+**And the release-date index, which is the whole reason `VintageCotSource` refuses report
+dates, is currently mostly a guess:**
+
+| release-date provenance | report weeks |
+|---|---|
+| `derived` (`report_date + 3d`, weekend-adjusted) | 51 |
+| `scheduled` (published calendar, not observed) | 29 |
+| `published` (observed) | **2** |
+
+cotdata's own `vintage_schedule` docstring says consumers "must be able to exclude `derived`
+rows from strict PIT evaluation". Under that strict reading the usable panel is **2 weeks of
+82**. This compounds the earlier shutdown finding rather than restating it: the Oct-Nov 2025
+shutdown was recorded as leaving that window `derived`, and `derived` in fact covers
+everything through November 2025.
+
+**Nothing here is a defect in cotdata.** `cot_vintage.md` §5.3 records that a store started
+late cannot reconstruct earlier vintages, and the vintage subsystem is doing exactly what it
+says. The error was ours, in reading a report-date range as a vintage range.
+
+---
+
+## B11. `kappa` cannot move `D`, for the same reason `gamma` cannot, and that was not known
+
+**Adds** to [§B2](#b2), which established that `gamma` cannot reach the composite. The same
+argument applies to `kappa` and had not been made. Reproducer: `reproduce.py` section 14.
+
+`T = Q / (kappa . V)` with a single global `kappa`, and `I = pct(T)` taken **within a market**.
+A percentile is invariant under any monotonic transform, and multiplying by a positive constant
+is one, so `kappa` cancels exactly.
+
+| `kappa` | max change in `I` |
+|---|---|
+| 0.2 -> 0.05 | **0.00e+00** |
+| 0.2 -> 0.4 | **0.00e+00** |
+| 0.2 -> 1.0 | **0.00e+00** |
+
+27,194 market-weeks, 27 markets. Not "small". Bit-identical, at a fourfold cut and a fivefold
+rise.
+
+`Y` does not reach `D` either, for a different and simpler reason: it never enters
+`add_composite` at all. The square-root law feeds the exit **cost** and `D`'s `I` term is the
+exit **duration**, which `2026-08-01 §A19` established are orthogonal.
+
+**So all three configured constants are invariant for `D`.** The three that are always cited
+as this system's judgement calls (`kappa` 0.2, `Y` 0.75, `gamma` 0.5, none of them fitted, one
+of them with no sanctioned range anywhere) **cannot change its headline output by any amount.**
+
+The warning worth carrying: this system percentile-ises within a market at three separate
+points, and a percentile eats any global positive scalar. A reader who does not notice will
+read a sensitivity null as a robustness result when it is an algebraic identity. What actually
+moves `D` is the fragility weight **ordering** (`2026-08-01 §A22`, inverted: 0 of the top 10
+survive) and the `phi_percentile` reading (`§A15`, which flips a conclusion).
+
+---
+
+## B12. Two of the four uncontaminated validation episodes are on TFF, which nobody has scored
+
+**Adds** the panel-reach measurement behind pre-registration §7.2. Nothing here contradicts a
+doc; it establishes something that was simply unknown when the clean set was named.
+
+The pre-registration's §2 lists Feb 2018, Aug 2024, silver 2021 and gold 2025 as never examined
+by either session. Whether they are **reachable** is a separate question and was not checked.
+
+| episode | needs | in the Disaggregated panel? | in TFF? |
+|---|---|---|---|
+| Feb 2018 vol unwind | equity index | no | **yes**: ES, NQ, RTY, YM, EMD |
+| Aug 2024 yen carry | JPY | no | **yes**: 6J, NKD |
+| silver 2021 | SI | yes | n/a |
+| gold 2025 | GC | yes | n/a |
+
+The scored panel is **27 Disaggregated commodity markets**, and it holds no equity index, no FX
+and no rates, so half the clean set is out of its reach.
+
+**TFF reaches back as far as Disaggregated does, which the existing TFF analysis does not say.**
+[`2026-07-28-tff-financial-futures.md`](../analysis/2026-07-28-tff-financial-futures.md) reports
+"111 over the panel (2025-01-07 onward)", which is the **vintage** panel. Measured against the
+current store, `from_current_store(report_type="tff")` returns **110,915 rows over 24 markets
+from 2006-06-13**, the same start date as Disaggregated. That is not a correction to the TFF
+document, which was reporting the vintage universe it was written about, but it is a fact that
+document does not carry and that the clean set depends on.
+
+**Inputs verified present, end-to-end run not verified.** 22 of the 24 TFF markets carry a
+`ContractMaster` symbol (the two misses are the NYSE Liffe MSCI minis). All 21 checked have
+`unadj` and `propadj` prices with volume, starting between 1979 and 2021, comfortably before
+`D`'s 2010-05-25 floor. **`add_composite` has never been run on TFF** and this session
+deliberately did not run it: scoring TFF is the first thing the §7 evaluator does, and doing it
+here would have contaminated two of the four clean episodes to save them one command.
+
+That is also the reason the pre-registration carries a deadline in its closing question. **The
+first session to score TFF for any purpose spends that cleanliness**, and it is currently the
+larger half of the only uncontaminated evidence this project has.

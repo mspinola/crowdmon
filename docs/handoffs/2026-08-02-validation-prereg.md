@@ -1,7 +1,9 @@
 # Handoff: pre-registration for §10 validation, to be executed by a cold session
 
-**Status:** open, jointly drafted, **sections 4, 5 and 7 reserved for the commonality/impact
-session**. §8 decided by the human.
+**Status:** **complete and frozen, awaiting execution.** Jointly drafted: §2 and §6 by the
+composite author, §4, §5 and §7 by the commonality/impact session, §8 by the human.
+**Frozen means frozen:** §7 is a pre-registration, so amending it after a result is seen
+destroys the only thing it was for. Append an outcome section instead.
 **Date:** 2026-08-02
 **Lives:** here, permanently. **Runs:** in `npf`, through `crucible`. See §8.
 **Target:** a session that has written none of this package
@@ -89,8 +91,8 @@ the answer flip sign.
 | §1 why neither builder executes | both, agreed | done |
 | **§2 declared priors** | **composite author** | only they know what was looked at |
 | **§6 reading instructions** | **composite author** | findings about modules they built |
-| §4 data availability | commonality/impact session | measured it, reserved below |
-| §5 inputs inventory | commonality/impact session | reserved below |
+| §4 data availability | commonality/impact session | measured it. **Done, and it overturned the shared premise** |
+| §5 inputs inventory | commonality/impact session | done |
 | **§7 test specification and thresholds** | **commonality/impact session** | **uncontaminated by §2** |
 | §8 where this lives, where it runs | **decided by the human**, see §8 | not either session's call |
 
@@ -99,25 +101,134 @@ specifies the tests. Neither runs them.
 
 ---
 
-## 4. Data availability (RESERVED)
+## 4. Data availability
 
-*For the session that measured it. Their figure, verified independently here: the vintage
-store spans 2025-01-07 to 2026-07-28, so of §10's replay list only **gold 2025** is
-point-in-time. Feb 2018, Mar 2020, silver 2021, ags 2021 and the Aug 2024 yen carry all
-replay current-state data with revisions applied and no as-of protection, which
-`cot_vintage.md` §5.3 records as permanent rather than a gap to fill. §10's mechanical test
-"vintage replay reproducing historical values exactly" can only run from 2025 onward.*
+Reproducer: `docs/analysis/reproduce.py` section 13, against `COTDATA_STORE` as of
+2026-08-02. Detail in [`2026-08-02 §B10`](../design/amendments-2026-08-02.md).
+
+### The figure both sessions were quoting is right and does not mean what we said
+
+Report dates do span 2025-01-07 to 2026-07-28, 82 weeks. From that both sessions concluded
+that **gold 2025 is point-in-time and the other episodes are not**. That conclusion is wrong,
+and the corrected version is worse for the evaluator, so it must not be discovered downstream.
+
+| | measured |
+|---|---|
+| observations | 224,280 |
+| distinct keys | 224,280 |
+| **keys observed more than once** | **0** |
+| capture timestamps | 2026-07-31 and 2026-08-01, two backfills |
+
+**Every key in the store has exactly one observation, and all of them were taken this week.**
+A report date reaching back to January 2025 records when the CFTC measured the position, not
+when this store first saw the value. All 82 weeks were read from current state, after every
+revision they have ever received.
+
+So there is **no as-published value for any week, gold 2025 included**. The store holds one
+vintage and it is today's. Point-in-time coverage is not 1 episode of 6. It is **0 of 6**.
+
+### What that does to §10's mechanical test
+
+§10 asks that "vintage replay reproduces historical values exactly". With one observation per
+key, an as-of replay at *any* date returns the same values by construction, so that test
+**passes trivially and demonstrates nothing**. It cannot fail today, which is the same thing
+as saying it cannot pass today.
+
+**Do not mark it passed. Defer it with a date.** It becomes a real test the first time a key
+carries two observations with different values, which requires the store to sit through a
+revision. Forward accumulation begins with the first weekly release after 2026-08-01.
+
+### The release-date index is mostly a guess
+
+`VintageCotSource` indexes on release date rather than report date, deliberately, because a
+Tuesday report date embeds a three-day lookahead. That index is currently:
+
+| release-date provenance | report weeks |
+|---|---|
+| `derived` (report_date + 3d, weekend-adjusted, **a guess**) | 51 |
+| `scheduled` (from a published calendar, not observed) | 29 |
+| `published` (observed) | **2** |
+
+cotdata's `vintage_schedule` docstring is explicit that `derived` is "the fallback" and that
+consumers "must be able to exclude `derived` rows from strict PIT evaluation". Under that
+strict reading the usable panel is **2 report weeks of 82**.
+
+This compounds the earlier shutdown finding rather than restating it. The Oct-Nov 2025
+shutdown was recorded as leaving that window `derived`; the measurement here is that
+`derived` covers everything through November 2025, not only the shutdown.
+
+### What is therefore available, and what an evaluator should do with it
+
+- **Available:** the full current-state panel, 27 markets from 2006, which is what every
+  figure in `docs/analysis/` was computed on. `D` itself scores nothing before **2010-05-25**,
+  because `C = pct(z)` stacks two three-year windows (`2026-08-01 §A16`). The 2008 GFC is
+  unreachable and no amount of vintage accumulation changes that.
+- **Not available, permanently:** as-published values before 2026-07-31. `cot_vintage.md` §5.3
+  records this as a property of starting a vintage store late, not a gap to be filled.
+- **Not available, temporarily:** as-published values from 2026-08-01 forward, which accrue
+  one week at a time.
+
+Consequence for §7: **every episode test is a current-state test**, and the size of the
+resulting contamination is **not measurable in this store**, because measuring it needs the
+revisions that have not been recorded. It would be easy to write "COT revisions are small"
+here. There is no reproducer for that claim in this workspace, so it is not written here.
 
 ---
 
-## 5. Inputs inventory (RESERVED)
+## 5. Inputs inventory
 
-*For the same session. The point an evaluator most needs: which of the configured constants to
-vary, and which variations are known to matter. `kappa` 0.2 and `Y` 0.75 have sanctioned
-ranges; `gamma` has none anywhere in the appendix; the five fragility weights are judgement.
-`2026-08-01 §A22` measured that rankings survive the weight VALUES (±0.15 order-preserving
-jitter keeps 7-10 of the top 10) and correctly do not survive their ORDERING (inverted: 0 of
-10), so an evaluator varying the wrong one learns nothing.*
+Reproducer: `docs/analysis/reproduce.py` section 14. Detail in
+[`2026-08-02 §B11`](../design/amendments-2026-08-02.md).
+
+### The headline: none of the three configured constants can move `D`
+
+This is the sensitivity analysis an evaluator would reach for first, and it is already done,
+with a null result. Spending a day on it would produce three columns of zeros.
+
+| constant | value | sanctioned range | can it move `D`? | why |
+|---|---|---|---|---|
+| `kappa` | 0.2 | conventional | **no**, measured `0.00e+00` | `T = Q/(kappa.V)`, and `I = pct(T)` **within a market**, so a global `kappa` is a positive scalar under a monotonic transform |
+| `Y` | 0.75 | `Y_RANGE = (0.5, 1.0)` | **no**, structurally | `Y` never enters `add_composite`. It feeds exit COST; `D`'s `I` is exit DURATION (`2026-08-01 §A19`) |
+| `gamma` | 0.5 | **none, anywhere** | **no**, measured `0.00e+00` | `T_eff = T.(1 + gamma.beta_bar)`, same invariance (`2026-08-02 §B2`) |
+
+`kappa` measured over 27,194 market-weeks on 27 markets, at 0.05, 0.4 and 1.0 against the
+configured 0.2. Not "small". Bit-identical, at a fivefold cut and a fivefold rise.
+
+**The `gamma` result was known and the `kappa` result was not**, and they are the same
+argument. That is the warning worth passing on: this system percentile-ises within a market
+at three separate points, and a percentile eats any global positive scalar. An evaluator who
+does not notice will read a null as a robustness result when it is an algebraic identity.
+
+### What does move `D`
+
+| input | where | known effect |
+|---|---|---|
+| **fragility weight ORDERING** | `core/config.py` | inverted: **0 of the top 10** survive (`2026-08-01 §A22`) |
+| fragility weight VALUES | `core/config.py` | +/-0.15 order-preserving jitter keeps **7-10 of the top 10**. Robust |
+| **`phi_percentile`** | `add_composite(...)` | flips the March 2020 reading from 1.18x to 0.76x. See §2 |
+| `window` / `min_periods` | `1095D` / 104 | sets the 2010-05-25 floor. Shortening it buys history and costs baseline |
+
+The weights are five numbers with argued rationales, not fitted values, and `config.py` says
+so at length. **Vary their order, not their magnitude.** The magnitude question is answered.
+
+### The rest of the surface, for completeness
+
+Configured elsewhere, none of it swept, all of it defensible-by-default rather than measured:
+
+| where | constants |
+|---|---|
+| `futures/riskunits.py` | vol window 63, min periods 42, `MAX_NONPOSITIVE_RATE` 0.01, staleness 5d |
+| `futures/volume.py` | ADV window 252, stress lookback 1260, stress decile 0.10, min periods 60/20 |
+| `futures/commonality.py` | lambda window 21, beta window 252, min obs 500 |
+| `futures/impact.py` | Amihud window 252, min periods 60 |
+| `futures/trigger.py` | lookbacks (20, 60, 250), pool category `managed_money` |
+| `core/config.py` | `DOMINANCE_TOLERANCE` 0.25 (swept: `flow.tolerance_sensitivity`), `GAP_DAYS_TOLERANCE` 0 |
+
+**Three series choices are not parameters and must not be swept as though they were.**
+`notional` requires `unadj`, `riskunits` and `volume` require `propadj`, `trigger` requires
+`propadj`. Each refuses the others and each refusal carries a measured number
+(`2026-08-01 §A8`, `§A9`, `§A20`, `2026-08-02 §B9`). An evaluator "testing robustness" by
+swapping a series is not perturbing an assumption, it is introducing a known defect.
 
 ---
 
@@ -145,11 +256,132 @@ Plus the scope limit: **`D` scores nothing before 2010-05-25** on a 27-market pa
 
 ---
 
-## 7. Test specification (RESERVED)
+## 7. Test specification
 
-*For the commonality/impact session, per §3. Should specify, before any further looking: which
-episodes, which windows, which statistic, which thresholds, what counts as a pass, and how the
-contaminated episodes in §2 are handled differently from the clean ones.*
+**Written 2026-08-02 by the commonality/impact session, before computing any statistic below.**
+
+### 7.0 This session's own contamination, declared
+
+§3 assigned this section here because this session had not seen the episode results. **It has
+now read §2**, so March 2020 is no longer clean for this author either. That cannot be undone,
+so it is handled structurally rather than apologised for:
+
+**The test form is fixed on episodes neither session has looked at, and then applied to the
+contaminated ones with zero free parameters.** Every window length, gap, statistic and
+threshold below is chosen against the clean set in §7.2 and is not permitted to change when it
+reaches §7.3. If a contaminated episode wants a different window to look good, it does not get
+one.
+
+### 7.1 The claim under test
+
+Module spec §10: `D` is elevated **before** a forced-exit episode. Per §6.1, `D` falls
+*during* the unwind and that is correct, so the test window ends before the event, and a test
+of the event window itself would test the opposite of the claim.
+
+### 7.2 The clean set, and what it is measured on
+
+Established this session (reproducer: `reproduce.py` section 13 for the vintage figures,
+and the panel/price checks in [`2026-08-02 §B12`](../design/amendments-2026-08-02.md)):
+
+| episode | window | panel | markets, **fixed here and not to be revised** | direction |
+|---|---|---|---|---|
+| Feb 2018 vol unwind | 2018-02-05 | **TFF** | ES, NQ, RTY, YM, EMD | `D_sell` |
+| Aug 2024 yen carry | 2024-08-05 | **TFF** | 6J, NKD | `D_buy` |
+| Silver squeeze | 2021-02-01 | Disagg | SI | `D_buy` |
+| Gold 2025 | 2025-04-22 | Disagg | GC | `D_sell` |
+
+Two of the four are on **TFF, which has never been scored by either session.** The composite
+analysis is Disaggregated only. The inputs exist: 22 of 24 TFF markets carry a `ContractMaster`
+symbol, and all 21 checked have `unadj` and `propadj` prices with volume, back to 1979-2005,
+well before `D`'s 2010 floor. **What has not been verified is that `add_composite` runs on
+TFF end to end.** That is the evaluator's first task, and if it does not run, that is a
+finding to report rather than a reason to drop the two clean episodes.
+
+The two `D_buy` entries matter disproportionately: §2 records that **no episode has ever been
+examined on the buy side**, so those two are the least contaminated evidence available.
+Direction is set by who gets forced, not by which way price moved: a yen-carry unwind and a
+silver squeeze both force **buying**, so both take `D_buy`.
+
+### 7.3 The contaminated set, run identically
+
+| episode | window | markets | direction | §2 prior |
+|---|---|---|---|---|
+| March 2020 | 2020-02-24 | all 27 Disagg | `D_sell` | seen, 1.18x raw / **0.76x** shipped |
+| 2021 ags / lumber | 2021-04-01 | ZC, ZW, ZS, ZM, ZL, LBR | `D_sell` | seen, 1.65x |
+| 2022 invasion | 2022-02-24 | ZW, CL, NG | `D_sell` | seen, 1.88x |
+
+**Reported as replication, never as evidence.** These three do not enter the pass criterion in
+§7.5 at any weight. They are run because a form that works on the clean set and fails here is
+informative in the other direction, and because refusing to run them would let a reader assume
+they were tried and hidden.
+
+### 7.4 The statistic
+
+1. **Unit of observation: one number per (market, episode).** Not per week. §6.3 measures that
+   exceedances cluster (mean run 4.8 weeks, 57.6% of hot weeks inside runs of 8 or more), so a
+   week-level test would overstate its sample by roughly five times. Collapsing to one number
+   per market-episode removes the problem rather than correcting for it.
+2. **Lead-in window: the 13 report weeks ending 14 days before the episode date.** One quarter,
+   with a two-week gap so a slow-forming event cannot leak into its own predictor.
+3. **Per-unit statistic:** the **median** of `damage_{side}_pct` over those 13 weeks. Median,
+   not mean, because `D` is already a percentile and a single spike should not carry a quarter.
+4. **Reference distribution:** the same market's `damage_{side}_pct` over all weeks at least 26
+   weeks away from *any* episode in §7.2 or §7.3, **block-bootstrapped in 13-week blocks**,
+   10,000 draws, `seed=20260802`. Blocks preserve the persistence in §6.3; an IID bootstrap
+   would not.
+5. **Pooled statistic:** the unweighted mean of the per-unit medians across the 9 clean
+   (market, episode) pairs. Unweighted, because weighting by open interest would make Feb 2018
+   a test of ES alone.
+6. **p-value:** the fraction of bootstrap draws whose pooled statistic is at least the observed.
+
+### 7.5 Pass criteria, committed before looking
+
+| outcome | criterion |
+|---|---|
+| **supported** | pooled p < 0.05 **and** at least 6 of the 9 clean units have a lead-in median above 0.50 |
+| **contradicted** | pooled median at or below 0.50, or 5 or more of 9 units below it |
+| **uninformative** | anything else, including p between 0.05 and 0.20 |
+
+**Both halves are required.** The p-value alone can be carried by one market inside one
+episode, which is exactly the failure §6.2 warns about in a different guise.
+
+**Pre-committed statement about power, so a null is not over-read.** Nine correlated units
+across four episodes is a small test, and it is the largest clean test this data admits. A
+`supported` verdict here is weak positive evidence, not a `REAL` pillar. **`uninformative` is
+the most likely outcome and is not a failure of the measure.** Recording that in advance is
+the point of pre-registering it.
+
+### 7.6 What is forbidden
+
+Each of these turns the test into a restatement of its own inputs.
+
+- **Selecting affected markets by looking at `D`.** The lists in §7.2 and §7.3 come from the
+  public description of each episode and are frozen. Add nothing.
+- **Adding episodes.** §10's replay list plus nothing.
+- **Using `D_sell` for a squeeze**, or `D_buy` for a long unwind. Direction is fixed above.
+- **Swapping a price series** to test robustness. Per §5 those are not parameters, and each
+  substitution introduces a defect with a measured magnitude.
+- **Sweeping `kappa`, `Y` or `gamma`.** Per §5 they cannot move `D`, measured at `0.00e+00`.
+  Vary the fragility weight **ordering** and the `phi_percentile` reading instead.
+- **Treating report weeks as independent.**
+
+### 7.7 crucible integration
+
+Under npf governance the denominator is the whole search, so the count is stated here rather
+than reconstructed later. The primary run is **one variant**: the single form in §7.4. Every
+robustness run (window 9 or 17 weeks, gap 0 or 28 days, mean instead of median, block length 8
+or 21, `phi_percentile=False`) is a **further variant and must be counted in the
+`SearchSpaceLog`** whether or not it is reported. That is **11 variants** if the full
+robustness set is run, and the evaluator must pass the log itself to
+`run_gauntlet(..., n_variants=log)` rather than a hand-written integer.
+
+### 7.8 Deferred, with a reason and a date
+
+Per §4, §10's mechanical test that "vintage replay reproduces historical values exactly"
+**passes trivially today** because no key has been observed twice. Do not record it as passed.
+It becomes executable once the store has sat through a revision, which needs weekly releases
+after 2026-08-01 to accumulate. Re-check no earlier than **2026-11-01**, by which point roughly
+13 releases will have landed.
 
 ---
 
@@ -183,7 +415,20 @@ Consequences for the evaluator:
 
 ## Open questions for the human
 
-1. **Does the split in §3 stand?** It inverts the first proposal deliberately.
+1. ~~Does the split in §3 stand?~~ **Accepted by the commonality/impact session**, with the
+   contamination it introduces declared in §7.0 rather than argued away.
 2. ~~Where does this document live once complete?~~ **Answered, §8.**
-3. **Is §10 validation even next**, or does `2026-08-02-reflexivity.md` (§A.8, claimed, not
-   started, blocked on a horizon decision) go first?
+3. ~~Is §10 validation even next?~~ **They are parallel**, and neither blocks the other. §A.8
+   is the composite author's and its horizon blocker is answered in
+   [`2026-08-02-reflexivity.md`](2026-08-02-reflexivity.md). This document is finished and
+   waiting on a session that neither of us can supply.
+
+### The one thing still needing a decision
+
+**Who is the cold session, and when.** This pre-registration is frozen as of 2026-08-02, and
+a frozen prereg decays: every further week of building in this package is another week of
+findings the eventual evaluator will have read before running §7. Two of the four clean
+episodes rest on TFF, which nobody has scored yet, and **the first session to score TFF spends
+that cleanliness**. If §7 is not going to be executed reasonably soon, say so, because the
+honest alternative is to score TFF for other purposes and record here that the clean set
+shrank to two Disaggregated episodes.
