@@ -713,6 +713,33 @@ def roll_dates_coverage() -> None:
     print("  Same store, same function, 0% and 100%. A universe-wide zero is a bug in the")
     print("  call before it is a fact about the data.")
 
+    # A ladder rather than one step: the field is `internal`, not `symbol`, so the obvious
+    # correction to the silent case is the loud one and rescues by accident.
+    try:
+        symbols[0].symbol
+        guess = "no error (unexpected)"
+    except AttributeError as exc:
+        guess = f"AttributeError: {exc}"
+    print(f"\n  s.symbol   -> {guess}")
+    print("  s.internal -> correct. The silent call is the one written first.")
+
+    # The adjustment argument, which is the one place in this package a default series is safe.
+    identical = differing = 0
+    for sym in symbols:
+        series = [cotdata.roll_dates(sym.internal, adj)
+                  for adj in ("backadj", "unadj", "propadj")]
+        if all(len(s) == 0 for s in series):
+            continue
+        if series[0].equals(series[1]) and series[0].equals(series[2]):
+            identical += 1
+        else:
+            differing += 1
+    print(f"\n  roll dates identical across backadj/unadj/propadj : {identical}")
+    print(f"  differing                                         : {differing}")
+    print("  Rolls come from the Delivery Month column changing, and adjustment rescales")
+    print("  bars without moving a delivery month. Safe by construction, not by luck, and")
+    print("  only while rolls are derived that way rather than inferred from price gaps.")
+
 
 if __name__ == "__main__":
     main()

@@ -588,3 +588,36 @@ The docstring's stated empty case ("the producer did not carry Delivery Month") 
 accounts for `MME` and `MFS`. It is indistinguishable from the wrong-type case, which is what
 makes the failure quiet. **Pass `s.internal`, and treat a universe-wide zero as a bug in the
 call before believing it about the data.**
+
+The field is `internal`, not `symbol`, which makes this a ladder rather than one step:
+
+| what you pass | what happens |
+|---|---|
+| the `Symbol` namedtuple | **silent, 0 rolls** |
+| `s.symbol` | loud `AttributeError` |
+| `s.internal` | correct |
+
+The call anyone writes first is the silent one, and the obvious correction to it is the loud
+one, so a session that hits the trap and then guesses is rescued by accident rather than by
+understanding. That changes what "I tried unwrapping it" is worth as evidence.
+
+### The `adjustment` argument is the one place a default series is safe
+
+`roll_dates(symbol, adjustment="backadj")` inherits a series the way three other call sites in
+this package must not. Measured across the registry:
+
+| | |
+|---|---|
+| identical across `backadj` / `unadj` / `propadj` | **47 of 47** |
+| differing | **0** |
+
+**The reason matters more than the count.** Roll dates come from the Delivery Month column
+changing, which is a property of the contract calendar. Price adjustment rescales bars; it does
+not move a delivery month. So the default is harmless here by construction rather than by luck.
+
+Recorded precisely **because it is the exception.** Four separate failures in this package have
+been the wrong series (notional's levels, riskunits' returns, impact's dollar volume, trigger's
+distance), so "check the series" is now the standing instinct and a session taking roll
+congestion would otherwise spend real effort re-deriving this. The safety is **conditional**:
+it holds while rolls are derived from Delivery Month, and would stop holding the day an
+implementation inferred them from price gaps instead.
