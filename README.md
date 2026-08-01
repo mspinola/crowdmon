@@ -100,7 +100,32 @@ bit-identical to `pct(T)`, because a percentile ignores a scalar multiple. `t_ef
 offered and deliberately not wired into `D`. See
 [amendments-2026-08-02.md](docs/design/amendments-2026-08-02.md).
 
-Next: §A.7's forced-seller model and trigger solver, the last large unbuilt piece.
+**The cascade has no single `g`, and asking which horizon to use was the wrong question.**
+§A.8 amplifies an initial liquidation by `1/(1 - λ·g)`, where `g` is the pool forced per unit
+price move. Both obvious readings divide the whole observed net by one horizon's trigger
+distance, which assumes every holder runs that horizon and moves gold's `λ·g` from 0.06 to 0.4
+depending which you pick. `futures/reflexivity.py` makes `g` a **signed staircase** over price
+distance instead, so the two readings become the bracket rather than rivals.
+
+`g_up` and `g_down` are separate and are never summed: 23 of 33 markets have horizons pointing
+different ways at once, so at gold a rally forces the short slice to cover while a selloff
+forces the long slice to liquidate. Two cascades, opposite directions, different distances.
+Netting them would report a market with two live cascades as quieter than one with none.
+
+Two things about it are worth knowing before reading a number. Cohort sizes are unknown but
+**constrained**, because they must reproduce the observed net, which makes the implied gross
+pool 3x the net wherever the horizons disagree and equal to it where they do not. And the
+worst step is a **race** rather than always the nearest one: `λ·g ~ √Q/d`, so a nearer step
+wins only when the next trigger is more than 41% further out, and 6 of 33 multi-step
+staircases peak past their nearest. The headline is the max over steps, not the first.
+
+Next: **§10 validation, which by design does not happen here.** Every engine in the package
+was written by the two sessions active on 2026-08-01 and 08-02, and `tests/test_boundaries.py`
+refuses an import of `crucible` precisely so a verdict cannot be rendered on this package's own
+output. The tests are pre-registered in
+[docs/handoffs/2026-08-02-validation-prereg.md](docs/handoffs/2026-08-02-validation-prereg.md),
+which declares what has already been looked at and what is still clean, and is frozen awaiting
+a session that has written none of this.
 
 ```python
 from crowdmon.futures import decompose, fragility_frame, latest, top_by
