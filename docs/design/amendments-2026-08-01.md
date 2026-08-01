@@ -228,7 +228,7 @@ these are cheaper than they look:
 | A.4 | ~~extremity, rolling 3y z-score of vol-scaled notional~~ | **built 2026-08-01**, see [A10](#a10-winsorising-damages-extremity-and-the-appendix-is-right-not-to-ask-for-it) |
 | A.5 | ~~stress-conditioned `V`, the volume-spike trap, `T = Q/(kappa V)`~~ | **built 2026-08-01**, see [A13](#a13-volume-was-in-the-store-all-along-under-a-parameter-named-for-the-front-month) |
 | A.5 | ~~square-root impact `I = Y σ sqrt(Q/V)`, Amihud `Λ`~~ | **built 2026-08-01**, see [A19](#a19-exit-cost-and-exit-duration-rank-markets-almost-independently) |
-| A.6 | liquidity commonality `β̄`, `T_eff = T(1 + γβ̄)` | ~~volume~~ nothing, see A13 |
+| A.6 | ~~liquidity commonality `β̄`, `T_eff = T(1 + γβ̄)`~~ | **built 2026-08-01.** It cannot feed §A.9 as written, see [2026-08-02 §A1-A2](amendments-2026-08-02.md) |
 | A.7 | forced-seller model and trigger solver | prices + a CTA replication model |
 | A.8 | reflexivity amplification `1/(1 - ℓg)` | A.5 and A.7 |
 | A.9 | ~~the composite `D = C x I x Φ`~~ | **built 2026-08-01**, see [A15](#a15-taking-a9-literally-leaves-phi-doing-almost-none-of-the-work). Uses `T`, not `T_eff` |

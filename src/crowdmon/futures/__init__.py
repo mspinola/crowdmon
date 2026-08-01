@@ -44,6 +44,17 @@ beside `notional` rather than in `crowdmon.core`: it is a fact about futures
 continuous-contract construction, not a general one.
 """
 from .breadth import decompose_breadth
+from .commonality import (
+    COMMONALITY_COLUMNS,
+    DEFAULT_GAMMA,
+    CommonalityError,
+    add_commonality,
+    commonality_betas,
+    gamma_sensitivity,
+    illiquidity_panel,
+    rolling_betas,
+    t_effective,
+)
 from .composite import (
     COMPOSITE_COLUMNS,
     CompositeError,
@@ -172,6 +183,11 @@ __all__ = [
     "exit_pressure", "rank_markets", "top_by",
     # exit COST, distinct from exit duration. A.9's composite term is pct(T_eff), which is
     # `T`; this is A.5's square-root law and is reported beside it, not inside D.
+    # A.6 commonality. NOT wired into the composite: with a constant beta_bar, pct(T_eff)
+    # is bit-identical to pct(T), so wiring it is a decision about what A.9's I should be.
+    "illiquidity_panel", "commonality_betas", "rolling_betas", "t_effective",
+    "add_commonality", "gamma_sensitivity", "CommonalityError", "COMMONALITY_COLUMNS",
+    "DEFAULT_GAMMA",
     "add_impact", "amihud_series", "impact_coverage", "IMPACT_COLUMNS",
     "DEFAULT_AMIHUD_WINDOW", "sigma_series",
     # the denominator of T = Q/(kappa V). `VOLUME_SERIES` is "front" and is WHOLE-MARKET;

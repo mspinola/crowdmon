@@ -14,7 +14,8 @@ keystroke (workspace governance: never drafted in an agent scratchpad).
 |---|---|---|
 | [`crowdmon_plain_language_summary.md`](crowdmon_plain_language_summary.md) | **here** | the argument in prose, and the **authoritative appendix** (§A.1-A.11). Every formula in the package is defined here |
 | [`crowdmon_futures_cot_module.md`](crowdmon_futures_cot_module.md) | **here** | full system description v0.1, and the §13 build order. The primary spec |
-| [`amendments-2026-08-01.md`](amendments-2026-08-01.md) | **here** | what the layer-3 build measured that the two above get wrong. **Read alongside them, not after** |
+| [`amendments-2026-08-01.md`](amendments-2026-08-01.md) | **here** | what the layer-3 build measured that the two above get wrong. **Read alongside them, not after**. Closed, A1-A22 |
+| [`amendments-2026-08-02.md`](amendments-2026-08-02.md) | **here** | commonality: why §A.6 is vacuous unless the own market is excluded, and why it cannot reach §A.9 |
 | `crowdmon_step2_normalisation.md` | cotdata | contract master and normalisation: **proposed and measured, not accepted**. Read before starting layer 2 |
 | `cot_vintage.md` | cotdata | the vintage store this package reads. §9 records two adversarial reviews and one deliberately unmet acceptance criterion |
 
