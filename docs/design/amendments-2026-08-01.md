@@ -642,3 +642,48 @@ not a defect.
 **None of the above is a validation.** Hand-chosen windows, computed after the fact, by the
 session that wrote the measure, on three reachable episodes. A real validation is
 pre-registered and runs through `crucible`.
+
+## A18. Concentration risk is a power and REC phenomenon, not a commodities one
+
+**Adds** a measurement behind module spec §6.2, which introduces CR4/CR8 as "the metric set
+that COT gives away free" and does not say what it shows. Published in every Disaggregated
+and TFF file, **zero percent null across twenty years and all 279 markets**, and unused until
+2026-08-01.
+
+**Measured** on the latest week, CR4 on the more concentrated side:
+
+    median 53.8    10th 29.4    90th 78.3    max 100.0
+
+Four traders hold a median 53.8% of one side. The maximum is not a rounding artifact: in NJ
+RECs Class 2 V2026 four traders hold the **entire** net short side.
+
+**But the classic outrights are all diffuse**, and none is in the crowded-and-forceable cell:
+
+| market | CR4 | quadrant |
+|---|---|---|
+| WHEAT-SRW | 8.6 | broad_and_forceable |
+| CORN | 9.8 | broad_and_forceable |
+| CRUDE OIL | 13.7 | diffuse_and_patient |
+| SOYBEANS | 15.6 | broad_and_forceable |
+| GOLD | 34.5 | broad_and_forceable |
+
+Of the 64 markets that are both concentrated and fragile (both above the week's cross-
+sectional median), **55 (86%) are ICE Energy Division or Nodal Exchange**, topped by renewable
+energy certificates. Six sit on the classic exchanges.
+
+This is the third finding pointing at the same gap. The fragility weights were written for
+Disaggregated commodity categories, and the ICE/Nodal universe is 76% of the report
+([A5](#a5-the-disaggregated-universe-is-mostly-power-and-gas-basis)). Whether "forceable"
+means anything for an entity with a statutory delivery obligation is a question §6.3's weights
+were never designed to answer.
+
+**CR4 also falls with market size** (median 61.8 in the smallest open-interest quartile
+against 36.0 in the largest), so a raw cross-market CR ranking is close to a ranking on
+smallness and needs either a size control or the against-own-history form.
+
+**Levels and history say opposite things**, which is the practical consequence. Soybeans at
+CR4 15.6 is diffuse in absolute terms and sits at the **98th percentile of its own three
+years**; a REC market at 100.0 is extreme absolutely and ordinary against itself. Five of the
+six markets currently most extreme against own history are ags on the short side, which is
+exactly the shape module spec §5.4 warns will appear as a seasonal artifact. Seasonal
+adjustment is still unbuilt, so that reading is unresolved.

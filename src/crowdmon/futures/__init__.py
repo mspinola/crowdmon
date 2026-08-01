@@ -51,6 +51,14 @@ from .composite import (
     damage_report,
     top_damage,
 )
+from .concentration import (
+    CONCENTRATION_COLUMNS,
+    ConcentrationError,
+    add_concentration_extremity,
+    concentration_vs_fragility,
+    market_concentration,
+    quadrant,
+)
 from .contract_master import (
     CONTRACT_COUNT_COLUMNS,
     SPEC_COLUMNS,
@@ -132,6 +140,9 @@ __all__ = [
     "add_risk_units", "risk_coverage_report", "RiskUnitsError", "RISK_COLUMNS",
     "RISK_ADJUSTMENT", "DEFAULT_VOL_WINDOW", "DEFAULT_MIN_PERIODS",
     # engines
+    "market_concentration", "add_concentration_extremity",
+    "concentration_vs_fragility", "quadrant", "ConcentrationError",
+    "CONCENTRATION_COLUMNS",
     "add_composite", "damage_report", "top_damage", "CompositeError",
     "COMPOSITE_COLUMNS",
     "add_extremity", "extremity_report", "latest_extremes", "ExtremityError",
