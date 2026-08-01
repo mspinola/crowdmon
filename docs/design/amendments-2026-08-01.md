@@ -209,8 +209,9 @@ these are cheaper than they look:
 | § | Not built | Blocked on |
 |---|---|---|
 | A.4 | ~~extremity, rolling 3y z-score of vol-scaled notional~~ | **built 2026-08-01**, see [A10](#a10-winsorising-damages-extremity-and-the-appendix-is-right-not-to-ask-for-it) |
-| A.5 | square-root impact `I = Y σ sqrt(Q/V)`, Amihud `Λ`, stress-conditioned `V`, the volume-spike trap | **volume**, which does not exist in this workspace |
-| A.6 | liquidity commonality `β̄`, `T_eff = T(1 + γβ̄)` | volume |
+| A.5 | ~~stress-conditioned `V`, the volume-spike trap, `T = Q/(kappa V)`~~ | **built 2026-08-01**, see [A13](#a13-volume-was-in-the-store-all-along-under-a-parameter-named-for-the-front-month) |
+| A.5 | square-root impact `I = Y σ sqrt(Q/V)`, Amihud `Λ` | ~~volume~~ **nothing.** The volume both need is now in `futures/volume.py` |
+| A.6 | liquidity commonality `β̄`, `T_eff = T(1 + γβ̄)` | ~~volume~~ nothing, see A13 |
 | A.7 | forced-seller model and trigger solver | prices + a CTA replication model |
 | A.8 | reflexivity amplification `1/(1 - ℓg)` | A.5 and A.7 |
 | A.9 | the composite `D = C x I x Φ` | all of the above |
@@ -456,3 +457,93 @@ column, because a column of nulls does not say why it is null.
 Breadth and depth are in different places and stay there. Any cross-market work combining
 extremity with fragility is combining a 27-market measure with a 279-market one, and the
 intersection is the 27.
+
+---
+
+## A13. Volume was in the store all along, under a parameter named for the front month
+
+**Contradicts:** `pressure.py`'s header ("`V` does not exist in this workspace"), the A.5 and
+A.6 rows of the not-built table above, `README.md`'s note on `core/impact.py`, and two test
+docstrings. All of them said the same thing, and all of them were wrong in the same way: they
+described a data gap where there was a naming problem.
+
+**What was actually there.** `cotdata.get_prices` takes `volume="front"` or
+`volume="reconstructed"`, documented as "continuous front-month volume" and "true market
+volume (first + second expiring contract)". The second reads like the fuller series. It is
+the narrower one: `Volume_Reconstructed = FirstVolume + SecondVolume`, exactly two expiries,
+while the plain `Volume` field spans the whole curve.
+
+Two independent measurements establish that `front` is whole-market:
+
+**1. Open interest matches the CFTC to the contract.** The price files carry an
+`Open Interest` column Norgate collects from the exchange; the CFTC collects its own from
+clearing members. Against COT total-market open interest for the same Tuesday:
+
+| | |
+|---|---|
+| Exact agreement | **25 of 26 markets** |
+| Palladium | 0.998 |
+| Median ratio | **1.000** |
+
+Two vendors and two collection paths cannot agree that precisely unless both are measuring
+the whole market. Front-month data would be a fraction.
+
+**2. Curve concentration orders exactly as contract structure predicts.** First two
+contracts' share of `Volume`, trailing 500 days:
+
+| | share | |
+|---|---|---|
+| ZN, ES | **1.00** | quarterly financials, everything in the front |
+| 6E, PL, SI, GC | 0.95-0.998 | metals and FX, nearly all in the active month |
+| HG, CT, ZW | 0.80-0.87 | |
+| ZC, ZS, SB, ZL, ZM | 0.67-0.76 | ags, spread across crop months |
+| RB, HO | 0.57-0.61 | |
+| CL, NG | **0.52-0.54** | energy, spread across the strip |
+
+A front-month series would read 1.00 everywhere. Crude's total is nearly **twice** its first
+two contracts, so `Volume` cannot be front-month-only.
+
+**Why the distinction is not cosmetic.** `Q` from COT covers all expiries. Using
+`reconstructed` would understate the denominator by 48% in natural gas, 46% in crude and 0%
+in ES, so `T` would be wrong by a different factor in every market, which is worse than a
+constant bias. `volume.py` raises on it rather than documenting it.
+
+**Coverage is not the constraint.** All 47 symbols have volume, median 100% of available
+bars, history to 1977-79. Worst coverage is 6N at 94.8%.
+
+**And it changes the answer.** If `T` ranked markets the way the `Q/OI` proxy does, the join
+would be decoration. Rank correlation on the latest week is **0.585**: Class III Milk sits
+19th by `Q/OI` and 2nd by `T`. `T` ranges 0.80 to 10.6 days, median 3.5.
+
+**One finding that shapes how to read the output.** §A.5's stress-conditioned denominator
+sounds strictly more cautious. It is not: **9 of 25 markets trade MORE under stress** (lumber
+1.62x calm ADV, copper 1.35x, coffee 1.21x), so `T_stress` is *shorter* there. Cotton (0.70),
+wheat (0.64) and soybean oil (0.72) go the other way, and their stress `T` is materially
+longer: cotton runs 7.1 days calm against 10.2 stressed. Both figures are emitted and neither
+is labelled the answer, because which one binds is a property of the market rather than of the
+method.
+
+---
+
+## A14. "25 of 279 markets" is coverage of the tradeable universe, not a 9% sample
+
+**Contradicts:** how the 25-market join was framed when first measured, including by this
+session, as a limitation to be noted beside any result.
+
+It is not a limitation. **The other 254 are markets that are not traded**: too expensive, no
+liquidity, no access. A5 already measured what that universe is made of, and the two facts fit
+together directly: 213 of the 279 (76%) are ICE Energy Div and Nodal power and gas basis
+contracts rather than classic outrights. A monitor that covered all 279 would be spending most
+of its coverage on ERCOT and PJM basis swaps.
+
+So the correct statement is that **the volume join reaches every market in the tradeable
+universe**, and the markets it does not reach are ones no position is held in. A ranking over
+the 25 is not a sample of the 279; it is the population that matters, and the 279-market
+rankings in `docs/analysis/` are the ones that need the caveat, not this.
+
+This is the second time a coverage figure in this stack has been reported as a shortfall and
+then withdrawn: the "42 of 95 joinable, 44%" headline in
+`../cotdata/docs/design/crowdmon_step2_normalisation.md` was withdrawn for the same reason,
+once it turned out all 42 deployed markets joined. Worth naming as a pattern. **A coverage
+ratio whose denominator nobody chose is not a measurement of anything**, and the denominator
+here is "every market the CFTC publishes", which was never the target.

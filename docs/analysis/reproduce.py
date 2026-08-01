@@ -15,6 +15,7 @@ Prints, in order:
   6. the open-interest identity exception rate, by year
   7. what the ranked universe is made of, by venue
   8. the price-series measurements behind amendments A8 and A9 (normalisation)
+  9. the volume measurements behind amendment A10, and the real T = Q/(kappa V)
 """
 import numpy as np
 import pandas as pd
@@ -245,6 +246,121 @@ def normalisation() -> None:
     print("\nMAX_NONPOSITIVE_RATE = 1% sits in the empty gap between those two tables.")
 
 
+def volume_and_exit_capacity() -> None:
+    """Amendment A10: that `volume="front"` is whole-market, and the T it produces."""
+    import json
+    import os
+    import pathlib
+
+    import cotdata
+
+    from crowdmon.futures import (
+        ContractMaster,
+        VintageCotSource,
+        add_volume,
+        fragility_frame,
+        rank_markets,
+        volume_coverage,
+    )
+
+    rule("9. VOLUME: whole-market, and the real T = Q/(kappa V) (A10, A11)")
+
+    panel = ContractMaster.load().annotate(
+        VintageCotSource(report_type="disaggregated").load("2026-07-31"))
+    week = panel["report_date"].max()
+    panel = panel[panel["report_date"] == week]
+
+    print(f"\n--- A10 proof 1: price-file open interest vs the CFTC, {week.date()} ---")
+    rows = []
+    for _, r in (panel.dropna(subset=["symbol"])
+                 .groupby("symbol", as_index=False)["open_interest"].max()).iterrows():
+        px = cotdata.get_prices(r["symbol"], adjustment="unadj")
+        if px.empty:
+            continue
+        oi = pd.to_numeric(px["Open Interest"], errors="coerce").replace(0, np.nan).dropna()
+        asof = oi.index[oi.index <= week]
+        if len(asof) == 0 or not r["open_interest"]:
+            continue
+        rows.append({"symbol": r["symbol"], "cot_oi": int(r["open_interest"]),
+                     "price_file_oi": int(oi.loc[asof[-1]]),
+                     "ratio": round(float(oi.loc[asof[-1]]) / r["open_interest"], 4)})
+    oi_df = pd.DataFrame(rows).sort_values("ratio")
+    print(oi_df.to_string(index=False))
+    print(f"exact matches: {(oi_df['ratio'] == 1.0).sum()} of {len(oi_df)}   "
+          f"median {oi_df['ratio'].median():.4f}")
+
+    print("\n--- A10 proof 2: first-two-contract share of Volume, trailing 500d ---")
+    root = pathlib.Path(os.environ["COTDATA_STORE"]) / "prices"
+    rows = []
+    for sym in ["NG", "CL", "HO", "RB", "LE", "HE", "ZM", "ZL", "CC", "ZS", "SB", "KC",
+                "ZC", "ZW", "CT", "HG", "GC", "SI", "PL", "6E", "ES", "ZN"]:
+        p = root / f"{sym}_unadj.parquet"
+        if not p.exists():
+            continue
+        d = pd.read_parquet(p)
+        if not {"FirstVolume", "SecondVolume", "Volume"} <= set(d.columns):
+            continue
+        d = d.dropna(subset=["FirstVolume", "SecondVolume"]).tail(500)
+        d = d[d["Volume"] > 0]
+        if len(d) < 100:
+            continue
+        rows.append({"symbol": sym, "adv_total": f"{d['Volume'].mean():,.0f}",
+                     "adv_first2": f"{(d['FirstVolume'] + d['SecondVolume']).mean():,.0f}",
+                     "first2_share": round(float(((d["FirstVolume"] + d["SecondVolume"])
+                                                  / d["Volume"]).mean()), 3)})
+    print(pd.DataFrame(rows).sort_values("first2_share").to_string(index=False))
+    print("A front-month series would read 1.00 everywhere. It orders by curve depth.")
+
+    print("\n--- A10: coverage. Every symbol, essentially every bar ---")
+    man = json.loads((pathlib.Path(os.environ["COTDATA_STORE"]) / "manifests"
+                      / "prices.json").read_text())
+    cov = {}
+    for sym in sorted({k.rsplit("_", 1)[0] for k in man.get("prices", man)}):
+        try:
+            d = cotdata.get_prices(sym, adjustment="unadj")
+        except Exception:                                          # noqa: BLE001
+            continue
+        if d.empty or "Volume" not in d:
+            continue
+        v = pd.to_numeric(d["Volume"], errors="coerce").replace(0, np.nan).dropna()
+        cov[sym] = len(v) / len(d)
+    c = pd.Series(cov)
+    print(f"symbols with volume: {len(c)}   median coverage {c.median():.1%}   "
+          f"worst {c.idxmin()} {c.min():.1%}")
+
+    print("\n--- A10: T = Q/(kappa V), and how far it moves the Q/OI proxy ---")
+    frag = add_volume(fragility_frame(panel).merge(
+        panel[["market_code", "symbol"]].drop_duplicates(), on="market_code", how="left"))
+    print(volume_coverage(frag).to_string())
+    ranked = rank_markets(frag, volume=frag["adv"], stress_volume=frag["adv_stress"])
+    live = ranked.dropna(subset=["dtl_sell"]).copy()
+    live["stress_over_calm"] = (live["adv_stress"] / live["adv"]).round(2)
+    show = live.nlargest(12, "dtl_sell")[
+        ["market_name", "q_sell", "adv", "adv_stress", "stress_over_calm",
+         "q_sell_over_oi", "dtl_sell", "dtl_sell_stress"]].copy()
+    show["market_name"] = show["market_name"].str.slice(0, 26)
+    print(show.to_string(index=False, float_format=lambda x: f"{x:,.2f}"))
+
+    corr = live["q_sell_over_oi"].rank(ascending=False).corr(
+        live["dtl_sell"].rank(ascending=False))
+    print(f"\nrank corr, Q/OI proxy vs real T : {corr:.3f}   (1.0 would make T redundant)")
+    print(f"T range: {live['dtl_sell'].min():.2f} to {live['dtl_sell'].max():.2f} days, "
+          f"median {live['dtl_sell'].median():.2f}")
+    more = int((live["adv_stress"] > live["adv"]).sum())
+    print(f"markets trading MORE under stress: {more} of {len(live)}  "
+          f"-> T_stress is SHORTER there, so stress is not reliably the conservative case")
+
+    print("\n--- A11: what the 254 unjoined markets are ---")
+    venue = panel.assign(v=panel["market_name"].str.split(" - ").str[-1])
+    unjoined = venue[venue["symbol"].isna()].drop_duplicates("market_code")
+    print(unjoined["v"].value_counts().head(6).to_string())
+    print(f"\n{len(unjoined)} markets have no contract spec. They are not a missing 91%: "
+          f"they are\nmarkets that are not traded (cost, liquidity, access). The {len(live)} "
+          f"that join are the\ntradeable universe, so a ranking over them is the population, "
+          f"not a sample.")
+
+
 if __name__ == "__main__":
     main()
     normalisation()
+    volume_and_exit_capacity()

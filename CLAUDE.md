@@ -127,7 +127,8 @@ src/crowdmon/
     fragility.py            A.2 Q_sell / Q_buy / Phi
     breadth.py              §6.2 breadth-depth quadrant
     extremity.py            §6.1 / A.4 vol-scaled positioning vs 3y of own history
-    pressure.py             A.5 exit capacity, days-to-liquidate pending a volume source
+    volume.py               whole-market ADV + A.5 stress V. Refuses anything but "front"
+    pressure.py             A.5 exit capacity. T = Q/(kappa V) is a real duration now
 ```
 
 `riskunits.py` sits **here beside `notional.py`, not in `core/`**: it needs `propadj` where

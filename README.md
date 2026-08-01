@@ -32,9 +32,9 @@ src/crowdmon/
   futures/       COT-specific: ingestion, contract master, positioning engines
 ```
 
-`core/store.py`, `core/aggregate.py` and `core/impact.py` are absent rather than stubbed:
-the first two want history the vintage store does not yet have, and the third wants a volume
-source that does not exist in this workspace at all.
+`core/store.py` and `core/aggregate.py` are absent rather than stubbed: both want history the
+vintage store does not yet have. `core/impact.py` is absent but no longer blocked, since the
+square-root law needs the same whole-market volume `futures/volume.py` now supplies.
 
 ## Why this is a separate package
 
@@ -76,8 +76,16 @@ is exactly zero at the present date and back-adjusted volatility understates gol
 without ever producing an implausible number, so both are a `raise`, with the measured
 figures in the docstring and pinned by a live test.
 
-Next: exit pressure's real denominator (`T = Q / (κ·V)`), which needs a volume source this
-workspace does not have.
+**Exit capacity is a real duration now.** `T = Q / (κ·V)` was blocked on a volume source that
+turned out to have been in the store the whole time, under a `cotdata` parameter named
+`front` that reads like front-month and is whole-market. `futures/volume.py` supplies both a
+calm trailing ADV and §A.5's stress-conditioned `V_stress`, neither of them a spot reading, so
+the volume-spike trap is closed by construction. It is not cosmetic: `T` and the old `Q/OI`
+proxy rank markets at 0.585 correlation, and Class III Milk sits 19th on one and 2nd on the
+other.
+
+Next: the square-root impact law (§A.5) and liquidity commonality (§A.6), both of which
+wanted the same volume and are no longer blocked.
 
 ```python
 from crowdmon.futures import decompose, fragility_frame, latest, top_by
