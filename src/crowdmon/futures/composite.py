@@ -3,7 +3,7 @@
     D    = C x I x Phi
     C    = pct(z_t)                              crowding
     I    = pct(T_eff)                            illiquidity
-    Phi  = sum_c w_c (L_c + S_c) / (2 . OI)      holder fragility
+    Phi  = pct( sum_c w_c (L_c + S_c) / (2 . OI) )   holder fragility
 
 **Multiplicative, not additive, and that is the whole argument.** If any single term is near
 zero the damage is near zero. A large position in a liquid market held by unconstrained
@@ -32,12 +32,24 @@ standardisation. `extremity` emits both, and `net_risk_usd_pct` is `pct(x)`. Thi
 uses the percentile OF the z-score, which is what §A.9 says and what §A.4's "surfaced as a
 percentile of its own history" means when the thing being surfaced is `z_t`.
 
-**2. `Phi` enters raw, not as a percentile.** §A.9's preamble says "each term expressed as a
-percentile of its own history so the product is dimensionless", and then its formula shows
-`C` and `I` wrapped in `pct()` and `Phi` written out in full. The formula is taken literally.
-`Phi` is already bounded in `[0, 1]` and already dimensionless, so the preamble's purpose is
-served without it; percentile-ising it as well would change the number substantially, since a
-raw `Phi` of 0.25 is ordinary while its percentile could be anything.
+**2. `Phi` enters as a percentile, following §A.9's preamble rather than its formula.** The
+preamble says "each term expressed as a percentile of its own history so the product is
+dimensionless"; the formula shows `C` and `I` wrapped in `pct()` and `Phi` written out in
+full. They disagree, and the measurement decided it.
+
+Built the literal way first, `Phi` did almost none of the work: correlation with `D` of
+**0.145**, against 0.857 for `I` and 0.796 for `C`. The cause is structural rather than
+empirical. `C` and `I` are percentiles and therefore uniform on `[0, 1]` with a standard
+deviation near 0.29, while a raw `Phi` is a share of gross open interest, which is a stable
+property of a market's participant mix: it spans 0.18 to 0.70 across twenty years with a
+standard deviation of **0.082**. Two terms varied roughly four times as much as the third, so
+`D` was close to `C x I` with a mild tilt, and the package is named for the term that
+nearly disappeared.
+
+Percentile-ising `Phi` gives all three terms the same spread and lets holder fragility carry
+its share. `phi_percentile=False` restores the literal formula, and both `phi` and `phi_pct`
+are emitted either way so the choice is visible in the output rather than only in the call.
+See `docs/design/amendments-2026-08-01.md` §A15.
 
 **3. `T_eff` does not exist yet, so `T` is used.** §A.6 defines
 `T_eff = T . (1 + gamma . beta_bar)` from a liquidity-commonality regression, and it is not
@@ -55,8 +67,8 @@ matter. `beta_bar -> 1` is the case where every exit closes at once.
 `Q_sell` and `Q_buy` are never added anywhere in this package, and the composite does not
 break that. Two damages are produced:
 
-    damage_sell = C_long  x pct(T_sell) x Phi     a crowded LONG forced to sell
-    damage_buy  = C_short x pct(T_buy)  x Phi     a crowded SHORT forced to buy
+    damage_sell = C_long  x pct(T_sell) x pct(Phi)   a crowded LONG forced to sell
+    damage_buy  = C_short x pct(T_buy)  x pct(Phi)   a crowded SHORT forced to buy
 
 with `C_long = pct(z)` and `C_short = 1 - pct(z)`. That mirror is required by the literal
 reading: `z` is signed, so a high `pct(z)` is a crowded long and a low one is a crowded
@@ -85,8 +97,8 @@ MARKET_KEY = ["report_date", "market_code", "report_type", "combined"]
 CROWDING_CATEGORY = {"disaggregated": "managed_money", "tff": "leveraged"}
 
 COMPOSITE_COLUMNS = ["crowding_long", "crowding_short", "illiquidity_sell",
-                     "illiquidity_buy", "phi", "damage_sell", "damage_buy",
-                     "damage_sell_pct", "damage_buy_pct"]
+                     "illiquidity_buy", "phi", "phi_pct", "fragility",
+                     "damage_sell", "damage_buy", "damage_sell_pct", "damage_buy_pct"]
 
 
 class CompositeError(ValueError):
@@ -95,6 +107,7 @@ class CompositeError(ValueError):
 
 def add_composite(fragility: pd.DataFrame, extremity: pd.DataFrame, *,
                   category: str | None = None,
+                  phi_percentile: bool = True,
                   window: str | int = DEFAULT_WINDOW,
                   min_periods: int = DEFAULT_MIN_PERIODS) -> pd.DataFrame:
     """`D = C x I x Phi` per market-week, both directions.
@@ -143,10 +156,16 @@ def add_composite(fragility: pd.DataFrame, extremity: pd.DataFrame, *,
         out[f"illiquidity_{side}"] = _percentile_by_market(
             out, f"dtl_{side}", window=window, min_periods=min_periods)
 
+    # Phi, both ways. `fragility` is whichever one D actually uses, named so a reader of
+    # the output can see which reading produced the number without re-reading the call.
+    out["phi_pct"] = _percentile_by_market(out, "phi", window=window,
+                                           min_periods=min_periods)
+    out["fragility"] = out["phi_pct"] if phi_percentile else pd.to_numeric(
+        out["phi"], errors="coerce")
+
     # D, and its own percentile, which is the number A.10 says to report.
-    phi = pd.to_numeric(out["phi"], errors="coerce")
-    out["damage_sell"] = out["crowding_long"] * out["illiquidity_sell"] * phi
-    out["damage_buy"] = out["crowding_short"] * out["illiquidity_buy"] * phi
+    out["damage_sell"] = out["crowding_long"] * out["illiquidity_sell"] * out["fragility"]
+    out["damage_buy"] = out["crowding_short"] * out["illiquidity_buy"] * out["fragility"]
     for side in ("sell", "buy"):
         out[f"damage_{side}_pct"] = _percentile_by_market(
             out, f"damage_{side}", window=window, min_periods=min_periods)
@@ -162,16 +181,16 @@ def damage_report(scored: pd.DataFrame) -> pd.DataFrame:
     an extremity/history question, `no_illiquidity` a volume question, `no_phi` a category
     mapping one. A single "not scored" count would hide which.
     """
-    for column in ("crowding_long", "illiquidity_sell", "phi", "damage_sell"):
+    for column in ("crowding_long", "illiquidity_sell", "fragility", "damage_sell"):
         if column not in scored.columns:
             raise CompositeError(f"{column!r} missing; run `add_composite` first")
     has = {name: pd.to_numeric(scored[name], errors="coerce").notna()
-           for name in ("crowding_long", "illiquidity_sell", "phi", "damage_sell")}
+           for name in ("crowding_long", "illiquidity_sell", "fragility", "damage_sell")}
     return pd.Series({
         "scored": int(has["damage_sell"].sum()),
         "no_crowding": int((~has["crowding_long"]).sum()),
         "no_illiquidity": int((~has["illiquidity_sell"]).sum()),
-        "no_phi": int((~has["phi"]).sum()),
+        "no_fragility": int((~has["fragility"]).sum()),
         "total": len(scored),
     }).to_frame("rows")
 
@@ -191,8 +210,8 @@ def top_damage(scored: pd.DataFrame, *, side: str = "sell", n: int = 10,
     rows = scored[(scored["report_date"] == stamp)
                   & scored[f"damage_{side}_pct"].notna()]
     crowding = "crowding_long" if side == "sell" else "crowding_short"
-    cols = ["market_name", "market_code", crowding, f"illiquidity_{side}", "phi",
-            f"damage_{side}", f"damage_{side}_pct", f"dtl_{side}"]
+    cols = ["market_name", "market_code", crowding, f"illiquidity_{side}", "fragility",
+            "phi", f"damage_{side}", f"damage_{side}_pct", f"dtl_{side}"]
     return (rows.sort_values(f"damage_{side}_pct", ascending=False).head(n)
             [[c for c in cols if c in rows.columns]].reset_index(drop=True))
 
@@ -235,7 +254,7 @@ def _assert_bounds(out: pd.DataFrame) -> None:
     stopped being what it claims: a raw duration leaking into `I`, or a `Phi` built from nets.
     """
     for column in ("crowding_long", "crowding_short", "illiquidity_sell",
-                   "illiquidity_buy", "damage_sell", "damage_buy"):
+                   "illiquidity_buy", "fragility", "damage_sell", "damage_buy"):
         values = pd.to_numeric(out[column], errors="coerce").dropna()
         if values.empty:
             continue

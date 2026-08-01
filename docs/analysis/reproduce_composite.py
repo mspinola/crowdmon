@@ -41,7 +41,7 @@ EPISODES = {
     "2022 invasion": ("2022-02-01", "2022-06-01"),
 }
 
-FACTORS = ["crowding_long", "illiquidity_sell", "phi", "dtl_sell", "adv"]
+FACTORS = ["crowding_long", "illiquidity_sell", "fragility", "dtl_sell", "adv"]
 
 
 def rule(title: str) -> None:
@@ -88,11 +88,16 @@ def main() -> None:
 
     rule("4. IS D MULTIPLICATIVE IN PRACTICE, OR DOES ONE TERM CARRY IT?")
     scored_only = scored.dropna(subset=["damage_sell"])
+    # `fragility` is the term D actually used; `phi` is the raw share beside it. Reporting
+    # `phi` here would describe a factor the product does not contain under the default
+    # reading, which is the mistake this whole section exists to catch.
     print("correlation of each factor with D_sell:")
-    for factor in ("crowding_long", "illiquidity_sell", "phi"):
+    for factor in ("crowding_long", "illiquidity_sell", "fragility"):
         print(f"  {factor:<18} {scored_only[factor].corr(scored_only['damage_sell']):.3f}")
+    print("\n  (raw phi, which D does NOT use by default: "
+          f"{scored_only['phi'].corr(scored_only['damage_sell']):.3f})")
     print("\nfactor spread (a term that never varies cannot be doing any work):")
-    print(scored_only[["crowding_long", "illiquidity_sell", "phi"]]
+    print(scored_only[["crowding_long", "illiquidity_sell", "fragility", "phi"]]
           .describe().loc[["mean", "std", "min", "max"]].round(3).to_string())
 
     rule("5. EPISODE WINDOWS — DESCRIPTIVE ONLY, NOT A VALIDATION")
@@ -111,7 +116,7 @@ def main() -> None:
                      "mean_D": damage.mean(), "vs_baseline": damage.mean() / baseline,
                      "C": window["crowding_long"].mean(),
                      "I": window["illiquidity_sell"].mean(),
-                     "Phi": window["phi"].mean()})
+                     "Phi": window["fragility"].mean()})
     print(to_markdown(pd.DataFrame(rows)))
 
     print("\nwhat moved in the Mar-2020 event window, against the 2019 mean:")

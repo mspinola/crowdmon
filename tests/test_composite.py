@@ -35,22 +35,57 @@ def test_damage_is_the_product_of_its_three_factors():
     fragility, extremity = _frames()
     out = add_composite(fragility, extremity, min_periods=52).dropna(subset=["damage_sell"])
     assert not out.empty
-    expected = out["crowding_long"] * out["illiquidity_sell"] * out["phi"]
+    expected = out["crowding_long"] * out["illiquidity_sell"] * out["fragility"]
     assert out["damage_sell"].to_numpy() == pytest.approx(expected.to_numpy())
 
 
-def test_phi_enters_raw_and_is_not_percentile_ised():
+def test_phi_is_percentile_ised_by_default_and_the_literal_form_is_reachable():
     """§A.9's preamble says every term is a percentile; its formula writes `Phi` out in full.
-    The formula is taken literally.
+    The preamble is followed, because the literal form left `Phi` correlating 0.145 with `D`
+    against 0.86 and 0.80 for the other two (amendments §A15).
 
-    A constant `Phi` is the cleanest way to see it: percentile-ising a constant series would
-    give 1.0 everywhere, so `D` would equal `C x I`. Raw, it scales `D` by 0.25.
+    `fragility` is whichever reading `D` actually used, and both `phi` and `phi_pct` are
+    always emitted, so the output says which produced the number.
+
+    Note what a CONSTANT `Phi` percentile-ises to: about 0.5, not 1.0. Every value in the
+    window ties, and ties take their average rank, so a market whose participant mix never
+    changes sits in the middle of its own distribution. That is the right answer and it is
+    not the obvious one.
     """
     fragility, extremity = _frames(phi=0.25)
-    out = add_composite(fragility, extremity, min_periods=52).dropna(subset=["damage_sell"])
-    ci = out["crowding_long"] * out["illiquidity_sell"]
-    assert out["damage_sell"].to_numpy() == pytest.approx((ci * 0.25).to_numpy())
-    assert not np.allclose(out["damage_sell"], ci)
+
+    default = add_composite(fragility, extremity, min_periods=52).dropna(
+        subset=["damage_sell"])
+    assert default["fragility"].equals(default["phi_pct"])
+    assert default["fragility"].between(0.4, 0.6).all(), "a constant Phi ranks mid-window"
+    assert default["damage_sell"].to_numpy() == pytest.approx(
+        (default["crowding_long"] * default["illiquidity_sell"]
+         * default["fragility"]).to_numpy())
+
+    literal = add_composite(fragility, extremity, phi_percentile=False,
+                            min_periods=52).dropna(subset=["damage_sell"])
+    assert (literal["fragility"] == 0.25).all()
+    assert literal["damage_sell"].to_numpy() == pytest.approx(
+        (literal["crowding_long"] * literal["illiquidity_sell"] * 0.25).to_numpy())
+
+    for frame in (default, literal):
+        assert frame["phi"].notna().all() and frame["phi_pct"].notna().all()
+
+
+def test_percentile_ising_phi_costs_a_warm_up_the_raw_reading_does_not():
+    """`Phi` raw is never missing, since it needs only COT. Its percentile needs history.
+
+    On the real panel that costs **nothing**, which is not obvious and was worth measuring:
+    coverage is 77.0% under both readings, because `C = pct(z)` already needs two stacked
+    three-year windows and is the binding constraint. `pct(Phi)` needs one and finishes
+    warming up well inside it. The warm-up below is visible only because this fixture is
+    shorter than the real panel.
+    """
+    fragility, extremity = _frames()
+    default = add_composite(fragility, extremity, min_periods=52)
+    literal = add_composite(fragility, extremity, phi_percentile=False, min_periods=52)
+    assert literal["fragility"].notna().all()
+    assert default["fragility"].isna().sum() == 51
 
 
 def test_crowding_is_the_percentile_of_z_not_of_the_raw_position():
@@ -86,7 +121,8 @@ def test_any_factor_near_zero_collapses_the_damage():
     """"A large position in a liquid market held by unconstrained hedgers is safe." An
     additive score would let one extreme term carry a market into the danger zone alone."""
     fragility, extremity = _frames(phi=0.0)
-    out = add_composite(fragility, extremity, min_periods=52).dropna(subset=["damage_sell"])
+    out = add_composite(fragility, extremity, phi_percentile=False,
+                        min_periods=52).dropna(subset=["damage_sell"])
     assert (out["damage_sell"] == 0.0).all()
     assert (out["damage_buy"] == 0.0).all()
 
@@ -105,7 +141,7 @@ def test_a_phi_outside_the_unit_interval_is_caught():
     what it claims. The check runs on every computation, not only here."""
     fragility, extremity = _frames(phi=1.4)
     with pytest.raises(CompositeError, match=r"left \[0, 1\]"):
-        add_composite(fragility, extremity, min_periods=52)
+        add_composite(fragility, extremity, phi_percentile=False, min_periods=52)
 
 
 # ── Missing factors ─────────────────────────────────────────────────────────
@@ -125,7 +161,7 @@ def test_damage_report_separates_the_three_causes():
     fragility.loc[fragility.index[-10:], "dtl_sell"] = np.nan
     report = damage_report(add_composite(fragility, extremity, min_periods=52))
     assert report.loc["no_illiquidity", "rows"] >= 10
-    assert report.loc["no_phi", "rows"] == 0
+    assert report.loc["no_fragility", "rows"] == 51  # pct(Phi) warm-up
     assert report.loc["total", "rows"] == WEEKS
 
 
@@ -168,7 +204,7 @@ def test_top_damage_shows_every_factor_beside_the_score():
     fragility, extremity = _frames()
     out = add_composite(fragility, extremity, min_periods=52)
     top = top_damage(out, n=3)
-    for column in ("crowding_long", "illiquidity_sell", "phi", "damage_sell"):
+    for column in ("crowding_long", "illiquidity_sell", "fragility", "phi", "damage_sell"):
         assert column in top.columns
     with pytest.raises(CompositeError, match="'sell' or 'buy'"):
         top_damage(out, side="both")

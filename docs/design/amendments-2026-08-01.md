@@ -576,11 +576,27 @@ which is a stable property of a market's participant mix: it spans 0.18 to 0.70 
 standard deviation of 0.082. **Two terms vary roughly four times as much as the third**, so
 `D` is close to `C x I` with a mild fragility tilt.
 
-**The package is named for the term the literal reading nearly removes.** Percentile-ising
-`Phi` as the preamble describes would give all three terms equal spread. Both forms are one
-argument apart in `composite.py`. Not changed, because the formula is what was specified and
-the instruction was to follow it; recorded so the decision can be revisited with a number
-attached rather than on precedence alone.
+**The package is named for the term the literal reading nearly removes.**
+
+**Resolved 2026-08-01: `Phi` is now percentile-ised**, following §A.9's preamble rather than
+its formula. Measured before and after:
+
+| reading | crowding | illiquidity | fragility | coverage |
+|---|---|---|---|---|
+| literal, raw `Phi` | 0.796 | 0.857 | **0.145** | 77.0% |
+| preamble, `pct(Phi)` | 0.585 | 0.681 | **0.401** | 77.0% |
+
+All three standard deviations land near 0.31. `phi_percentile=False` restores the literal
+form, and both `phi` and `phi_pct` are emitted under either reading so the output says which
+produced it.
+
+**Coverage is unchanged**, which is not obvious: `pct(Phi)` needs a three-year window where
+raw `Phi` needs none, but `C = pct(z)` already needs two stacked windows (§A16) and remains
+the binding constraint.
+
+Note for anyone reading a `Phi` percentile: a **constant** `Phi` percentile-ises to about
+0.5, not 1.0, because tied values take their average rank. A market whose participant mix
+never changes sits in the middle of its own distribution.
 
 ## A16. `C = pct(z)` costs four years of warm-up, and removes 2008 from the replay list
 
