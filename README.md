@@ -128,16 +128,35 @@ Three refusals worth knowing before reading any output:
 
 ### Reading `D` on live output
 
-The one thing to know before reading a damage score, from
-[amendments §A17](docs/design/amendments-2026-08-01.md): **`D` falls during an unwind, and
-that is correct.** It describes a pre-condition, and both the position and the forceable
-holders it describes leave while the event is happening. Measured across March 2020, mean
-`D_sell` ran 0.76x baseline in the four months before, **0.45x during**, and 0.68x after.
+Four things, and none of them is discoverable from the number itself. They were measured
+separately and are gathered here because together they are the reading instructions.
 
-A rising `D` is a market loading up. A falling `D` is not a market getting safer; it may be a
-market in the middle of the exit. The direction of travel matters more than the level, and
-`damage_sell_pct` ranks a market against **its own** history rather than against other
-markets.
+**1. `D` falls during an unwind, and that is correct.** It describes a pre-condition, and both
+the position and the forceable holders it describes leave while the event happens. Across
+March 2020, mean `D_sell` ran 0.76x baseline in the four months before, **0.45x during**, and
+0.68x after. A rising `D` is a market loading up; a falling `D` is not a market getting safer,
+it may be a market mid-exit. (`2026-08-01 §A17`)
+
+**2. `Phi` has no signal independent of the weight table.** Set every weight to 1.0 and it
+reduces exactly to `1 - spreading/OI`, verified to 1.11e-16 on 27,194 market-weeks. `Phi` is
+not a measurement the weights adjust; it is a weighted restatement of the category mix. Read a
+fragility number as a statement about the configured judgement, not about positioning.
+(`2026-08-01 §A21`)
+
+**3. The rankings survive the weights being wrong, but not being reordered.** Across 200
+plausible order-preserving weightings the `Q_sell/OI` top-10 keeps at least 7 of 10; inverting
+the §6.3 ordering destroys it entirely (0 of 10, rank correlation −0.045). And the
+load-bearing weight is Producer/Merchant at 0.1, because it holds 56% of gross open interest,
+which makes `Q_buy/OI` the less stable of the two published rankings. (`2026-08-01 §A22`)
+
+**4. `D` assumes exits are independent across markets, and they are not.** `I` is `pct(T)`
+rather than `pct(T_eff)` deliberately: with a constant `beta_bar` the two are bit-identical,
+because a percentile ignores a positive scalar multiple. So §A.6's commonality **cannot** enter
+`D` through the formula §A.9 gives, and the measured spread is large enough to matter — milk
+and hogs near 0.07 (their own door) against the wheats above 1.0 (the same door as everyone).
+**Read `commonality_betas` beside `D`, not inside it.** A high `D` in a market with
+`beta` near 1.0 is worse than the same `D` at 0.07, and nothing in the composite says so.
+(`2026-08-02 §B2`)
 
 ### First results
 

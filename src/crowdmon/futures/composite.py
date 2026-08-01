@@ -16,6 +16,12 @@ raw product has no meaning across markets, only its position within its own dist
 does, so `damage_sell_pct` is the number to read and `damage_sell` is shown beside it for
 audit rather than for comparison.
 
+**Four things about reading `D` are not discoverable from the number** and are gathered in
+the README's "Reading `D` on live output": it falls during an unwind and that is correct;
+`Phi` has no signal independent of the weight table; the rankings survive the weights being
+wrong but not reordered; and `D` assumes exits are independent across markets when they
+measurably are not, so `commonality_betas` belongs beside it.
+
 **`D` carries no first-moment content.** §A.10 is explicit: the system estimates a property
 of the conditional loss distribution and not its location. `D` informs tail shape, expected
 shortfall, downside skew and gap risk, and it must never be traded directly. This module
