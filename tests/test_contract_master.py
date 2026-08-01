@@ -130,7 +130,9 @@ def test_coverage_names_what_each_symbol_is_missing(master):
 
 def test_both_price_tiers_are_required_to_be_joinable(monkeypatch, master):
     """Layer 2 needs BOTH: notional from unadj, because back-adjusted prices are not
-    tradeable levels, and volatility from backadj, because only that has correct returns."""
+    tradeable levels, and volatility from propadj, which cotdata derives from unadj +
+    backadj. Back-adjusted returns are NOT correct and riskunits refuses them; backadj is
+    required here only as an input to that derivation."""
     cov = master.coverage().set_index("symbol")
     assert bool(cov.loc["GC", "has_unadj_price"]) and bool(cov.loc["GC", "has_backadj_price"])
 

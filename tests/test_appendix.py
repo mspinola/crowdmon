@@ -18,7 +18,13 @@ import pandas as pd
 import pytest
 
 from crowdmon.core import config as cfg
-from crowdmon.futures import contributions, exit_pressure, market_fragility
+from crowdmon.futures import (
+    add_notional,
+    add_risk_units,
+    contributions,
+    exit_pressure,
+    market_fragility,
+)
 
 #: §A.2, transcribed verbatim: (category, long, short). OI is 200,000 and there is no
 #: spreading, which is what makes the appendix's gross total exactly 2 x OI.
@@ -117,6 +123,91 @@ def test_gross_total_is_exactly_twice_open_interest(cocoa):
     gross = (cocoa["long_contracts"] + cocoa["short_contracts"]).sum()
     assert gross == 2 * COCOA_OI
     assert market_fragility(cocoa)["phi_denominator_covered"].iloc[0] == pytest.approx(1.0)
+
+
+#: §A.4 needs a multiplier, a price and a volatility, none of which §A.2's table carries.
+#: Cocoa's real contract is 10 metric tonnes; $3,000/t and 2.5% daily are the figures the
+#: appendix itself uses further down (§A.7's cascade example). They are stated here rather
+#: than looked up so the ladder arithmetic below can be checked by hand.
+COCOA_MULTIPLIER = 10.0
+COCOA_PRICE = 3_000.0
+COCOA_SIGMA = 0.025
+
+
+@pytest.fixture
+def cocoa_prices(monkeypatch):
+    """A price series pinned at 3,000 alternating +/-2.5%, so sigma is a known 2.5%."""
+    import cotdata
+
+    dates = pd.bdate_range("2025-01-01", "2026-01-06")
+    closes = [COCOA_PRICE]
+    for i in range(1, len(dates)):
+        closes.append(closes[-1] * (1.025 if i % 2 else 1 / 1.025))
+    bars = pd.DataFrame({"Open": closes, "High": closes, "Low": closes, "Close": closes,
+                         "Volume": [1.0] * len(closes)},
+                        index=pd.DatetimeIndex(dates, name="Date"))
+
+    def fake(symbol, adjustment="backadj", **kw):
+        # A synthetic series has no rolls, so `unadj` and `propadj` coincide exactly: one is
+        # the real level and the other is that level with a segment factor of 1. `backadj`
+        # is offset so that any accidental use of it shows up as a wrong number. Serving
+        # `unadj` doubled is what an earlier version of this fixture did, and it made rung 3
+        # come out at exactly 2x the appendix.
+        return bars * 2.0 if adjustment == "backadj" else bars
+
+    monkeypatch.setattr(cotdata, "get_prices", fake)
+    return bars
+
+
+def test_the_normalisation_ladder_reproduces_the_appendix(cocoa, cocoa_prices):
+    """§A.4: `P -> P/OI -> P.M.F -> P.M.F.sigma`, the last being risk units.
+
+    Checks that `add_notional` and `add_risk_units` implement the appendix's ladder on the
+    appendix's own example, rung by rung, rather than something that merely resembles it.
+    Managed Money carries P = 100,000 - 10,000 = 90,000 contracts.
+    """
+    annotated = cocoa.assign(symbol="CC", point_value=COCOA_MULTIPLIER, currency="USD",
+                             release_date=cocoa["report_date"] + pd.Timedelta(days=3))
+    got = add_risk_units(add_notional(annotated))
+    mm = got[got["category"] == "managed_money"].iloc[0]
+
+    assert mm["net_contracts"] == 90_000                                    # rung 1: P
+    assert mm["net_contracts"] / COCOA_OI == pytest.approx(0.45)            # rung 2: P/OI
+    # rung 3: P . M . F
+    assert mm["net_notional_usd"] == pytest.approx(90_000 * COCOA_MULTIPLIER * COCOA_PRICE)
+    assert mm["net_notional_usd"] == pytest.approx(2.7e9)
+    # rung 4: P . M . F . sigma
+    assert mm["sigma_daily"] == pytest.approx(COCOA_SIGMA, rel=0.02)
+    assert mm["net_risk_usd"] == pytest.approx(mm["net_notional_usd"] * mm["sigma_daily"])
+    assert mm["net_risk_usd"] == pytest.approx(6.75e7, rel=0.02)
+
+
+def test_days_to_liquidate_is_invariant_along_the_ladder(cocoa):
+    """`T = Q/(kappa V)` is a DURATION, so it is unit-free and every rung of §A.4 must give
+    the same answer, provided `Q` and `V` are expressed in the same units.
+
+    This is the check that keeps rung 4 honest against §A.5. The failure it guards is
+    available and easy: putting a vol-scaled `Q` over a contract-denominated `V` yields a
+    number that is off by exactly `M . F . sigma`, which for cocoa is 750x. The appendix's
+    twenty days becomes fifty-nine YEARS, and nothing in the units of the answer says so,
+    because days are days.
+    """
+    q, v = 99_500.0, 25_000.0
+    scale_notional = COCOA_MULTIPLIER * COCOA_PRICE
+    scale_risk = scale_notional * COCOA_SIGMA
+
+    contracts = exit_pressure(q, COCOA_OI, volume=v)["days_to_liquidate"]
+    notional = exit_pressure(q * scale_notional, COCOA_OI,
+                             volume=v * scale_notional)["days_to_liquidate"]
+    risk = exit_pressure(q * scale_risk, COCOA_OI, volume=v * scale_risk)["days_to_liquidate"]
+
+    assert contracts == pytest.approx(19.9)
+    assert notional == pytest.approx(19.9)
+    assert risk == pytest.approx(19.9)
+
+    mismatched = exit_pressure(q * scale_risk, COCOA_OI, volume=v)["days_to_liquidate"]
+    assert mismatched == pytest.approx(19.9 * scale_risk)
+    assert mismatched / 252 > 50, "the mismatched-units failure should be absurd, not subtle"
 
 
 def test_days_to_liquidate_reproduces_the_appendix(cocoa):

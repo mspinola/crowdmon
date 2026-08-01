@@ -166,8 +166,15 @@ class ContractMaster:
 
         ``joinable`` means the three things layer 2 actually needs are all present: a
         contract spec (for the multiplier), an UNADJUSTED price series (for notional, since
-        back-adjusted prices are not tradeable levels), and a BACK-ADJUSTED one (for the
-        volatility, since only that series has correct returns).
+        back-adjusted prices are not tradeable levels), and a BACK-ADJUSTED one.
+
+        The back-adjusted requirement is right but not for the reason an earlier version of
+        this docstring gave. It is NOT that back-adjusted returns are correct; they are not,
+        and `riskunits` refuses them. It is that ``propadj``, the ratio-adjusted series
+        volatility actually needs, is **derived on read by cotdata from unadj + backadj**
+        (see `cotdata.prices._ratio_adjust`). Both stored tiers are therefore the
+        precondition for the one derived tier, and a symbol missing either cannot produce a
+        volatility at all. Same check, sounder reason.
         """
         rows = []
         for sym in self._symbols:

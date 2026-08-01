@@ -38,9 +38,16 @@ market was positive.
 `cotdata`'s own API says so plainly: `unadj` is "raw front-month prices (absolute price /
 point-value sizing)". This module simply refuses to be pointed anywhere else.
 
-Volatility is the opposite case and belongs in `riskunits`: it needs correct RETURNS, which
-only the back-adjusted series has, since unadjusted returns carry a fake jump at every roll.
-So the two factors of `net_notional x sigma` come from two different series, on purpose.
+Volatility is the opposite case and belongs in `riskunits`: it needs correct percentage
+RETURNS, which means the **ratio-adjusted** (`propadj`) series. So the two factors of
+`net_notional x sigma` come from two different series, on purpose.
+
+An earlier version of this paragraph said volatility wanted `backadj`. That was wrong.
+Additive back-adjustment preserves absolute price CHANGES, not percentage returns, and its
+accumulated roll gaps corrupt the denominator of every historical return: annualised vol
+from `backadj` percent returns is 201x too high for soybeans, 182x too high for the 10-year
+note, and 0.47x too LOW for gold, which never goes negative and so passes every
+implausibility check. `riskunits` refuses it, with the full table and the reproducer.
 
 **2. The price is taken as of the REPORT date, not the release date.** The positions were
 held on the Tuesday, so that is what values them. Using the Friday price would silently turn
