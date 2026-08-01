@@ -74,6 +74,34 @@ def test_momentum_refuses_any_series_but_propadj(prices):
             trig.trigger_prices("TEST", adjustment=wrong)
 
 
+def test_a_flat_lookback_is_a_third_state_not_a_direction(monkeypatch):
+    """`signal` is a three-state sign. An exactly flat lookback returns 0, and its "flip" is
+    the spot price itself, which is not a level anything crosses.
+
+    Caught by the reflexivity work, where a cohort split divides by the SUM of the signals: a
+    0 changes that sum, so a 0 rendered as a direction is a wrong number downstream and not
+    merely a cosmetic label.
+    """
+    dates = pd.bdate_range("2024-01-01", periods=400)
+    flat = pd.Series(100.0, index=dates)
+
+    import cotdata
+
+    monkeypatch.setattr(cotdata, "get_prices",
+                        lambda symbol, adjustment="propadj", **kw:
+                        pd.DataFrame({"Close": flat}, index=dates))
+
+    out = trig.trigger_prices("FLAT", lookbacks=(20,))
+    assert out["signal"].iloc[0] == 0
+    assert out["flip_price"].iloc[0] == pytest.approx(100.0), "the flip is spot itself"
+
+    text = trig.format_block(
+        trig.trigger_block("FLAT", market_row=MARKET, sigma_daily=0.015, adv=50_000.0,
+                           lookbacks=(20,)))
+    assert "flat, no trigger" in text
+    assert "short, flips up" not in text, "a flat lookback is not a short"
+
+
 def test_a_lookback_longer_than_the_history_is_null_not_wrong(prices):
     out = trig.trigger_prices("TEST", lookbacks=(20, 5_000))
     assert out.loc[out["lookback_days"] == 5_000, "flip_price"].isna().all()

@@ -248,7 +248,15 @@ def format_block(block: dict) -> str:
             lines.append(f"{row.lookback_days:>3}d signal:           "
                          f"insufficient history")
             continue
-        direction = "long, flips down" if row.signal > 0 else "short, flips up"
+        # `signal` is a three-state sign, not a boolean. An exactly flat lookback returns 0
+        # and its "flip" is the spot price itself, which is not a level anything crosses.
+        # Rendering it as one of the two directions reads as a live trigger 0.0% away.
+        if row.signal > 0:
+            direction = "long, flips down"
+        elif row.signal < 0:
+            direction = "short, flips up"
+        else:
+            direction = "flat, no trigger"
         lines.append(f"{row.lookback_days:>3}d flips at:         {row.flip_price:>10,.2f}   "
                      f"({row.move_from_spot:+.1%} from spot, currently {direction})")
 
