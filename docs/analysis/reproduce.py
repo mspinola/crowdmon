@@ -17,7 +17,8 @@ Prints, in order:
   8. the price-series measurements behind amendments A8 and A9 (normalisation)
   9. the volume measurements behind amendment A13, and the real T = Q/(kappa V)
  10. exit COST: the square-root law and Amihud (2026-08-01 A19, A20)
- 11. liquidity commonality, and why it cannot reach the composite (2026-08-02 A1, A2)
+ 11. liquidity commonality, and why it cannot reach the composite (2026-08-02 B1, B2)
+ 12. A.7 triggers: the spec 9.3 block, with no capital estimate (2026-08-02 B8, B9)
 """
 import numpy as np
 import pandas as pd
@@ -495,9 +496,66 @@ def commonality() -> None:
     print(bt.groupby(bt.index.year).mean().round(3).to_string())
 
 
+def triggers() -> None:
+    """2026-08-02 B8 and B9: the §9.3 deliverable, and the series the trigger needs."""
+    import cotdata
+
+    from crowdmon.futures import (
+        ContractMaster,
+        VintageCotSource,
+        add_triggers,
+        add_volume,
+        trigger_block,
+    )
+
+    rule("12. TRIGGERS: spec §9.3's block, with no capital estimate (2026-08-02 B8, B9)")
+
+    panel = ContractMaster.load().annotate(
+        VintageCotSource(report_type="disaggregated").load("2026-07-31"))
+    panel = panel[(panel["report_date"] == panel["report_date"].max())
+                  & (panel["category"] == "managed_money")].dropna(subset=["symbol"])
+    scored = add_volume(add_triggers(panel))
+    live = scored.dropna(subset=["trigger_blend", "adv", "sigma_daily"]).copy()
+    live["distance"] = live["trigger_blend_pct"].abs()
+
+    print(f"\n{len(live)} markets. Nothing below used an aggregate CTA capital estimate, a")
+    print("target volatility, a portfolio scaling term, or any external index.\n")
+    show = live.nsmallest(10, "distance")[
+        ["symbol", "net_contracts", "spot", "signal", "trigger_blend",
+         "trigger_blend_pct", "vol_double_flow"]]
+    print(show.to_string(index=False, float_format=lambda x: f"{x:,.2f}"))
+
+    print("\n--- B9: signal SIGN vs trigger DISTANCE, backadj against propadj ---")
+    rows = []
+    for symbol in ("GC", "CL", "ZS", "ZW", "CC", "NG", "DC"):
+        back = cotdata.get_prices(symbol, adjustment="backadj")["Close"].dropna()
+        prop = cotdata.get_prices(symbol, adjustment="propadj")["Close"].dropna()
+        shared = back.index.intersection(prop.index)
+        back, prop = back.loc[shared], prop.loc[shared]
+        for k in (20, 250):
+            sb = np.sign(back - back.shift(k)).dropna()
+            sp = np.sign(prop - prop.shift(k)).dropna()
+            both = sb.index.intersection(sp.index)
+            db = (back.shift(k) / back - 1).dropna()
+            dp = (prop.shift(k) / prop - 1).dropna()
+            shared_d = db.index.intersection(dp.index)
+            rows.append({"symbol": symbol, "k": k,
+                         "sign_agree": round(float((sb.loc[both] == sp.loc[both]).mean()), 4),
+                         "distance_p95_pp": round(float((db.loc[shared_d] - dp.loc[shared_d])
+                                                        .abs().quantile(0.95) * 100), 1)})
+    print(pd.DataFrame(rows).to_string(index=False))
+    print("The sign barely cares. The distance is wrong by hundreds of points on backadj.")
+
+    print("\n--- the §9.3 block, for the three nearest triggers ---")
+    for _, row in live.nsmallest(3, "distance").iterrows():
+        print()
+        print(trigger_block(row))
+
+
 if __name__ == "__main__":
     main()
     normalisation()
     volume_and_exit_capacity()
     exit_cost()
     commonality()
+    triggers()

@@ -144,6 +144,7 @@ src/crowdmon/
     concentration.py        §6.2 CR4/CR8. Published, never null, needs nothing else
     impact.py               A.5 exit COST. Amihud needs the multiplier, see A20
     commonality.py          A.6 beta_bar and T_eff. NOT wired into the composite, see below
+    triggers.py             A.7 trigger + vol trigger. No capital estimate needed, see B8
     weight_sensitivity.py   §6.3 / A.11. Phi has NO signal independent of the weights
     seasonal.py             §5.4. Measured at <=1.4% of variance; adjustment defaults OFF
     extremity.py            §6.1 / A.4 vol-scaled positioning vs 3y of own history

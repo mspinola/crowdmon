@@ -136,6 +136,20 @@ from .seasonal import (
     seasonality_report,
     week_of_year,
 )
+from .triggers import (
+    SIGNAL_ADJUSTMENT,
+    TRIGGER_COLUMNS,
+    TSMOM_LOOKBACKS,
+    TriggerError,
+    add_triggers,
+    blended_trigger,
+    forced_flow,
+    solve_trigger,
+    trend_signal,
+    trigger_block,
+    trigger_prices,
+    vol_trigger,
+)
 from .volume import (
     DEFAULT_ADV_WINDOW,
     DEFAULT_STRESS_LOOKBACK,
@@ -202,6 +216,11 @@ __all__ = [
     "DEFAULT_AMIHUD_WINDOW", "sigma_series",
     # the denominator of T = Q/(kappa V). `VOLUME_SERIES` is "front" and is WHOLE-MARKET;
     # the series named "reconstructed" is the narrower one. volume.py has the measurements.
+    # A.7 triggers. No aggregate-capital estimate: the response is proportional and COT
+    # reports the position, so `A` cancels. The FITTED replication model is not here.
+    "add_triggers", "trend_signal", "trigger_prices", "blended_trigger", "solve_trigger",
+    "vol_trigger", "forced_flow", "trigger_block", "TriggerError", "TRIGGER_COLUMNS",
+    "TSMOM_LOOKBACKS", "SIGNAL_ADJUSTMENT",
     "add_volume", "adv_series", "stress_adv_series", "volume_coverage", "VolumeError",
     "VOLUME_COLUMNS", "VOLUME_SERIES", "DEFAULT_ADV_WINDOW", "DEFAULT_STRESS_LOOKBACK",
     "STRESS_DECILE",

@@ -100,7 +100,31 @@ bit-identical to `pct(T)`, because a percentile ignores a scalar multiple. `t_ef
 offered and deliberately not wired into `D`. See
 [amendments-2026-08-02.md](docs/design/amendments-2026-08-02.md).
 
-Next: §A.7's forced-seller model and trigger solver, the last large unbuilt piece.
+**The trigger solver is built, and it never needed the CTA capital estimate it was filed as
+blocked on.** §A.7 models position size as `q = s(F)·(σ_target/σ)·λ(Σ)·A`, and three of those
+four terms are positive scalars: they do not move where a signal crosses zero, and they cancel
+out of a proportional response. The replication model exists to *estimate other people's
+positions*, and COT reports them weekly, so an observed Managed Money net times a proportional
+response needs no `A` at all. Module spec §9.3's output block, which the spec calls "the
+deliverable", now renders for all 25 markets:
+
+```
+market: ZL (SOYBEAN OIL - CHICAGO BOARD OF TRADE)
+  managed money net:      +107,898 contracts
+  flips at:               66.64 (-0.9% from spot)
+  forced supply on flip:  107,898 contracts = 2.6 days ADV at 20% participation
+  est. impact:            89 bps
+  vol-shock sensitivity:  a 2x volatility rise forces 53,949 contracts, independent of price
+```
+
+Those flows are **upper bounds**: they apply a trend response to the whole Managed Money
+position, and spec §11.2 says the category blends CTAs, discretionary macro and risk parity.
+The block says so in its own output rather than in a docstring.
+
+Next: the trend-following *fraction* of Managed Money, which is a fitted exercise and so needs
+a `SearchSpaceLog` under npf governance, and §A.8's reflexivity amplification. Module spec
+§9.2's first calibration target (SG Trend / BTOP50) is genuinely unavailable here, and is
+declared rather than approximated.
 
 ```python
 from crowdmon.futures import decompose, fragility_frame, latest, top_by
