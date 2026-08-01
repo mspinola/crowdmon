@@ -70,7 +70,7 @@ paragraph said it did.
 
 | Directory | Lifecycle |
 |---|---|
-| `docs/design/` | **living.** Amended as measurements land. The current best statement of how the system works |
+| `docs/design/` | **living.** Amended as measurements land. Amendments are **one dated file per day** (`amendments-YYYY-MM-DD.md`), because a shared section counter collided three times in one afternoon across parallel sessions |
 | `docs/handoffs/` | **append-only.** Dated work orders, status-tracked. Preserved verbatim; append an outcome, never edit the body |
 | `docs/analysis/` | **point-in-time.** Computed against a named report week. **Never amended** — a later week gets a new file |
 | `docs/adr/` | **immutable once accepted.** Superseded by a new ADR rather than edited |

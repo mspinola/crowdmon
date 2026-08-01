@@ -15,6 +15,16 @@ explicitly. **Apply them when the spec migrates into this repo** (see
 Every figure below is reproduced by `docs/analysis/reproduce.py` against
 `COTDATA_STORE=~/code/cotdata_store`, or by the offline fixtures in `tests/fixtures/`.
 
+> **This file is CLOSED to new sections.** Three numbering collisions in one afternoon
+> (A8/A9, A13/A14, A19/A20) because several sessions append here in parallel and none can see
+> another's uncommitted numbering. The convention from 2026-08-02 is **one dated amendments
+> file per day**, matching the dating that `docs/analysis/` already uses: start
+> `amendments-YYYY-MM-DD.md` rather than extending this one. Cross-file references use the
+> file date plus the section, as `2026-08-01 §A15`.
+>
+> Sections A1-A22 keep their numbers, which are cited from commit messages and module
+> docstrings and must not move again.
+>
 > **Before appending, `grep '^## A' this file` and take the next free number.** Sections are
 > numbered by position and several sessions append here in parallel, so "the next number"
 > guessed from memory collides. It has happened twice: A8/A9 (riskunits versus extremity) and
@@ -221,8 +231,8 @@ these are cheaper than they look:
 | A.6 | liquidity commonality `β̄`, `T_eff = T(1 + γβ̄)` | ~~volume~~ nothing, see A13 |
 | A.7 | forced-seller model and trigger solver | prices + a CTA replication model |
 | A.8 | reflexivity amplification `1/(1 - ℓg)` | A.5 and A.7 |
-| A.9 | the composite `D = C x I x Φ` | all of the above |
-| A.10 | unwind-versus-repricing classification during a drawdown | returns |
+| A.9 | ~~the composite `D = C x I x Φ`~~ | **built 2026-08-01**, see [A15](#a15-taking-a9-literally-leaves-phi-doing-almost-none-of-the-work). Uses `T`, not `T_eff` |
+| A.10 | unwind-versus-repricing classification during a drawdown | ~~returns~~ **nothing**: `riskunits.sigma_series` serves propadj returns per symbol, so residual correlation and dispersion are computable. Unchecked, not blocked |
 
 Worth flagging from §A.7: the trigger price for a simple momentum signal is just
 `F* = F_{t-k}`, the price of `k` days ago. That is far cheaper than a numerical solve, and it

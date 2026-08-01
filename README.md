@@ -117,6 +117,19 @@ Three refusals worth knowing before reading any output:
   optional argument that slots in later. `Q/OI` ranks markets; it does not measure a
   duration.
 
+### Reading `D` on live output
+
+The one thing to know before reading a damage score, from
+[amendments §A17](docs/design/amendments-2026-08-01.md): **`D` falls during an unwind, and
+that is correct.** It describes a pre-condition, and both the position and the forceable
+holders it describes leave while the event is happening. Measured across March 2020, mean
+`D_sell` ran 0.76x baseline in the four months before, **0.45x during**, and 0.68x after.
+
+A rising `D` is a market loading up. A falling `D` is not a market getting safer; it may be a
+market in the middle of the exit. The direction of travel matters more than the level, and
+`damage_sell_pct` ranks a market against **its own** history rather than against other
+markets.
+
 ### First results
 
 [`docs/analysis/`](docs/analysis/) holds the first run over real data, ranked rather than

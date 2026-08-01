@@ -54,6 +54,14 @@ See `docs/design/amendments-2026-08-01.md` §A15.
 **3. `T_eff` does not exist yet, so `T` is used.** §A.6 defines
 `T_eff = T . (1 + gamma . beta_bar)` from a liquidity-commonality regression, and it is not
 built: it needs an Amihud panel, and `gamma` is given no value anywhere in the appendix.
+
+*Agreed split, 2026-08-01*: §A.6 is being built as a separate `futures/commonality.py`
+exporting `beta_bar` and `t_effective`, and this module is wired to it afterwards rather
+than as part of that work. Whoever does the wiring inherits the calibration questions in
+amendments §A15-A17 along with it, which is why the two were kept apart. `gamma` will be a
+**third** configured constant after `kappa` (0.2) and `Y` (0.75), and unlike those two the
+appendix sanctions no range for it, so it needs a sensitivity sweep before `D` consumes it:
+`flow.tolerance_sensitivity` and `weight_sensitivity.sweep` are the pattern.
 `T_eff` reduces to `T` exactly when `gamma = 0`, so this is that special case rather than an
 approximation of something else. The consequence is stated rather than hidden: **`D` is
 currently computed as though exits were independent across markets**, and §A.6's whole point

@@ -34,6 +34,21 @@ days-to-liquidate against the implementation; every figure reproduces. It is wri
 LaTeX, which renders on GitHub and not in every viewer, but the source is plain text either
 way, so read the file rather than a rendering when the math matters.
 
+## Amendments are one file per day
+
+`amendments-2026-08-01.md` is closed. From 2026-08-02, each day gets its own
+`amendments-YYYY-MM-DD.md`, and cross-file references carry the date: `2026-08-01 §A15`.
+
+The reason is measured rather than theoretical. Sections are numbered by position, several
+sessions append in parallel, and none can see another's uncommitted numbering: that produced
+three collisions in one afternoon (A8/A9, A13/A14, A19/A20), each caught only after a push
+and each needing a renumber that then broke references written before the bump. Dating the
+file removes the shared counter entirely, and it is not a new convention: `docs/analysis/` is
+already dated and never amended for the same reason.
+
+Numbers already published stay put. They are cited from commit messages and module
+docstrings, so a section that has landed never moves again.
+
 Amendments to the cotdata-resident specs are recorded here rather than edited into them,
 because that is a shared checkout and an edit from this repo would leave uncommitted changes
 on its `main`.
@@ -48,13 +63,19 @@ domains apart everywhere else. The boundary is enforced in `tests/test_boundarie
 deployed `params.yaml` join cleanly to contract specs and unadjusted prices; the only two
 failures are held-out markets Norgate does not cover. Coverage is not a constraint.
 
-**The trap to avoid in layer 2.** Notional must be computed from **unadjusted** prices and
-volatility from **back-adjusted** returns, so the two factors of `net_notional × σ` come
-from different series. Computed off back-adjusted, notional is wrong by +294% for gold in
-2002 and +257% for crude in 2004, and crude's back-adjusted series reaches -27.52, which is
-not a price. The error is **exactly zero at the present date** and grows monotonically
-backwards, so it passes every spot check anyone would run while corrupting the entire
-history a backtest is evaluated over. Pin it with a test, not a comment.
+**The trap in layer 2, now coded and guarded.** Each rung takes a different price series and
+both refuse the rest:
+
+| rung | needs | what the wrong series does |
+|---|---|---|
+| `notional` | `unadj` | `backadj` notional is wrong by +294% (gold 2002), +257% (crude 2004), and **exactly 0% today**, growing monotonically backwards |
+| `riskunits` | `propadj` | `backadj` percent vol is 201x too high for soybeans, 182x for 10Y notes, and **0.47x for gold**, which never goes negative and passes every implausibility screen |
+
+**An earlier version of this file said volatility wanted `backadj`. That was wrong**, and the
+error originated here rather than in the spec: additive back-adjustment preserves absolute
+price CHANGES, not percentage returns. Module spec §5.1 had it right all along, "ratio-
+adjusted, not difference-adjusted, so returns are correct". See
+[amendments-2026-08-01.md](amendments-2026-08-01.md) §A8. Both guards raise rather than warn.
 
 **Not settled.** Roll calendar, first notice date and daily price limits are blocked on
 data rather than code: there is no per-expiry price source in the stack and none is being
