@@ -530,3 +530,94 @@ the guard is load-bearing rather than defensive.
 everything else to "short, flips up", so a flat lookback rendered as a short whose trigger sits
 0.0% away, which reads as the most urgent row in a block when it is not a trigger at all. Its
 flip price is spot itself. Fixed, with a test.
+
+---
+
+## B16. Roll congestion is not blocked, and `roll_dates` returns empty rather than raising on a wrong argument
+
+**Contradicts:** the reading that §13 step 4 is blocked in full, and my own first pass at
+measuring it. Reproducer: `docs/analysis/reproduce.py` section 16.
+
+§13 step 4 is "DTL, impact, limit-move and roll constraints", and it was read as one blocked
+item because a per-expiry price source does not exist in the workspace (workspace CLAUDE.md,
+ADR-0007). **Step 4 is two constraints with different answers.**
+
+| item | data it needs | status |
+|---|---|---|
+| **limit moves** | a daily price limit table | **blocked.** No such table in `cotdata` or `marketdata` |
+| **roll congestion** | roll timing | **not blocked.** `cotdata.roll_dates(symbol)` |
+
+### Coverage, measured
+
+| | |
+|---|---|
+| symbols in the registry | 49 |
+| **non-empty `roll_dates`** | **47** |
+| empty | 2 |
+| errors | 0 |
+| rolls per symbol | min 25, median 188, max 574 |
+| span | first roll 1977-11-21, last 2026-07-31 |
+
+The deepest are HO at 574 rolls, CL at 520 and NG at 436. **The two empties are not a gap**:
+`MME` and `MFS` carry `norgate=None` and are sourced from Yahoo as `EEM` and `EFA`. They are
+equity ETF proxies, so there is no Delivery Month to change and no roll to date. Every
+instrument that is actually a futures contract has roll dates.
+
+### What that unblocks, and what it does not
+
+A full roll-congestion decomposition wants open interest split front against back, which needs
+the per-expiry source that genuinely does not exist. **The useful question does not need it.**
+`pressure.T` already gives days for the forced side to leave and `roll_dates` gives the days
+the whole market has to move anyway, so whether an exit window collides with a roll is
+answerable from two things already in the package.
+
+### The trap: a wrong argument type is silent
+
+`roll_dates(symbol: str)` returns an **empty `DatetimeIndex`** rather than raising when handed
+something that is not a symbol string. `cotdata.all_symbols()` returns `Symbol` namedtuples,
+not strings, so the obvious one-liner
+
+    [len(cotdata.roll_dates(s)) for s in cotdata.all_symbols()]     # 0 for all 49
+
+reports **zero coverage across the entire universe** and reads exactly like "this data does not
+exist". That is how this measurement went wrong on its first pass, immediately after a
+33-symbol hand-written list had returned 33 of 33. Two runs, same store, same function, 0% and
+100%.
+
+The docstring's stated empty case ("the producer did not carry Delivery Month") is real and
+accounts for `MME` and `MFS`. It is indistinguishable from the wrong-type case, which is what
+makes the failure quiet. **Pass `s.internal`, and treat a universe-wide zero as a bug in the
+call before believing it about the data.**
+
+The field is `internal`, not `symbol`, which makes this a ladder rather than one step:
+
+| what you pass | what happens |
+|---|---|
+| the `Symbol` namedtuple | **silent, 0 rolls** |
+| `s.symbol` | loud `AttributeError` |
+| `s.internal` | correct |
+
+The call anyone writes first is the silent one, and the obvious correction to it is the loud
+one, so a session that hits the trap and then guesses is rescued by accident rather than by
+understanding. That changes what "I tried unwrapping it" is worth as evidence.
+
+### The `adjustment` argument is the one place a default series is safe
+
+`roll_dates(symbol, adjustment="backadj")` inherits a series the way three other call sites in
+this package must not. Measured across the registry:
+
+| | |
+|---|---|
+| identical across `backadj` / `unadj` / `propadj` | **47 of 47** |
+| differing | **0** |
+
+**The reason matters more than the count.** Roll dates come from the Delivery Month column
+changing, which is a property of the contract calendar. Price adjustment rescales bars; it does
+not move a delivery month. So the default is harmless here by construction rather than by luck.
+
+Recorded precisely **because it is the exception.** Four separate failures in this package have
+been the wrong series (notional's levels, riskunits' returns, impact's dollar volume, trigger's
+distance), so "check the series" is now the standing instinct and a session taking roll
+congestion would otherwise spend real effort re-deriving this. The safety is **conditional**:
+it holds while rolls are derived from Delivery Month, and would stop holding the day an
+implementation inferred them from price gaps instead.
