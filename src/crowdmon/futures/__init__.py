@@ -125,6 +125,7 @@ from .reflexivity import (
     ReflexivityError,
     bracket,
     effective_lambda,
+    headline,
     implied_gross_pool,
     staircase,
 )
@@ -201,7 +202,7 @@ __all__ = [
     # engines
     "trigger_prices", "trigger_block", "format_block", "vol_shock_reduction",
     "TriggerError", "DEFAULT_LOOKBACKS",
-    "staircase", "bracket", "implied_gross_pool", "effective_lambda",
+    "staircase", "bracket", "headline", "implied_gross_pool", "effective_lambda",
     "format_cascade_block", "ReflexivityError", "STAIRCASE_COLUMNS",
     "DEFAULT_TREND_FRACTION", "LG_CEILING",
     "seasonal_profile", "deseasonalise", "seasonality_report", "week_of_year",

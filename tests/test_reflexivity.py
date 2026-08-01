@@ -120,30 +120,75 @@ def test_the_pool_accumulates_with_distance_rather_than_arriving_at_once():
     assert stairs["cum_pool"].iloc[-1] == pytest.approx(stairs["step_pool"].sum())
 
 
-def test_amplification_is_LARGEST_at_the_nearest_trigger():
-    """The view that motivated this module predicted the opposite, on the grounds that only
-    the fastest slice of the pool is in play near the first trigger. That counts only the
-    numerator. `g = cum_pool / distance` is a ratio, the pool grows linearly in the step index
-    under a uniform split, and trigger distances grow FASTER than linearly, so `g` falls with
-    distance. `l` falls too, being a secant on a square root, so `l.g` falls twice over.
-
-    Measured on the real panel, GC's up staircase runs 1.53x at 1.9% down to 1.07x at 13.7%.
-    Pinned here on the fixture so the direction cannot regress silently.
-    """
+def test_well_spaced_triggers_put_the_worst_step_nearest():
+    """`l.g ~ sqrt(Q_cum)/d`, so step `i` beats step `i+1` when `d_(i+1)/d_i` exceeds
+    `sqrt(Q_(i+1)/Q_i)`, which is 1.414 at the first gap under a uniform split. UNANIMOUS is
+    spaced 0.05 / 0.15 / 0.30, ratios 3.0 and 2.0, so the near step wins comfortably."""
     stairs = rx.staircase(UNANIMOUS, net_contracts=100_000.0,
                           sigma_daily=0.011, volume=180_000.0)
     amps = stairs["amplification"].tolist()
-    assert amps == sorted(amps, reverse=True), "amplification must fall with distance"
-    assert amps[0] > amps[-1], "the nearest trigger is the worst step, not the mildest"
+    assert amps == sorted(amps, reverse=True)
+    head = rx.headline(stairs)
+    assert head["is_nearest"].all()
 
 
-def test_g_would_only_be_flat_if_distance_grew_in_proportion_to_the_pool():
-    """The boundary case that makes the claim above a geometry fact rather than a coincidence:
-    equally spaced triggers give a constant `g`, and no lookback ladder produces those."""
+def test_clustered_triggers_put_the_worst_step_PAST_the_nearest():
+    """The case that breaks "report the nearest step", and it is not a corner: measured
+    within-direction across 33 markets, 6 of 33 multi-step staircases peak past their nearest.
+    6E holds two up-triggers at a distance ratio of 1.005, far inside the 1.414 needed.
+
+    The ORDERING is net-independent (`lg_2/lg_1 = sqrt(2).d_1/d_2`), which is why it can be
+    counted across the universe without a real position for each market. The amplification
+    levels are not, and are deliberately not quoted anywhere.
+
+    Here 0.050 and 0.052 give a ratio of 1.04, far below the 1.414 the near step needs.
+    """
+    clustered = triggers((20, -1, 0.050), (60, -1, 0.052))
+    stairs = rx.staircase(clustered, net_contracts=100_000.0,
+                          sigma_daily=0.011, volume=180_000.0)
+    amps = stairs["amplification"].tolist()
+    assert amps[1] > amps[0], "the pool nearly doubles across almost no distance"
+
+    head = rx.headline(stairs)
+    assert not head["is_nearest"].iloc[0]
+    assert head["amplification"].iloc[0] == pytest.approx(max(amps))
+
+
+def test_the_dominance_threshold_is_sqrt_of_the_pool_ratio():
+    """The exact condition, pinned at the boundary rather than asserted in prose. With two
+    equal cohorts `Q_2/Q_1 = 2`, so the near step wins iff `d_2/d_1 > sqrt(2)`."""
+    def near_wins(ratio: float) -> bool:
+        st = rx.staircase(triggers((20, -1, 0.05), (60, -1, 0.05 * ratio)),
+                          net_contracts=100_000.0, sigma_daily=0.011, volume=180_000.0)
+        return st["lg"].iloc[0] > st["lg"].iloc[1]
+
+    assert near_wins(2 ** 0.5 + 0.01)
+    assert not near_wins(2 ** 0.5 - 0.01)
+
+
+def test_g_is_flat_when_distance_grows_in_proportion_to_the_pool():
+    """The boundary case for `g` itself. Equally spaced triggers give a constant `g`, so
+    `l.g` then falls only through `l`, once and by sqrt(3) across three steps."""
     even = triggers((20, -1, 0.10), (60, -1, 0.20), (250, -1, 0.30))
     stairs = rx.staircase(even, net_contracts=100_000.0, sigma_daily=0.011, volume=180_000.0)
     g = stairs["g_secant"].tolist()
     assert g[0] == pytest.approx(g[1]) == pytest.approx(g[2])
+    assert stairs["lg"].iloc[0] / stairs["lg"].iloc[-1] == pytest.approx(3 ** 0.5)
+
+
+def test_the_worst_step_race_is_run_within_a_direction_never_across():
+    """Pooling `up` and `down` into one distance-sorted ladder manufactures counterexamples
+    that are artifacts of the pooling, because adjacent steps then belong to different
+    cascades. ZC in the latest week looks like a middle-step market exactly that way: its
+    three steps sorted by distance are 250d-up, 20d-down, 60d-up, and it is monotone once
+    separated.
+    """
+    zc_like = triggers((20, 1, -0.0403), (60, -1, 0.1114), (250, -1, 0.0370))
+    stairs = rx.staircase(zc_like, net_contracts=126_776.0,
+                          sigma_daily=0.014, volume=120_000.0)
+    up = stairs[stairs["direction"] == "up"]["amplification"].tolist()
+    assert up == sorted(up, reverse=True), "the up cascade alone is monotone"
+    assert rx.headline(stairs)["is_nearest"].all()
 
 
 def test_lambda_falls_as_the_cumulative_pool_grows():

@@ -41,9 +41,8 @@ because it is indefensible as an estimate: it asserts no knowledge that does not
 it, sweep it, never fit it. Fitting `w_h` against realised flow would be a search and would
 need a `SearchSpaceLog`.
 
-**The heights are constrained even though they are unknown, and this is what keeps the
-amplification finite.** The cohorts must reproduce the observed net. With cohort `h` holding
-`w_h . P . s_h`:
+**The heights are constrained even though they are unknown.** The cohorts must reproduce the
+observed net. With cohort `h` holding `w_h . P . s_h`:
 
     net = P . sum(w_h . s_h)     ->     P = |net| / |sum(w_h . s_h)|
 
@@ -98,28 +97,48 @@ reporting `f` rather than assuming it away in either direction. It is an explici
 in the output rather than an implicit 1.0. Estimating it would be a fit, therefore a search,
 therefore out of scope here.
 
-**The nearest trigger is the WORST step, not the mildest, and the view that motivated this
-module had it backwards.** The intuition was that near the first trigger only the fastest
-slice of the pool is in play, so the amplification there should be small and grow as the move
-extends through successive horizons. `g` is a RATIO, and that argument counts only its
-numerator. The pool accumulates linearly in the step index under a uniform split while trigger
-distances grow faster than linearly, because 20/60/250-day lookbacks sit progressively further
-out. So `g = cum_pool / distance` FALLS with distance, and `l` falls too (a secant on a square
-root), so `l.g` falls twice over. Measured on the real panel:
+**Which step is the worst is a race, and there is no shortcut for it.** Two wrong answers were
+written down before the right one. The first was that amplification grows as a move extends,
+because only the fastest slice of the pool is in play near the first trigger; that counts only
+the numerator of a ratio. The second was the reverse, that the nearest step is always the
+worst, on the reasoning that trigger distances grow faster than the pool accumulates. **That
+premise is simply false**: trigger distance is not monotonic in lookback. Latest week,
 
-| market, side | near step | far step |
-|---|---|---|
-| GC up (shorts cover) | 1.9% away, **1.53x** | 13.7% away, 1.07x |
-| ZC up | 3.7% away, **1.41x** | 11.1% away, 1.16x |
-| CL down (longs liquidate) | 19.6% away, **1.05x** | 29.5% away, 1.04x |
+| | 20d | 60d | 250d |
+|---|---|---|---|
+| GC | **1.94%** | 13.71% | 13.44% |
+| ZC | 4.03% | 11.14% | **3.70%** |
+| CL | 19.60% | **13.86%** | 29.51% |
 
-`g` would be flat only if trigger distances were proportional to cumulative pool, and rising
-only if they grew slower than linearly, which is not the geometry any lookback ladder produces.
+so a 20/60/250 ladder does not sit progressively further out, and the staircase must be sorted
+by distance rather than by horizon.
+
+Since `l.g ~ sqrt(Q_cum) / d`, step `i` beats step `i+1` exactly when
+
+    d_(i+1) / d_i  >  sqrt( Q_(i+1) / Q_i )
+
+which under a uniform split is **1.414** at the first gap and **1.225** at the second. The
+nearer step wins only when the next trigger is more than 41% further out. **Clustered triggers
+are common enough that this is not a corner case**: measured within-direction across 33
+markets, 6 of the 33 multi-step staircases have their worst step past the nearest. Currency
+crosses are the sharpest, 6E holding two up-triggers at a distance ratio of **1.005**, far
+inside the 1.414 the near step would need.
+
+**Which step wins does not depend on the pool size**, which is what makes that countable
+without a real net: `l.g ~ sqrt(Q_cum)/d`, so `lg_2/lg_1 = sqrt(2) . d_1/d_2` under a uniform
+split and the net cancels. At 6E's ratio the second step's `l.g` is **41% higher** than the
+first's whatever the position turns out to be. The amplification LEVELS do depend on the net
+and are not quoted here for that reason.
+
+**So the headline is `max` over steps, not the nearest step**, and `headline` computes it.
+
+A caution on reading any of this: the race is only ever run WITHIN a direction. Pooling `up`
+and `down` steps into one distance-sorted ladder manufactures counterexamples that are
+artifacts of the pooling, because adjacent steps then belong to different cascades. ZC looks
+like a middle-step market exactly that way, and is monotone once separated.
 
 **What this emits is therefore not a number.** Per market and direction: the staircase, the
-local `l.g` at each step, the amplification at each step, and the bracket. If a single
-headline is wanted the honest one is the amplification at the nearest trigger, which is both
-the step a move reaches first and, measured, the largest.
+local `l.g` at each step, the amplification at each step, the worst step, and the bracket.
 """
 from __future__ import annotations
 
@@ -263,6 +282,37 @@ def staircase(triggers: pd.DataFrame, net_contracts: float, *, sigma_daily: floa
     return frame
 
 
+def headline(stairs: pd.DataFrame) -> pd.DataFrame:
+    """The worst step per direction, which is NOT reliably the nearest one.
+
+    `l.g ~ sqrt(Q_cum)/d`, so a step beats the next only when the next trigger is more than
+    `sqrt(Q_(i+1)/Q_i)` further out: 41% at the first gap under a uniform split. Clustered
+    triggers beat that test routinely, and 6 of 33 multi-step staircases in the latest week
+    peak past their nearest step. Which step wins is independent of the pool size, so that
+    count holds whatever each market's net turns out to be.
+
+    Returns one row per direction, with `is_nearest` so a reader can see when the two differ
+    rather than having to compare frames.
+    """
+    rows = []
+    for direction, side in stairs.groupby("direction", sort=False):
+        ranked = side.sort_values("distance")
+        if ranked["lg"].isna().all():
+            continue
+        worst = ranked.loc[ranked["lg"].idxmax()]
+        rows.append({
+            "direction": direction,
+            "lookback_days": worst["lookback_days"],
+            "distance": worst["distance"],
+            "cum_pool": worst["cum_pool"],
+            "lg": worst["lg"],
+            "amplification": worst["amplification"],
+            "is_nearest": bool(worst["distance"] == ranked["distance"].iloc[0]),
+            "steps": len(ranked),
+        })
+    return pd.DataFrame(rows)
+
+
 def bracket(stairs: pd.DataFrame) -> pd.DataFrame:
     """The all-fast / all-slow endpoints per direction, which is what the horizon argument was.
 
@@ -306,5 +356,11 @@ def format_block(stairs: pd.DataFrame, *, symbol: str = "") -> str:
                 f"cum pool {row.cum_pool:>10,.0f}, "
                 f"l={row.lambda_eff:.3e}, g={row.g_secant:>12,.0f}, "
                 f"l.g={row.lg:.3f} -> {amp}")
+    for row in headline(stairs).itertuples():
+        where = "nearest step" if row.is_nearest else f"step past the nearest, {row.steps} in all"
+        amp = "no equilibrium" if not np.isfinite(row.amplification) \
+            else f"{row.amplification:.2f}x"
+        lines.append(f"  worst {row.direction:<4}: {amp} at {row.distance:.1%} "
+                     f"({row.lookback_days:.0f}d, {where})")
     lines.append("  g_up and g_down are separate cascades and are never summed.")
     return "\n".join(lines)
