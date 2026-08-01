@@ -170,16 +170,33 @@ a session that has written none of this.
 **Next for anyone who wants to build rather than judge**, checked against spec §13 rather than
 assumed: **step 5's cross-market engine is half unbuilt and is not blocked.** §13 step 5 asks
 for panel, **PCA** and **trend alignment**. The panel exists as `futures/commonality.py`;
-neither of the other two exists anywhere in `src/`. Both are reachable from what is already
-here, a PCA over the illiquidity panel `commonality` already builds, and an alignment measure
-over the per-market, per-horizon trend signals `trigger` already computes. Neither needs data
-the workspace does not have.
+neither of the other two exists anywhere in `src/`, and neither needs data the workspace does
+not have.
 
-Two nearby gaps are **not** the same kind of thing and should not be picked up as if they
-were. Step 4's limit-move and roll constraints are **blocked on data**: there is no per-expiry
-price source in the stack and none is being built, so they wait on ADR-0007 step 2 rather than
-on effort. And step 7's report layer is buildable but is the last item, after validation, in
-the spec's own ordering.
+**Build the PCA the spec names, which is not the one nearest to hand.** §7's macro-book PCA
+runs on positioning **changes**, and reads PC1's variance share as the futures absorption ratio
+with loading rotation signalling the book being redefined. `commonality` builds an
+**illiquidity** panel, so a PCA over that is the closer object and answers a different
+question. Both are reachable, the positioning one from the same COT panel everything else
+consumes, but they are not interchangeable and only one of them is the absorption ratio.
+Trend alignment is reachable from the per-market, per-horizon signals `trigger` already
+computes.
+
+**Step 4 is two constraints, not one, and only one of them is blocked.** Treating them
+together is what kept the second sitting unbuilt.
+
+| §13 step 4 item | state |
+|---|---|
+| **limit moves** | **blocked on data.** No daily price limit table exists in `cotdata` or `marketdata`, and spec §3 says the source is "manually maintained" by nothing |
+| **roll congestion** | **not blocked.** `cotdata.roll_dates(symbol)` returns exact roll dates from the Delivery Month change, populated for every market checked with decades of depth |
+
+A per-expiry open-interest split, front against back, is genuinely absent. Roll congestion's
+useful question does not need it: `pressure` already says how many days the forced side needs
+to leave, and `roll_dates` says when the whole market has to move anyway, so whether an exit
+window collides with a roll is answerable today from two things already here.
+
+Step 7's report layer is buildable but is the last item, after validation, in the spec's own
+ordering.
 
 ```python
 from crowdmon.futures import decompose, fragility_frame, latest, top_by
