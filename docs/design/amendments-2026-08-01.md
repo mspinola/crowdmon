@@ -110,8 +110,11 @@ a Phi value should be read.
 
 ## A4. The producer-short / fund-long shape holds in about half the universe
 
-**Amends:** the cocoa worked example's implied generality (appendix A.2, per the handoff's
-description of it — see [A6](#a6-the-plain-language-summary-is-missing)).
+**Amends:** the cocoa worked example's implied generality (appendix §A.2). The example itself
+has since been read and reproduced exactly, see
+[A6](#a6-the-plain-language-summary-was-found-and-the-implementation-matches-it); its shape
+is Producer/Merchant net **short** 110,000 against Managed Money net **long** 90,000, so the
+characterisation this section was originally checked against was accurate.
 
 **Measured** on the 279-market latest week. Producer/Merchant is net **long** in 141 markets
 (50.5%) and net short in 138 (49.5%). Managed Money is net long in 43.0%, net short in
@@ -145,21 +148,82 @@ across "all Disaggregated markets" would produce a PC1 describing ERCOT and PJM,
 macro book, and the trend-alignment score would inherit the same population. §7 should state
 which universe it means before it is built.
 
-## A6. The plain-language summary is missing
+## A6. The plain-language summary was found, and the implementation matches it
 
-`crowdmon_plain_language_summary.md` is not present in this repo or in
-`cotdata/docs/design/`. The handoff names its appendix (§A.1-A.11) as **authoritative for
-every formula** in this build and as the source of the cocoa template.
+**Resolved 2026-08-01.** `crowdmon_plain_language_summary.md` now lives in
+[`docs/design/`](crowdmon_plain_language_summary.md). It was written before this build and
+was not in the workspace while the build ran, so every formula here was taken from the
+handoff body instead. The appendix is authoritative, so the whole thing needed re-checking
+against it.
 
-The formulas were taken from the handoff body instead. They are self-consistent, and the one
-that could have been got wrong is pinned: `Phi ∈ [0,1]` holds by construction because
-`Σ_c (L_c + S_c) = 2·(OI − spreading) ≤ 2·OI` with every weight in `[0,1]`, and it is
-asserted on every computation in `fragility._assert_phi_bound` as well as over twenty years
-of fixture data in `tests/test_fragility.py`.
+**It checks out.** The appendix's own worked example (§A.2 cocoa, §A.5 continued) is now
+executed as a test rather than read, in [`tests/test_appendix.py`](../../tests/test_appendix.py),
+and every figure reproduces:
 
-**If that document exists somewhere, the Phi definition and the [A4](#a4-the-producer-short--fund-long-shape-holds-in-about-half-the-universe)
-cocoa comparison should be re-checked against it**, since the comparison here is against a
-one-line characterisation rather than the example itself.
+| §A.2 / §A.5 says | implementation gives |
+|---|---|
+| `Q_sell = 99,500` | 99,500 |
+| `Q_buy = 11,000` | 11,000 |
+| `Phi = 175.5/400 = 0.44` | 0.438750 |
+| MM numerator share `110,000 of 175,500` | 110,000 of 175,500 |
+| `T = 99,500/(0.2 x 25,000) ~ 20 days` | 19.9 |
+| unweighted MM comparison, 18 days | 18.0 |
+
+The weight table in `core.config.DISAGGREGATED_WEIGHTS` is identical to §A.2's, and
+`Q_sell`, `Q_buy`, `Phi` and `T = Q/(kappa V)` are all as written. Nothing had drifted.
+
+**Two places where the appendix is right about its example and wrong about real data**, both
+already handled in code but now traceable to the authoritative source rather than to the
+handoff:
+
+- **§A.1 asserts `sum L_c = sum S_c = OI`, and §A.2 that gross positions total "exactly
+  `2 . OI`".** True in the example, which has no spreading. False on real Disaggregated
+  data, where spreading counts toward open interest but is excluded from `L_c` and `S_c`, so
+  the sums fall short by exactly the spreading and gross totals `2(OI - spreading)`. `Phi`
+  is therefore bounded by a *reachable ceiling* below 1, which `market_fragility` emits as
+  `phi_denominator_covered` (0.9715 for `0063CU`, 0.9791 for `02339S`). The bound `Phi
+  ∈ [0,1]` still holds, and more tightly than the appendix claims.
+- **§A.2 says a single category dominating the numerator is "typical".** Measured false, see
+  [A3](#a3-phi-is-not-usually-a-managed-money-story): Managed Money is the top contributor in
+  81 of 279 markets (29%), and the median top contributor carries 44% of the Phi it sits in.
+  This now contradicts the *authoritative* document rather than the handoff, which raises its
+  standing: it is the one place where the appendix generalises from its own constructed
+  example and the generalisation does not survive contact with the report.
+
+**One labelling correction.** The handoff cites "flow decomposition (appendix A.3)". §A.3 is
+primarily the **breadth-depth** decomposition, with flow decomposition as a sub-section of
+it. Both are there, so the citation is loose rather than wrong, but a reader going to A.3 for
+the four-state table will find the `ΔP = N̄Δq + q̄ΔN + ΔNΔq` identity first.
+
+**On that identity:** §A.3 writes `N̄` and `q̄` and calls the decomposition "exact". Exactness
+requires those to be the *prior period's* values, not period means, since
+`N₁q₁ - N₀q₀ = N₀Δq + q₀ΔN + ΔNΔq` is an algebraic rearrangement while a mean-based version
+leaves a residual. `breadth.decompose_breadth` uses the prior week and asserts the residual
+is zero to floating point, which is the reading that makes the appendix's own claim true.
+
+### What the appendix specifies that is not built yet
+
+Recorded here because the appendix is the fullest statement of the target and several of
+these are cheaper than they look:
+
+| § | Not built | Blocked on |
+|---|---|---|
+| A.4 | extremity, rolling 3y z-score of vol-scaled notional | `riskunits` (rung 4, in flight) |
+| A.5 | square-root impact `I = Y σ sqrt(Q/V)`, Amihud `Λ`, stress-conditioned `V`, the volume-spike trap | **volume**, which does not exist in this workspace |
+| A.6 | liquidity commonality `β̄`, `T_eff = T(1 + γβ̄)` | volume |
+| A.7 | forced-seller model and trigger solver | prices + a CTA replication model |
+| A.8 | reflexivity amplification `1/(1 - ℓg)` | A.5 and A.7 |
+| A.9 | the composite `D = C x I x Φ` | all of the above |
+| A.10 | unwind-versus-repricing classification during a drawdown | returns |
+
+Worth flagging from §A.7: the trigger price for a simple momentum signal is just
+`F* = F_{t-k}`, the price of `k` days ago. That is far cheaper than a numerical solve, and it
+means a first-cut trigger level needs only prices, not the full replication model.
+
+§A.11 lists four known biases, of which the first matters most for reading anything this
+package emits: **`T` is a lower bound on pain, not an estimate of it**, because `V` is
+endogenous and the model treats it as exogenous. Every days-to-liquidate figure this system
+ever prints will be systematically optimistic.
 
 ## A7. Flow decomposition now exists twice
 

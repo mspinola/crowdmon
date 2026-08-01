@@ -10,26 +10,33 @@ full four-way split.
 New crowdmon design work is authored **here**, under this repo's `docs/`, from the first
 keystroke (workspace governance: never drafted in an agent scratchpad).
 
-Three documents predate this package and still live in `cotdata`, because they were written
-while it did not exist. They are about crowdmon, not about cotdata, so they belong here and
-should migrate. Not moved yet: they are linked from merged PRs and from
-`cotdata/docs/design/cot_vintage.md`, and moving them now would rot those links for no
-gain. Move them when something else brings that file back open.
-
 | Document | Where | What |
 |---|---|---|
-| `crowdmon_futures_cot_module.md` | cotdata | full system description v0.1, and the §13 build order. The primary spec |
+| [`crowdmon_plain_language_summary.md`](crowdmon_plain_language_summary.md) | **here** | the argument in prose, and the **authoritative appendix** (§A.1-A.11). Every formula in the package is defined here |
+| [`crowdmon_futures_cot_module.md`](crowdmon_futures_cot_module.md) | **here** | full system description v0.1, and the §13 build order. The primary spec |
+| [`amendments-2026-08-01.md`](amendments-2026-08-01.md) | **here** | what the layer-3 build measured that the two above get wrong. **Read alongside them, not after** |
 | `crowdmon_step2_normalisation.md` | cotdata | contract master and normalisation: **proposed and measured, not accepted**. Read before starting layer 2 |
 | `cot_vintage.md` | cotdata | the vintage store this package reads. §9 records two adversarial reviews and one deliberately unmet acceptance criterion |
-| [`amendments-2026-08-01.md`](amendments-2026-08-01.md) | **here** | what the layer-3 build measured that the specs above get wrong. **Read alongside the spec, not after it** |
 
-`crowdmon_plain_language_summary.md`, which the layer-3 handoff names as authoritative for
-every formula, **does not exist in this repo or in cotdata**. See amendments §A6 for what was
-used instead and what should be re-checked if it turns up.
+The first two arrived on 2026-08-01, having been written before this package existed. **The
+`cotdata` copies still exist**, so those two files are now duplicated across repos: the ones
+here are canonical, and the cotdata ones should become pointers when something next brings
+that repo open. Do not edit both. The remaining two are about cotdata's own subsystems and
+belong where they are.
 
-Amendments are recorded here rather than applied to the cotdata originals because that is a
-shared checkout: an edit from this branch would leave uncommitted changes on its `main`.
-Fold them in when the specs migrate.
+The filename `crowdmon_futures_cot_module.md` keeps the old package name deliberately. It is
+the name merged PRs and `cotdata/docs/design/cot_vintage.md` link to, and it is not wrong on
+its own terms: the document describes the futures COT module, which is `crowdmon.futures`.
+
+**The appendix is authoritative and is also executed.**
+[`tests/test_appendix.py`](../../tests/test_appendix.py) runs §A.2's cocoa example and §A.5's
+days-to-liquidate against the implementation; every figure reproduces. It is written in
+LaTeX, which renders on GitHub and not in every viewer, but the source is plain text either
+way, so read the file rather than a rendering when the math matters.
+
+Amendments to the cotdata-resident specs are recorded here rather than edited into them,
+because that is a shared checkout and an edit from this repo would leave uncommitted changes
+on its `main`.
 
 ## What is settled, and what is not
 

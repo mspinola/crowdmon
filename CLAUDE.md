@@ -28,21 +28,30 @@ not about next week's return. Positioning extremes persist for quarters.
 
 | Document | Where |
 |---|---|
-| `crowdmon_futures_cot_module.md` — the primary spec, §13 build order | `../cotdata/docs/design/` |
+| [`crowdmon_plain_language_summary.md`](docs/design/crowdmon_plain_language_summary.md) — the argument in prose, **and the authoritative appendix** | here |
+| [`crowdmon_futures_cot_module.md`](docs/design/crowdmon_futures_cot_module.md) — the primary spec, §13 build order | here |
+| [`amendments-2026-08-01.md`](docs/design/amendments-2026-08-01.md) — where measurement contradicted the above | here |
 | `crowdmon_step2_normalisation.md` — layer 2, proposed and measured, **not accepted** | `../cotdata/docs/design/` |
 | `cot_vintage.md` — the vintage store this reads | `../cotdata/docs/design/` |
-| [`docs/design/amendments-2026-08-01.md`](docs/design/amendments-2026-08-01.md) — where measurement contradicted the above | here |
 
 **The appendix of `crowdmon_plain_language_summary.md` (§A.1-A.11) is the authoritative
 statement of every formula.** Where a handoff and the appendix disagree, the appendix wins.
 
-**That document does not currently exist anywhere in the workspace.** If you find it, the
-Phi definition and the cocoa-template comparison in `docs/analysis/` should be re-checked
-against it (amendments §A6). Until then the implemented formulas are the ones in the
-2026-08-01 handoff, and the one that could have gone wrong is asserted rather than trusted.
+It is written in LaTeX, which renders on GitHub and not in every viewer. The source is plain
+text either way, so read the file rather than a rendering if the math matters.
+
+**Its worked example is executed, not just read** ([`tests/test_appendix.py`](tests/test_appendix.py)):
+§A.2's cocoa figures and §A.5's days-to-liquidate reproduce exactly, so the implementation
+is pinned to the specification rather than merely believed to match it. Two places where the
+appendix is right about its example and wrong about real data (spreading, and "a single
+category dominating is typical") are in amendments §A6.
 
 Precedence: **a measurement beats a doc, the appendix beats a handoff, and a handoff beats
 your own judgement about what would be nicer.**
+
+The first two documents were copied in on 2026-08-01 and **`cotdata` still holds its own
+copies**. This repo's are canonical; the cotdata ones should become pointers when something
+next brings that repo open. Do not edit both.
 
 ## Doc lifecycle — four directories, four different rules
 

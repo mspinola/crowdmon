@@ -167,25 +167,31 @@ history on every roll, and `marketdata` captures no vintages.
 
 ## Design docs
 
-The system description and the step-2 proposal currently live in `cotdata`, because they
-were written before this package existed. They belong here and should migrate once the
-cross-repo links they are referenced by have settled:
+Here, in [`docs/design/`](docs/design/):
 
-- [crowdmon_futures_cot_module.md](https://github.com/mspinola/cotdata/blob/main/docs/design/crowdmon_futures_cot_module.md)
-  (the full system description, and the build order)
+- [crowdmon_plain_language_summary.md](docs/design/crowdmon_plain_language_summary.md) —
+  the argument in prose, with a mathematical appendix (§A.1-A.11). **The appendix is the
+  authoritative statement of every formula in this package**; where anything else disagrees
+  with it, it wins. Written in LaTeX, which renders on GitHub and not in every viewer, so
+  read the source if the math matters.
+- [crowdmon_futures_cot_module.md](docs/design/crowdmon_futures_cot_module.md) — the full
+  system description and the §13 build order.
+- [amendments-2026-08-01.md](docs/design/amendments-2026-08-01.md) — what measurement
+  contradicted in both of the above. Read it alongside them, not after.
+
+Still in `cotdata`, because they are about that repo's own subsystems:
+
 - [crowdmon_step2_normalisation.md](https://github.com/mspinola/cotdata/blob/main/docs/design/crowdmon_step2_normalisation.md)
-  (contract master and normalisation, proposed and measured, not yet built)
+  (contract master and normalisation, proposed and measured, **not accepted**)
 - [cot_vintage.md](https://github.com/mspinola/cotdata/blob/main/docs/design/cot_vintage.md)
   (the vintage store this package reads)
 
-`crowdmon_plain_language_summary.md`, whose appendix §A.1-A.11 is the authoritative
-statement of every formula in this package, **does not exist anywhere in the workspace**. The
-formulas implemented here come from the 2026-08-01 handoff instead, and the one that could
-have gone wrong is asserted on every computation rather than trusted.
-
-What the build measured that those documents get wrong is recorded in
-[docs/design/amendments-2026-08-01.md](docs/design/amendments-2026-08-01.md) rather than
-edited into them, because they sit in a shared checkout. Read it alongside the spec.
+**The appendix's worked example is executed as a test**, in
+[tests/test_appendix.py](tests/test_appendix.py), rather than only read. §A.2's cocoa
+figures (`Q_sell = 99,500`, `Q_buy = 11,000`, `Phi = 0.44`) and §A.5's ~20-day
+days-to-liquidate all reproduce exactly, so the implementation is pinned to the
+specification instead of assumed to match it. An authoritative document whose worked example
+nobody runs is a document nobody has checked.
 
 ## Docs, and four different lifecycles
 

@@ -113,6 +113,14 @@ is not predictable from the market being a commodity.**
 > either this repo or `cotdata/docs/design/`, so the cocoa example itself could not be read.
 > What follows is checked against the one-line characterisation in the handoff, not against
 > the appendix. See [§7](#7-what-the-data-contradicted).
+>
+> **Resolved later the same day**, appended rather than rewritten because this document is
+> point-in-time. The summary was supplied and now lives at
+> [`docs/design/crowdmon_plain_language_summary.md`](../design/crowdmon_plain_language_summary.md).
+> The example reads Producer/Merchant net short 110,000 against Managed Money net long
+> 90,000, so **the characterisation used below was accurate** and the comparison stands as
+> written. The appendix's arithmetic is now executed as a test
+> ([`tests/test_appendix.py`](../../tests/test_appendix.py)) and reproduces exactly.
 
 | | 0063CU CALIF LOW CARBON | 02339S CIG ROCKIES |
 |---|---|---|
