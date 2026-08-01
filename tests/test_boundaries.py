@@ -1,6 +1,6 @@
 """The seams this package exists to sit on.
 
-crowdmon-futures is a MONITOR. It reads data and produces measurements. Two things follow,
+crowdmon is a MONITOR. It reads data and produces measurements. Two things follow,
 and neither is self-enforcing, because both fail silently: one convenient import and the
 boundary is gone until somebody trips over it months later.
 
@@ -30,7 +30,7 @@ import pathlib
 
 import pytest
 
-PKG = pathlib.Path(__file__).resolve().parent.parent / "src" / "crowdmon_futures"
+PKG = pathlib.Path(__file__).resolve().parent.parent / "src" / "crowdmon"
 WORKSPACE = pathlib.Path(__file__).resolve().parents[2]
 
 # Workspace packages this one may NOT import. Note cotmetrics is here: it is a peer
@@ -75,7 +75,7 @@ def test_no_module_imports_a_strategy_or_a_peer_consumer(path):
     for name in _imports(path):
         root = name.split(".")[0]
         assert root not in FORBIDDEN_ROOTS, (
-            f"{path.name} imports {name!r}. crowdmon-futures is a monitor: it consumes "
+            f"{path.name} imports {name!r}. crowdmon is a monitor: it consumes "
             f"cotdata and marketdata and nothing else in the workspace. See this module's "
             f"docstring for why {root!r} in particular is out.")
 
@@ -85,7 +85,7 @@ def test_no_module_reaches_for_an_undeclared_dependency(path):
     import sys
     for name in _imports(path):
         root = name.split(".")[0]
-        if root in sys.stdlib_module_names or root == "crowdmon_futures":
+        if root in sys.stdlib_module_names or root == "crowdmon":
             continue
         assert root in ALLOWED_THIRD_PARTY, (
             f"{path.name} imports {root!r}, which is neither stdlib nor declared. Add it "
@@ -101,7 +101,7 @@ def test_the_producers_do_not_import_this_consumer(sibling):
     if not root.exists():
         pytest.skip(f"{sibling} not checked out beside this repo")
     offenders = [p.name for p in _modules(root)
-                 if any(n.split(".")[0] == "crowdmon_futures" for n in _imports(p))]
+                 if any(n.split(".")[0] == "crowdmon" for n in _imports(p))]
     assert not offenders, (
-        f"{sibling} imports crowdmon_futures in {offenders}. The dependency runs one way: "
+        f"{sibling} imports crowdmon in {offenders}. The dependency runs one way: "
         f"producers write a store, consumers read it.")

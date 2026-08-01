@@ -54,7 +54,7 @@ def _ingest(canonical, *, snapshot_id, observed_at, release_date, source):
 def test_indexes_on_release_date_and_refuses_lookahead(store):
     """The Tuesday as-of date embeds a three-day lookahead, and three days is exactly the
     window in which the largest moves happen."""
-    from crowdmon_futures.ingest import VintageCotSource
+    from crowdmon.futures import VintageCotSource
     _ingest(_canon("2026-07-21"), snapshot_id="s1",
             observed_at="2026-07-24T19:00:00Z", release_date="2026-07-24",
             source="published")
@@ -68,7 +68,7 @@ def test_indexes_on_release_date_and_refuses_lookahead(store):
 def test_a_weaker_release_date_source_can_be_excluded(store):
     """`derived` is a guess that fails on exactly the weeks that matter, so anything doing
     strict point-in-time evaluation has to be able to drop it."""
-    from crowdmon_futures.ingest import VintageCotSource
+    from crowdmon.futures import VintageCotSource
     _ingest(_canon("2026-07-21"), snapshot_id="s1",
             observed_at="2026-07-24T19:00:00Z", release_date="2026-07-24",
             source="derived")
@@ -82,7 +82,7 @@ def test_a_weaker_release_date_source_can_be_excluded(store):
 def test_pit_complete_distinguishes_as_published_from_a_later_stand_in(store):
     """Vintages accumulate forward only, so a week predating first capture is served by a
     current-state value with revisions already applied. Callers must be able to tell."""
-    from crowdmon_futures.ingest import VintageCotSource
+    from crowdmon.futures import VintageCotSource
     # captured a year after the fact, as a historical backfill would be
     _ingest(_canon("2025-07-15"), snapshot_id="s1",
             observed_at="2026-07-31T19:00:00Z", release_date="2025-07-18",
@@ -95,7 +95,7 @@ def test_pit_complete_distinguishes_as_published_from_a_later_stand_in(store):
 def test_the_zero_sum_identity_is_checked_on_every_load(store):
     """A category mapping that silently broke would otherwise surface as a strange result
     months later."""
-    from crowdmon_futures.ingest import CotAdapterError, VintageCotSource
+    from crowdmon.futures import CotAdapterError, VintageCotSource
     broken = _canon("2026-07-21")
     broken.loc[broken["category"] == "managed_money", "long_contracts"] = 999999
     _ingest(broken, snapshot_id="s1", observed_at="2026-07-24T19:00:00Z",
@@ -108,25 +108,25 @@ def test_the_zero_sum_identity_is_checked_on_every_load(store):
 
 def test_an_empty_store_answers_rather_than_raising(store):
     """First run, before any capture. Returning nothing is the honest answer."""
-    from crowdmon_futures.ingest import VintageCotSource
+    from crowdmon.futures import VintageCotSource
     src = VintageCotSource()
     assert src.available_releases() == []
     assert src.load("2026-07-24").empty
 
 
 def test_an_unknown_provenance_tier_is_refused_at_construction(store):
-    from crowdmon_futures.ingest import CotAdapterError, VintageCotSource
+    from crowdmon.futures import CotAdapterError, VintageCotSource
     with pytest.raises(CotAdapterError, match="unknown release-date source"):
         VintageCotSource(min_source="probably_fine")
 
 
 def test_provenance_summary_orders_worst_last(store):
-    from crowdmon_futures.ingest import provenance_summary
+    from crowdmon.futures import provenance_summary
     frame = pd.DataFrame({"release_date_source": ["derived", "published", "derived",
                                                   "scheduled"]})
     assert list(provenance_summary(frame).index) == ["published", "scheduled", "derived"]
 
 
 def test_the_adapter_satisfies_the_declared_protocol(store):
-    from crowdmon_futures.ingest import CotSource, VintageCotSource
+    from crowdmon.futures import CotSource, VintageCotSource
     assert isinstance(VintageCotSource(), CotSource)

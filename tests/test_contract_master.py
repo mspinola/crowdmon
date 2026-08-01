@@ -47,7 +47,7 @@ def master(monkeypatch, tmp_path):
     monkeypatch.setattr(cotdata, "all_symbols", lambda: syms)
     monkeypatch.setattr(cotdata, "load_manifest", lambda: manifest)
 
-    from crowdmon_futures.normalize import ContractMaster
+    from crowdmon.futures import ContractMaster
     return ContractMaster.load()
 
 
@@ -153,7 +153,7 @@ def test_a_non_usd_contract_raises_rather_than_mislabelling_units(monkeypatch, t
                price_source=None, hist_codes=())])
     monkeypatch.setattr(cotdata, "load_manifest", lambda: {"prices": {}})
 
-    from crowdmon_futures.normalize import ContractMaster, ContractMasterError
+    from crowdmon.futures import ContractMaster, ContractMasterError
     with pytest.raises(ContractMasterError, match="non-USD"):
         ContractMaster.load()
     assert len(ContractMaster.load(require_usd=False)) == 1
@@ -180,13 +180,13 @@ def test_a_market_code_claimed_by_two_symbols_raises(monkeypatch, tmp_path):
                price_source=None, hist_codes=("123456",))])
     monkeypatch.setattr(cotdata, "load_manifest", lambda: {"prices": {}})
 
-    from crowdmon_futures.normalize import ContractMaster, ContractMasterError
+    from crowdmon.futures import ContractMaster, ContractMasterError
     with pytest.raises(ContractMasterError, match="maps to both"):
         ContractMaster.load()
 
 
 def test_an_empty_frame_still_gains_the_spec_columns(master):
-    from crowdmon_futures.normalize import SPEC_COLUMNS
+    from crowdmon.futures import SPEC_COLUMNS
     got = master.annotate(pd.DataFrame())
     assert all(c in got.columns for c in SPEC_COLUMNS)
 
@@ -195,6 +195,6 @@ def test_a_missing_contract_specs_table_says_where_it_comes_from(monkeypatch, tm
     monkeypatch.setenv("COTDATA_STORE", str(tmp_path))
     from cotdata import store
     monkeypatch.setattr(store, "read_metadata", lambda: pd.DataFrame())
-    from crowdmon_futures.normalize import ContractMaster, ContractMasterError
+    from crowdmon.futures import ContractMaster, ContractMasterError
     with pytest.raises(ContractMasterError, match="Norgate producer"):
         ContractMaster.load()

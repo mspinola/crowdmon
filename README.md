@@ -1,12 +1,40 @@
-# crowdmon-futures
+# crowdmon
 
-A COT positioning and forced-flow monitor for futures markets. Measures crowding and
-forced-exit risk, and models the systematic flow response function: given a price or
-volatility move, how many contracts must trend-following and vol-targeting capital
-mechanically transact, and what does that cost in impact terms.
+A crowding and forced-exit monitor.
+
+**Damage = crowding x illiquidity x holder fragility.** Crowding is a property of the
+position, illiquidity of the market, and fragility of the holder, and fragility is the term
+that decides who actually gets hurt. Two holders can carry the same position in the same
+market and behave completely differently under stress, because one of them has an exit
+function written into its mandate and the other does not.
+
+Futures first (`crowdmon.futures`), because COT resolves the four structural weaknesses of
+the 13F approach: the short book is reported rather than invisible, the lag is three days
+rather than forty-five, open interest is known exactly rather than estimated against an
+estimated float, and trader counts and concentration ratios are published. It also models
+the systematic flow response function — given a price or volatility move, how many contracts
+must trend-following and vol-targeting capital mechanically transact, and what does that
+cost in impact terms. The equity monitor is the follow-on, and `crowdmon.core` is what the
+two share.
 
 **It ships no strategy.** Every output is a statement about tail shape and forced-flow
 risk, not about next week's return. Positioning extremes persist for quarters.
+
+> **The repo directory and GitHub remote are still `crowdmon-futures`.** The package,
+> `pyproject.toml` and CI are `crowdmon`; the directory rename touches the workspace sibling
+> paths and the remote, so it is a deliberate step not yet taken.
+
+## Layout
+
+```
+src/crowdmon/
+  core/          asset-class agnostic: config, rendering. Shared with the equity monitor
+  futures/       COT-specific: ingestion, contract master, positioning engines
+```
+
+`core/store.py`, `core/aggregate.py` and `core/impact.py` are absent rather than stubbed:
+the first two want history the vintage store does not yet have, and the third wants a volume
+source that does not exist in this workspace at all.
 
 ## Why this is a separate package
 
@@ -33,12 +61,50 @@ either producer imports this package.
 
 ## Status
 
-**Layer 1, plus the contract master.** `VintageCotSource` is the `CotSource` seam over
-`cotdata`'s vintage store; `ContractMaster` is the market-code to multiplier join. Notional
-and vol-scaled risk units are next; see the proposal linked below.
+**Layer 1, normalisation through rung 3, and the two price-free engines.**
+`VintageCotSource` is the `CotSource` seam over `cotdata`'s vintage store; `ContractMaster`
+is the market-code to multiplier join; `add_notional` is contracts to USD, and it **refuses
+back-adjusted prices** rather than documenting the requirement. Flow decomposition and
+fragility-weighted exit size run alongside, and need no prices, no multiplier and no
+normalisation — every input is a column the canonical schema already carries, which is what
+makes them the right first consumers of it.
+
+Vol-scaled risk units (rung 4) are next.
 
 ```python
-from crowdmon_futures.ingest import VintageCotSource, provenance_summary
+from crowdmon.futures import decompose, fragility_frame, latest, top_by
+
+panel = latest()                          # every market in the newest report week
+frag = fragility_frame(panel)             # Q_sell, Q_buy, Phi, and the OI-denominated ratios
+top_by(frag, "q_sell_over_oi", n=10)      # where forced longs are largest
+top_by(frag, "q_buy_over_oi", n=10)       # and where forced shorts are
+decompose(panel_history)                  # new longs / short covering / new shorts / ...
+```
+
+Three refusals worth knowing before reading any output:
+
+- **`Q_sell` and `Q_buy` never combine.** Forced longs sell and forced shorts buy, so their
+  sum describes an event that cannot occur. The asymmetry between them is the informative
+  number: it is what separates a market whose longs can be forced out from one whose shorts
+  can be squeezed.
+- **`Phi` is gross over `2·OI`, and the bound is asserted.** Nets sum to zero across
+  categories and cannot form a share of anything. The wrong form (`Σ w|P|/OI`) is unbounded,
+  so `0 ≤ Phi ≤ 1` is checked on every computation rather than only in tests.
+- **No volume is invented.** `T = Q/(κV)` is the real output and there is no per-contract
+  volume source in this workspace, so `days_to_liquidate` is `None` and `volume` is an
+  optional argument that slots in later. `Q/OI` ranks markets; it does not measure a
+  duration.
+
+### First results
+
+[`docs/analysis/`](docs/analysis/) holds the first run over real data, ranked rather than
+hand-picked, each figure reproduced by `docs/analysis/reproduce.py`. The headline structural
+finding: the design doc's worked example (levered long, producer-hedged short) describes
+**about half** the Disaggregated universe. Producer/Merchant is net long in 141 of 279
+markets, so the two markets the ranking selected are structural opposites.
+
+```python
+from crowdmon.futures import VintageCotSource, provenance_summary
 
 src = VintageCotSource(report_type="disaggregated", min_source="scheduled")
 panel = src.load("2026-07-24")          # the panel as it was knowable that day
@@ -62,7 +128,7 @@ Three things the adapter owns, none of which the store can do on its own:
 ### The contract master
 
 ```python
-from crowdmon_futures.normalize import ContractMaster
+from crowdmon.futures import ContractMaster
 
 cm = ContractMaster.load()
 print(cm.coverage_summary())      # 47 of 49 registry symbols joinable, over 49 codes
@@ -111,6 +177,27 @@ cross-repo links they are referenced by have settled:
   (contract master and normalisation, proposed and measured, not yet built)
 - [cot_vintage.md](https://github.com/mspinola/cotdata/blob/main/docs/design/cot_vintage.md)
   (the vintage store this package reads)
+
+`crowdmon_plain_language_summary.md`, whose appendix §A.1-A.11 is the authoritative
+statement of every formula in this package, **does not exist anywhere in the workspace**. The
+formulas implemented here come from the 2026-08-01 handoff instead, and the one that could
+have gone wrong is asserted on every computation rather than trusted.
+
+What the build measured that those documents get wrong is recorded in
+[docs/design/amendments-2026-08-01.md](docs/design/amendments-2026-08-01.md) rather than
+edited into them, because they sit in a shared checkout. Read it alongside the spec.
+
+## Docs, and four different lifecycles
+
+| Directory | Lifecycle |
+|---|---|
+| [`docs/design/`](docs/design/) | **living.** Amended as measurements land |
+| [`docs/handoffs/`](docs/handoffs/) | **append-only.** Dated work orders, status-tracked. A handoff without a completion status gets re-executed |
+| [`docs/analysis/`](docs/analysis/) | **point-in-time.** Computed against a named report week, never amended |
+| [`docs/adr/`](docs/adr/) | **immutable once accepted.** Superseded, not edited |
+
+A design doc that says something the data disproved is a bug to fix. An analysis document
+that says something later weeks disproved is a correct record of what was true then.
 
 ## Development
 

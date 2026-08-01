@@ -18,7 +18,7 @@ def live():
         pytest.skip(f"no readable store: {exc}")
     if specs is None or specs.empty:
         pytest.skip("store has no contract_specs table")
-    from crowdmon_futures.normalize import ContractMaster
+    from crowdmon.futures import ContractMaster
     return ContractMaster.load()
 
 

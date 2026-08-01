@@ -17,7 +17,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        path: crowdmon-futures
+        path: crowdmon
 
     # cotdata and marketdata are SIBLING checkouts installed editable, not PyPI pins, so
     # CI has to reproduce the workspace layout rather than resolve released versions. That
@@ -40,17 +40,17 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
-      working-directory: crowdmon-futures
+      working-directory: crowdmon
       run: |
         python -m pip install --upgrade pip
         python -m pip install -e ".[dev]" -e ../cotdata -e ../marketdata
 
     - name: Run linting
-      working-directory: crowdmon-futures
+      working-directory: crowdmon
       run: python -m ruff check src tests
 
     - name: Run tests
-      working-directory: crowdmon-futures
+      working-directory: crowdmon
       env:
         # cotdata guards on this at import, so every test needs a real path even though
         # the ones that write use the tmp_path store fixture.

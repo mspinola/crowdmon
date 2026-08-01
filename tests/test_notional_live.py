@@ -89,8 +89,7 @@ def test_notional_on_the_real_panel_is_populated_and_plausible(cotdata_store):
     if vi.read_observations().empty:
         pytest.skip("store has no vintage observations yet")
 
-    from crowdmon_futures.ingest import VintageCotSource
-    from crowdmon_futures.normalize import ContractMaster, add_notional, coverage_report
+    from crowdmon.futures import ContractMaster, VintageCotSource, add_notional, coverage_report
 
     panel = VintageCotSource(report_type="disaggregated").load("2026-07-31")
     if panel.empty:
@@ -122,8 +121,7 @@ def test_the_report_date_price_differs_from_the_release_date_price(cotdata_store
     if vi.read_observations().empty:
         pytest.skip("store has no vintage observations yet")
 
-    from crowdmon_futures.ingest import VintageCotSource
-    from crowdmon_futures.normalize import ContractMaster, add_notional
+    from crowdmon.futures import ContractMaster, VintageCotSource, add_notional
 
     panel = ContractMaster.load().annotate(
         VintageCotSource(report_type="disaggregated").load("2026-07-31"))

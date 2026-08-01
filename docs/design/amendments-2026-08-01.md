@@ -1,0 +1,206 @@
+# Spec amendments from the first engine build, 2026-08-01
+
+Working agreement: measure, do not assume; if a measurement contradicts a doc, fix the doc
+and say so. This records what the layer-3 build (flow decomposition, fragility, exit
+pressure) measured against the real store and where it disagrees with what is written.
+
+**Where the amendments need to land.** Two of the three affected statements are in
+`cotdata/docs/design/crowdmon_futures_cot_module.md`, which lives in a sibling repo that is
+a shared checkout currently clean on `main`. They are recorded here rather than applied
+there, because editing another repo's working tree from this branch would leave uncommitted
+changes on `main` in a checkout other sessions share, and the workspace notes that hazard
+explicitly. **Apply them when the spec migrates into this repo** (see
+[README.md](README.md)), or in a deliberate cotdata change.
+
+Every figure below is reproduced by `docs/analysis/reproduce.py` against
+`COTDATA_STORE=~/code/cotdata_store`, or by the offline fixtures in `tests/fixtures/`.
+
+---
+
+## A1. The Oct-Nov 2025 shutdown did not create a gap in report dates
+
+**Contradicts:** the handoff's §3 rationale for gap handling ("Without this, the Oct–Nov
+2025 shutdown reads as one enormous week of flow"). The module spec itself does not make
+this claim; its §6.4 note correctly identifies the real gap sources as the pre-1992
+fortnightly schedule and holiday shifts.
+
+**Measured.** Disaggregated report dates run weekly and unbroken through the window:
+2025-09-30, 10-07, 10-14, 10-21, 10-28, 11-04. CFTC published the backlog carrying the
+correct as-of Tuesdays, so there is no hole to bridge. Flow magnitudes in the window are
+ordinary — median absolute Managed Money `Δnet` of 1,951 to 5,811 contracts against a 2025
+baseline of 4,056.
+
+The only interruption is a 6-day interval to 2025-11-10 followed by an 8-day one to
+2025-11-18, which is a Veterans Day shift (2025-11-11 fell on a Tuesday).
+
+**Where the shutdown does land: the release date.** Every release date in the window carries
+provenance `derived` — "the Friday after the Tuesday" — which is precisely the inference
+`ingest/cot_adapter.py` documents as failing on backlog weeks. So:
+
+- flow decomposition, which indexes on **report date**, is unaffected by the shutdown
+- anything indexing on **release date** over Oct-Dec 2025 is resting on a guess, and must
+  filter on `release_date_source` rather than trust the date
+
+This strengthens rather than weakens the module spec §5.3 amendment. It is a second concrete
+instance of the same point: the report-date series survived the shutdown intact and the
+release-date series did not.
+
+## A2. Gaps come from thin markets falling out of the report
+
+**Amends:** module spec §6.4's note, which attributes non-7-day intervals to the pre-October
+1992 fortnightly schedule and to holiday shifts. Both are real, and on the **Disaggregated**
+report (2006+, so entirely post-fortnightly) there is a third source it does not mention,
+and that source produces the only intervals large enough to matter.
+
+**Measured** across the full Disaggregated history, 27 markets, 27,167 transitions:
+
+| interval | count | cause |
+|---|---|---|
+| 7 days | 26,574 | normal |
+| 6 or 8 days | 570 | holiday shifts, in matched pairs |
+| 14 to 294 days | 23 | **a market dropping below the reporting threshold** |
+
+Of the 23 long intervals, 22 are oats (`004603`) and one is lumber (`058644`). Oats has a
+**294-day** interval ending 2025-09-09 and five more over 50 days. A thin market vanishes
+from the report when it falls below the reportable threshold and returns when it recovers.
+Without a gap rule, that single difference enters every ranking as the largest weekly flow
+in the sample.
+
+**Consequence for the rule as specified.** The strict reading (difference only across
+exactly 7 days) is implemented and is the default. It labels 2,965 rows `gap` on the liquid
+panel, of which **2,850 are the 6-and-8-day holiday pairs** — real weeks of flow, discarded.
+Admitting them means comparing a 6-day move against an 8-day one, roughly a 30% difference
+in span. Neither choice is free, so `config.GAP_DAYS_TOLERANCE` is a parameter (default 0)
+and `days_elapsed` is always emitted rather than assumed.
+
+## A3. Phi is not usually a Managed Money story
+
+**Contradicts:** the handoff's §4 expectation that "one category dominates (Managed Money
+typically will)". The module spec §6.3 makes no such claim, so this amends the handoff only.
+
+**Measured** on the 279-market latest week. Managed Money is the largest contributor to the
+Phi numerator in **81 markets (29%)**, not the typical case:
+
+| top Phi contributor | markets |
+|---|---|
+| managed_money | 81 |
+| producer_merchant | 70 |
+| other_reportable | 56 |
+| swap | 48 |
+| nonreportable | 24 |
+
+The median largest contributor accounts for only 44% of the Phi it sits in. The mechanism:
+
+| category | mean share of gross OI | weight | mean Phi contribution |
+|---|---|---|---|
+| producer_merchant | 0.5648 | 0.1 | 0.0565 |
+| swap | 0.1324 | 0.4 | 0.0529 |
+| other_reportable | 0.1018 | 0.5 | 0.0509 |
+| managed_money | 0.0627 | 1.0 | 0.0627 |
+| nonreportable | 0.0520 | 0.6 | 0.0312 |
+
+Producer/Merchant holds 56% of gross open interest and contributes 5.7% of Phi; Managed
+Money holds 6% and contributes 6.3%. **At the configured weights, Phi is approximately a
+balance between the hedgers who are large but immovable and the funds who are small but
+forced.** That is a property of the weight set rather than a discovery about markets, and it
+is worth stating in §6.3 because it is not obvious from the weight table and it changes how
+a Phi value should be read.
+
+`fragility.contributions` exists so this is checkable per market rather than assumed.
+
+## A4. The producer-short / fund-long shape holds in about half the universe
+
+**Amends:** the cocoa worked example's implied generality (appendix A.2, per the handoff's
+description of it — see [A6](#a6-the-plain-language-summary-is-missing)).
+
+**Measured** on the 279-market latest week. Producer/Merchant is net **long** in 141 markets
+(50.5%) and net short in 138 (49.5%). Managed Money is net long in 43.0%, net short in
+41.9%, and exactly flat in 15.1%:
+
+| category | net long | net short | flat |
+|---|---|---|---|
+| managed_money | 43.0% | 41.9% | 15.1% |
+| producer_merchant | 50.5% | 49.5% | 0.0% |
+| swap | 48.4% | 49.8% | 1.8% |
+| other_reportable | 43.4% | 52.7% | 3.9% |
+| nonreportable | 56.6% | 38.4% | 5.0% |
+
+The template's shape describes a market where a physical producer sells forward. In a gas
+basis or power market the entity hedging physical frequently buys, and the sign flips. Both
+walkthroughs in `docs/analysis/` show one case each, and they are structural opposites.
+
+**Any rule that assumes producers are short and funds are long is a coin flip on this
+universe.** Keeping `Q_sell` and `Q_buy` separate is what surfaces it rather than averaging
+it away, which is the strongest argument for the directional split.
+
+## A5. The Disaggregated universe is mostly power and gas basis
+
+**Adds** context absent from the spec, which discusses ags, metals and energy outrights
+throughout. Of the 279 markets in the latest Disaggregated report, **213 (76%) are ICE
+Futures Energy Division or Nodal Exchange** — power hubs, gas basis, carbon allowances,
+renewable energy certificates.
+
+This matters most for module spec §7 (cross-market engine). A PCA on positioning changes
+across "all Disaggregated markets" would produce a PC1 describing ERCOT and PJM, not the
+macro book, and the trend-alignment score would inherit the same population. §7 should state
+which universe it means before it is built.
+
+## A6. The plain-language summary is missing
+
+`crowdmon_plain_language_summary.md` is not present in this repo or in
+`cotdata/docs/design/`. The handoff names its appendix (§A.1-A.11) as **authoritative for
+every formula** in this build and as the source of the cocoa template.
+
+The formulas were taken from the handoff body instead. They are self-consistent, and the one
+that could have been got wrong is pinned: `Phi ∈ [0,1]` holds by construction because
+`Σ_c (L_c + S_c) = 2·(OI − spreading) ≤ 2·OI` with every weight in `[0,1]`, and it is
+asserted on every computation in `fragility._assert_phi_bound` as well as over twenty years
+of fixture data in `tests/test_fragility.py`.
+
+**If that document exists somewhere, the Phi definition and the [A4](#a4-the-producer-short--fund-long-shape-holds-in-about-half-the-universe)
+cocoa comparison should be re-checked against it**, since the comparison here is against a
+one-line characterisation rather than the example itself.
+
+## A7. Flow decomposition now exists twice
+
+`cotdata/vintage_flow.decompose` (built 2026-07-30) and `crowdmon.futures.flow`
+(this build) both implement module spec §6.4 over the same canonical schema. They resolve
+the spec's "~0" differently:
+
+| | `cotdata.vintage_flow` | `crowdmon.futures.flow` |
+|---|---|---|
+| rule | dominant leg, parameter-free | dominant leg + dominance tolerance |
+| `mixed` state | none, always commits | yes, 60% of weeks on the liquid panel |
+| gap handling | emits `days_elapsed`, caller filters | `gap` state, deltas nulled |
+| `fuel_remaining` | no | yes, on short covering |
+
+Both are defensible. The tolerance-based one can decline to name a direction, which the
+parameter-free one cannot, and 60% of liquid-panel weeks are two-sided enough to trigger it.
+
+**This duplication is real and should be resolved rather than left.** The measured
+tolerance-sensitivity result (see `docs/analysis/`) is relevant to the choice: across
+0.15-0.40, 28.7% of week labels change, but **zero** change from one pure state to a
+different pure state. The tolerance controls whether the classifier commits, never which
+direction it commits to, which is structural — the dominant leg is `argmax|Δ|` and does not
+depend on the tolerance. So the two implementations never disagree about direction; they
+disagree only about how often to say "neither".
+
+---
+
+## What did not need amending
+
+Worth recording, because a spec that survives contact is as much a result as one that does
+not.
+
+- **The canonical schema.** First real consumer, no changes needed.
+- **The open-interest identity** (module spec §4 amendment, `Σ long == Σ short`, and
+  `Σ long + spreading == OI` for Disaggregated). Holds **exactly** on 27,194 market-weeks
+  over 2006-2026 and on 21,756 market-weeks across 346 markets in the vintage store. Zero
+  exceptions, no tolerance required, stable in every single year.
+- **§5.3's release-date discipline and the `derived` warning.** Confirmed by A1 above.
+- **§6.4's core claim** that separating short covering from fresh conviction is high value
+  for almost no code. The 2026-07-07 week in `02339S` is a clean real instance: `Δnet` of
+  +9,809 that reads as aggressive buying and is a short position being closed, with a
+  finite, published fuel supply visible beforehand.
+- **§6.3's weights** produce a bounded, well-behaved Phi across the whole history. A3 is
+  about how to *read* it, not about the weights being wrong.

@@ -46,7 +46,7 @@ def _annotated(**over):
 
 
 def test_net_notional_is_contracts_times_multiplier_times_price(prices):
-    from crowdmon_futures.normalize import add_notional
+    from crowdmon.futures import add_notional
     got = add_notional(_annotated()).iloc[0]
     assert got.price == 100.0
     assert got.net_contracts == 600.0                    # 1000 long - 400 short
@@ -59,7 +59,7 @@ def test_net_notional_is_contracts_times_multiplier_times_price(prices):
 def test_spreading_is_excluded_from_net_and_included_in_gross(prices):
     """A spread is a matched long and short held by one trader, so it cancels
     directionally but is still real exposure that has to be rolled and margined."""
-    from crowdmon_futures.normalize import add_notional
+    from crowdmon.futures import add_notional
     got = add_notional(_annotated()).iloc[0]
     assert got.net_contracts == 600.0                          # spreading absent
     assert got.gross_notional_usd == (1000 + 400 + 2 * 50) * 100.0 * 100.0
@@ -68,7 +68,7 @@ def test_spreading_is_excluded_from_net_and_included_in_gross(prices):
 def test_a_back_adjusted_series_is_refused_outright(prices):
     """The guard this module exists for. Measured error: +294% for gold in 2002, and
     EXACTLY ZERO today, so no spot check on recent data would ever catch it."""
-    from crowdmon_futures.normalize import NotionalError, add_notional
+    from crowdmon.futures import NotionalError, add_notional
     with pytest.raises(NotionalError, match="294"):
         add_notional(_annotated(), adjustment="backadj")
     with pytest.raises(NotionalError, match="tradeable price LEVELS"):
@@ -78,7 +78,7 @@ def test_a_back_adjusted_series_is_refused_outright(prices):
 def test_the_price_is_taken_as_of_the_report_date_not_the_release_date(prices):
     """The positions were held on the Tuesday, so that is what values them. Using the
     Friday price silently turns notional into a three-day mark-to-market."""
-    from crowdmon_futures.normalize import add_notional
+    from crowdmon.futures import add_notional
     assert add_notional(_annotated())["price_date"].iloc[0] == pd.Timestamp("2026-07-21")
     on_release = add_notional(_annotated(), price_on="release_date")
     assert on_release["price_date"].iloc[0] == pd.Timestamp("2026-07-24")
@@ -87,7 +87,7 @@ def test_the_price_is_taken_as_of_the_report_date_not_the_release_date(prices):
 def test_a_holiday_report_date_reaches_back_and_says_how_far(prices):
     """A Tuesday can be a market holiday, so some tolerance is needed. How far it reached
     is reported rather than assumed, because a large value means a hole in the series."""
-    from crowdmon_futures.normalize import add_notional
+    from crowdmon.futures import add_notional
     got = add_notional(_annotated(report_date=pd.Timestamp("2026-07-26"))).iloc[0]  # Sunday
     assert got.price_date == pd.Timestamp("2026-07-24")       # the preceding Friday
     assert got.price_staleness_days == 2
@@ -95,7 +95,7 @@ def test_a_holiday_report_date_reaches_back_and_says_how_far(prices):
 
 def test_a_price_beyond_the_staleness_bound_gives_null_not_a_stale_number(prices):
     """Valuing a position at last month's price is worse than declining to value it."""
-    from crowdmon_futures.normalize import add_notional
+    from crowdmon.futures import add_notional
     far = _annotated(report_date=pd.Timestamp("2026-09-15"))   # long past the series
     got = add_notional(far).iloc[0]
     assert pd.isna(got.price) and pd.isna(got.net_notional_usd)
@@ -103,7 +103,7 @@ def test_a_price_beyond_the_staleness_bound_gives_null_not_a_stale_number(prices
 
 def test_rows_without_a_contract_spec_keep_their_place_with_null_notional(prices):
     """Same rule as the contract master: never silently shorten a panel."""
-    from crowdmon_futures.normalize import add_notional, coverage_report
+    from crowdmon.futures import add_notional, coverage_report
     frame = pd.concat([_annotated(),
                        _annotated(symbol=None, point_value=None, market_code="999999")],
                       ignore_index=True)
@@ -115,19 +115,19 @@ def test_rows_without_a_contract_spec_keep_their_place_with_null_notional(prices
 
 
 def test_missing_prerequisite_columns_name_the_step_that_provides_them(prices):
-    from crowdmon_futures.normalize import NotionalError, add_notional
+    from crowdmon.futures import NotionalError, add_notional
     with pytest.raises(NotionalError, match="ContractMaster.annotate"):
         add_notional(_annotated().drop(columns=["point_value"]))
 
 
 def test_an_empty_frame_still_gains_the_notional_columns(prices):
-    from crowdmon_futures.normalize import NOTIONAL_COLUMNS, add_notional
+    from crowdmon.futures import NOTIONAL_COLUMNS, add_notional
     got = add_notional(_annotated().iloc[0:0])
     assert all(c in got.columns for c in NOTIONAL_COLUMNS)
 
 
 def test_a_symbol_with_no_price_series_at_all_is_reported_not_dropped(prices):
-    from crowdmon_futures.normalize import add_notional, coverage_report
+    from crowdmon.futures import add_notional, coverage_report
     got = add_notional(_annotated(symbol="NOPRICE"))
     assert len(got) == 1 and pd.isna(got["net_notional_usd"].iloc[0])
     assert coverage_report(got)["no_price_within_tolerance"] == 1

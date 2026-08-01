@@ -1,5 +1,12 @@
 # Design docs
 
+**Living documents.** Amended as measurements land, and the current best statement of how
+the system works. That is what separates this directory from its neighbours: a design doc
+that says something the data disproved is a bug to fix, while an
+[analysis](../analysis/) document that says something later weeks disproved is a correct
+record of what was true then. See [../handoffs/README.md](../handoffs/README.md) for the
+full four-way split.
+
 New crowdmon design work is authored **here**, under this repo's `docs/`, from the first
 keystroke (workspace governance: never drafted in an agent scratchpad).
 
@@ -14,6 +21,15 @@ gain. Move them when something else brings that file back open.
 | `crowdmon_futures_cot_module.md` | cotdata | full system description v0.1, and the §13 build order. The primary spec |
 | `crowdmon_step2_normalisation.md` | cotdata | contract master and normalisation: **proposed and measured, not accepted**. Read before starting layer 2 |
 | `cot_vintage.md` | cotdata | the vintage store this package reads. §9 records two adversarial reviews and one deliberately unmet acceptance criterion |
+| [`amendments-2026-08-01.md`](amendments-2026-08-01.md) | **here** | what the layer-3 build measured that the specs above get wrong. **Read alongside the spec, not after it** |
+
+`crowdmon_plain_language_summary.md`, which the layer-3 handoff names as authoritative for
+every formula, **does not exist in this repo or in cotdata**. See amendments §A6 for what was
+used instead and what should be re-checked if it turns up.
+
+Amendments are recorded here rather than applied to the cotdata originals because that is a
+shared checkout: an edit from this branch would leave uncommitted changes on its `main`.
+Fold them in when the specs migrate.
 
 ## What is settled, and what is not
 

@@ -3,9 +3,9 @@ requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "crowdmon-futures"
+name = "crowdmon"
 version = "0.1.0"
-description = "COT positioning and forced-flow monitor for futures. Consumes cotdata and marketdata; ships no strategy."
+description = "Crowding and forced-exit monitor. Damage = crowding x illiquidity x holder fragility. Consumes cotdata and marketdata; ships no strategy."
 readme = "README.md"
 authors = [
     {name = "Matt S.", email = "cotanalyzer@gmail.com"}
@@ -22,9 +22,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/mspinola/crowdmon-futures"
-Repository = "https://github.com/mspinola/crowdmon-futures"
-Issues = "https://github.com/mspinola/crowdmon-futures/issues"
+Homepage = "https://github.com/mspinola/crowdmon"
+Repository = "https://github.com/mspinola/crowdmon"
+Issues = "https://github.com/mspinola/crowdmon/issues"
 
 [project.optional-dependencies]
 # cotdata and marketdata are SIBLING checkouts installed editable, not PyPI pins, so they
