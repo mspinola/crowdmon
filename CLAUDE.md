@@ -38,6 +38,12 @@ not about next week's return. Positioning extremes persist for quarters.
 **The appendix of `crowdmon_plain_language_summary.md` (§A.1-A.11) is the authoritative
 statement of every formula.** Where a handoff and the appendix disagree, the appendix wins.
 
+**Authoritative for FORM, not for its empirical claims.** Several of the latter did not
+survive measurement, and each affected section now carries a `Measured` note pointing at the
+amendment. The original text is unchanged on purpose: it is cited from commit messages, and a
+design doc that quietly rewrites its own history destroys the evidence that anything was
+learned.
+
 It is written in LaTeX, which renders on GitHub and not in every viewer. The source is plain
 text either way, so read the file rather than a rendering if the math matters.
 
