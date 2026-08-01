@@ -12,10 +12,14 @@ something from `core` after the equity monitor has grown a dependency on it is n
 percentiles, which know nothing about markets or categories and are the first thing here to
 earn its place rather than be assumed into it.
 
-Still deliberately absent rather than stubbed, because nothing needs them yet and an empty
-module invites being imported: `store.py` (parquet io) and `impact.py` (square-root law,
-Amihud). The first wants history the vintage store does not yet have and the second wants a
-volume source that does not exist in this workspace at all.
+`impact.py` arrived once `futures/volume.py` supplied a whole-market volume: the square-root
+law and Amihud are true of any market with a price, a volatility and a volume, and neither
+knows what a contract is. The unit conversions that DO need a contract, above all the
+multiplier Amihud's dollar volume depends on, stay in `crowdmon.futures.impact`.
+
+Still deliberately absent rather than stubbed, because nothing needs it yet and an empty
+module invites being imported: `store.py` (parquet io), which wants history the vintage store
+does not yet have.
 
 One deliberate exception to the agnostic rule, in `config.py`: the COT fragility weights are
 keyed by Disaggregated and TFF category names. The layer-3 handoff places them here, and the
@@ -23,6 +27,6 @@ keyed by Disaggregated and TFF category names. The layer-3 handoff places them h
 too, with 13F holder types instead. If that second map ever lands, this file either grows a
 second table or the weights split out per asset class.
 """
-from . import aggregate, config, report
+from . import aggregate, config, impact, report
 
-__all__ = ["aggregate", "config", "report"]
+__all__ = ["aggregate", "config", "impact", "report"]

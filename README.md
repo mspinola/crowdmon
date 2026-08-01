@@ -33,8 +33,8 @@ src/crowdmon/
 ```
 
 `core/store.py` and `core/aggregate.py` are absent rather than stubbed: both want history the
-vintage store does not yet have. `core/impact.py` is absent but no longer blocked, since the
-square-root law needs the same whole-market volume `futures/volume.py` now supplies.
+vintage store does not yet have. `core/impact.py` holds the square-root law and Amihud, which
+are true of any market with a price, a volatility and a volume.
 
 ## Why this is a separate package
 
@@ -84,8 +84,14 @@ the volume-spike trap is closed by construction. It is not cosmetic: `T` and the
 proxy rank markets at 0.585 correlation, and Class III Milk sits 19th on one and 2nd on the
 other.
 
-Next: the square-root impact law (§A.5) and liquidity commonality (§A.6), both of which
-wanted the same volume and are no longer blocked.
+**Exit cost is separate from exit duration, and they barely rank together.** `T` says how long
+the forced side takes to leave; §A.5's `I = Y·σ·√(Q/V)` says what leaving costs. Because the
+cost carries volatility and the duration does not, the two rank markets at **0.031**
+correlation on the latest panel: cotton has the longest `T` and the fourth-highest cost, cocoa
+exits in a day and a half and costs the third most. Both are reported, and neither is the
+composite's `I` term, which §A.9 defines as `pct(T_eff)`.
+
+Next: liquidity commonality (§A.6), which wanted the same volume and is no longer blocked.
 
 ```python
 from crowdmon.futures import decompose, fragility_frame, latest, top_by

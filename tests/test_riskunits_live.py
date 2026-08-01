@@ -91,9 +91,9 @@ def test_crude_still_gets_a_volatility_despite_its_negative_day(cotdata_store):
     """The regression this module already failed once. Only the returns touching the
     negative close are undefined; the market keeps its sigma everywhere else."""
     from crowdmon.futures import RISK_ADJUSTMENT
-    from crowdmon.futures.riskunits import _sigma_series
+    from crowdmon.futures.riskunits import sigma_series
 
-    sig = _sigma_series("CL", RISK_ADJUSTMENT, "Close", WINDOW, 42).dropna()
+    sig = sigma_series("CL", RISK_ADJUSTMENT, "Close", WINDOW, 42).dropna()
     assert len(sig) > 5000, "crude lost most of its volatility history"
     assert (sig > 0).all()
     # The masked window around 2020-04-20 must recover, not leave a permanent hole.

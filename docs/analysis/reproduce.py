@@ -15,7 +15,8 @@ Prints, in order:
   6. the open-interest identity exception rate, by year
   7. what the ranked universe is made of, by venue
   8. the price-series measurements behind amendments A8 and A9 (normalisation)
-  9. the volume measurements behind amendment A10, and the real T = Q/(kappa V)
+  9. the volume measurements behind amendment A13, and the real T = Q/(kappa V)
+ 10. exit COST: the square-root law and Amihud (A18, A19)
 """
 import numpy as np
 import pandas as pd
@@ -360,7 +361,81 @@ def volume_and_exit_capacity() -> None:
           f"not a sample.")
 
 
+def exit_cost() -> None:
+    """Amendments A18 and A19: cost is not duration, and Amihud needs the multiplier."""
+    import cotdata
+
+    from crowdmon.futures import (
+        ContractMaster,
+        VintageCotSource,
+        add_impact,
+        add_volume,
+        fragility_frame,
+        impact_coverage,
+        rank_markets,
+    )
+    from crowdmon.futures.impact import _dollar_volume
+
+    rule("10. EXIT COST: the square-root law and Amihud (A18, A19)")
+
+    panel = ContractMaster.load().annotate(
+        VintageCotSource(report_type="disaggregated").load("2026-07-31"))
+    panel = panel[panel["report_date"] == panel["report_date"].max()]
+    spec = panel[["market_code", "symbol", "point_value"]].drop_duplicates("market_code")
+    frag = add_volume(fragility_frame(panel).merge(spec, on="market_code", how="left"))
+    frag = rank_markets(frag, volume=frag["adv"], stress_volume=frag["adv_stress"])
+    scored = add_impact(frag)
+    print(impact_coverage(scored).to_string())
+
+    live = scored.dropna(subset=["impact_sell"]).copy()
+    print("\n--- A18: exit cost, and how little it tracks exit duration ---")
+    show = live.nlargest(10, "impact_sell")[
+        ["market_name", "q_sell", "adv", "sigma_daily", "dtl_sell", "impact_sell_bps"]].copy()
+    show["market_name"] = show["market_name"].str.slice(0, 24)
+    print(show.to_string(index=False, float_format=lambda x: f"{x:,.2f}"))
+    corr = live["dtl_sell"].rank(ascending=False).corr(
+        live["impact_sell"].rank(ascending=False))
+    print(f"\nrank corr, T vs impact : {corr:.3f}   (near zero: they are different questions)")
+    print(f"cost range: {live['impact_sell_bps'].min():.0f} to "
+          f"{live['impact_sell_bps'].max():.0f} bps, median "
+          f"{live['impact_sell_bps'].median():.0f}")
+    print(f"Q/V range : {(live['q_sell'] / live['adv']).min():.2f} to "
+          f"{(live['q_sell'] / live['adv']).max():.2f} days of total volume")
+
+    print("\n--- A19: Amihud with and without the contract multiplier ---")
+    rows = []
+    for _, r in live.dropna(subset=["symbol", "point_value"]).drop_duplicates(
+            "symbol").iterrows():
+        sym, pv = r["symbol"], float(r["point_value"])
+        px = cotdata.get_prices(sym, adjustment="propadj")["Close"].dropna()
+        nonpos = px <= 0
+        ret = px.pct_change().replace([np.inf, -np.inf], np.nan) \
+                .where(~(nonpos | nonpos.shift(fill_value=False)))
+        ok, no = _dollar_volume(sym, pv), _dollar_volume(sym, 1.0)
+        if ok.empty:
+            continue
+        rows.append({"symbol": sym, "multiplier": pv,
+                     "adv_usd_m": round(float(ok.tail(252).mean()) / 1e6),
+                     "correct": (ret.abs() / ok.reindex(ret.index)).tail(252).mean(),
+                     "without": (ret.abs() / no.reindex(ret.index)).tail(252).mean()})
+    df = pd.DataFrame(rows).dropna()
+    df["rank_correct"] = df["correct"].rank(ascending=False).astype(int)
+    df["rank_without"] = df["without"].rank(ascending=False).astype(int)
+    df["moved"] = (df["rank_correct"] - df["rank_without"]).abs()
+    df["amihud_e12"] = (df["correct"] * 1e12).round(2)
+    print(df.nsmallest(8, "rank_correct")[
+        ["symbol", "multiplier", "adv_usd_m", "amihud_e12",
+         "rank_correct", "rank_without", "moved"]].to_string(index=False))
+    print(f"\nrank corr, with vs without the multiplier : "
+          f"{df['rank_correct'].corr(df['rank_without']):.3f}")
+    print(f"markets moving more than 5 places        : {int(df['moved'].gt(5).sum())} "
+          f"of {len(df)}")
+    print(f"multiplier spread                        : {df['multiplier'].min():g} to "
+          f"{df['multiplier'].max():g}")
+
+
 if __name__ == "__main__":
     main()
     normalisation()
     volume_and_exit_capacity()
+    exit_cost()
