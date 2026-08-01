@@ -19,15 +19,29 @@ different questions and only the first is about lookahead:
 - `io` — the flat panels the engines consume, plus the open-interest identity as a reported
   rate. The handoff's §2.
 
-**The load-bearing fact across the normalisation half** (`contract_master`, `notional`, and
-`riskunits` when it lands) is that the two factors of `net_notional x sigma` come from
-DIFFERENT price series, on purpose: notional from `unadj`, because only that carries
-tradeable price levels, and volatility from `backadj`, because only that carries correct
-returns (unadjusted returns carry a fake jump at every roll). `notional.add_notional`
-refuses any other adjustment rather than documenting the requirement, because the error it
-prevents is **exactly zero on recent data** and grows monotonically backwards. That is also
-why `riskunits` belongs here beside `notional` rather than in `crowdmon.core`: the
-asymmetry is a fact about futures continuous-contract construction, not a general one.
+**The load-bearing fact across the normalisation half** (`contract_master`, `notional`,
+`riskunits`) is that the two factors of `net_notional x sigma` come from DIFFERENT price
+series, on purpose, and each module refuses the other's:
+
+- **notional wants `unadj`**, because only raw front-month prices are tradeable price
+  LEVELS. Its error is +294% for gold in 2002 and **exactly zero today**, growing
+  monotonically backwards, so no spot check on recent data catches it.
+- **riskunits wants `propadj`**, because only ratio adjustment preserves percentage
+  RETURNS. `backadj` inflates annualised vol by 201x for soybeans and 182x for the 10-year
+  note, and *understates* gold by half while never going negative, so no implausibility
+  screen catches that one either.
+
+An earlier version of this paragraph said volatility wanted `backadj`. That was wrong:
+additive back-adjustment preserves absolute price CHANGES, not percentage returns, and it
+drives 52.3% of soybean closes and 41.2% of Class III Milk closes to or below zero, where a
+percentage return is undefined. Module spec §5.1 had it right all along ("ratio-adjusted
+(not difference-adjusted) so returns are correct"). Measured in
+`docs/design/amendments-2026-08-01.md`, asserted in `tests/test_riskunits_live.py`.
+
+Both modules refuse rather than document, because both errors are invisible to the check a
+reasonable person would actually run. That asymmetry is also why `riskunits` belongs here
+beside `notional` rather than in `crowdmon.core`: it is a fact about futures
+continuous-contract construction, not a general one.
 """
 from .breadth import decompose_breadth
 from .contract_master import (
@@ -64,6 +78,15 @@ from .notional import (
     coverage_report,
 )
 from .pressure import exit_pressure, rank_markets, top_by
+from .riskunits import (
+    DEFAULT_MIN_PERIODS,
+    DEFAULT_VOL_WINDOW,
+    RISK_ADJUSTMENT,
+    RISK_COLUMNS,
+    RiskUnitsError,
+    add_risk_units,
+)
+from .riskunits import coverage_report as risk_coverage_report
 
 __all__ = [
     # ingestion
@@ -76,6 +99,12 @@ __all__ = [
     "CONTRACT_COUNT_COLUMNS",
     "add_notional", "coverage_report", "NotionalError", "NOTIONAL_COLUMNS",
     "NOTIONAL_ADJUSTMENT", "DEFAULT_MAX_STALENESS_DAYS",
+    # `coverage_report` above is notional's and keeps the bare name it shipped with.
+    # riskunits' is aliased rather than shadowing it: the two answer different questions
+    # (no price vs no volatility) and a caller silently getting the wrong one would read a
+    # full panel as complete.
+    "add_risk_units", "risk_coverage_report", "RiskUnitsError", "RISK_COLUMNS",
+    "RISK_ADJUSTMENT", "DEFAULT_VOL_WINDOW", "DEFAULT_MIN_PERIODS",
     # engines
     "decompose", "state_distribution", "tolerance_sensitivity", "FLOW_STATES",
     "market_fragility", "fragility_frame", "contributions",

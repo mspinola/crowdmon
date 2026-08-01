@@ -251,6 +251,110 @@ disagree only about how often to say "neither".
 
 ---
 
+## A8. Volatility needs `propadj`, not `backadj`. My own earlier claim was wrong
+
+**Contradicts:** `notional.py`'s module docstring and the old `futures/__init__.py`
+paragraph, both of which said the volatility factor of `net_notional x sigma` should come
+from the back-adjusted series "because only that carries correct returns". Also the rationale
+(not the check) in `ContractMaster.coverage`, and two test docstrings.
+
+**Does not contradict the module spec.** §5.1 already said continuous series should be
+"built ratio-adjusted (not difference-adjusted) so returns are correct". The spec was right
+and the consumer-side prose I wrote on top of it was wrong.
+
+**Measured.** Additive back-adjustment preserves absolute daily price CHANGES, not
+percentage returns. It folds roll gaps into the historical level, which corrupts the
+denominator of every historical return and, on long-history contracts, drives the level
+through zero. Annualised volatility from `pct_change`, full history:
+
+| Market | via `backadj` | via `propadj` | inflation | `backadj` closes <= 0 |
+|---|---|---|---|---|
+| DC (Class III Milk) | 9.9e13 % | 9.2% | 1.1e13 x | 41.2% |
+| ZS (soybeans) | 4366.9% | 21.7% | **201 x** | 52.3% |
+| ZN (10-year note) | 1183.1% | 6.5% | **182 x** | 8.9% |
+| CT (cotton) | 889.0% | 23.9% | 37 x | 2.6% |
+| CL (crude) | 676.1% | 63.4% | 11 x | 0.6% |
+| NG (natural gas) | 157.0% | 53.4% | 2.9 x | 0.0% |
+| **GC (gold)** | **8.8%** | **18.9%** | **0.47 x** | **0.0%** |
+
+Gold is why this became a hard refusal rather than a documented preference. It never goes
+negative, so it survives every screen for a non-finite or absurd number, and its volatility
+is still wrong by a factor of two in the *understating* direction. A markets-wide "implausible
+volatility" check would clear it and flag nothing.
+
+`unadj` fails in the opposite shape, and it is the shape that matters for this module.
+Full-sample volatility barely notices the roll jumps (GC 1.01x, ZN 1.02x, ZS 1.05x), so a
+whole-history check passes, while the contamination sits on a few dozen days and wrecks any
+*short* window spanning one. On a 63-day window, peak inflation is 9.84x (DC, 2004-03-31),
+2.93x (NG), 2.07x (LE), 1.57x (GC); crude's worst single roll day fabricates a **130.7%**
+move. For DC, 95.8% of all 63-day windows are inflated by more than 25%.
+
+> The 130.7% is measured **on roll dates only**, and the restriction matters. Crude's worst
+> unadjusted move over all days is 306%, on 2020-04-21, coming off the negative settlement.
+> That one is a real price crossing zero, not a roll artifact. A first draft of both the
+> reproducer and `test_unadjusted_returns_carry_a_fabricated_jump_at_every_roll` took an
+> unrestricted maximum, which meant the test would have kept passing even if roll
+> contamination vanished entirely, since the 2020 sign change alone satisfied it. Both are
+> now pinned to `cotdata.roll_dates`.
+
+**Cross-check.** Dollar volatility per contract-unit is reachable two independent ways:
+`unadj_price x sigma_pct(propadj)`, and `std(diff(backadj))`, the latter being exactly what
+additive adjustment does preserve. On mid-history dates they agree within 2-10% (GC 1.023,
+CL 0.968, ZS 0.958, ZN 0.981, DC 1.099, ES 1.005, 6E 1.002, KC 0.939). Two different series
+and two different transformations landing on one number is the evidence that `propadj`
+returns and `unadj` levels compose into a real dollar quantity.
+
+**Applied in this PR** to `riskunits.py`, `notional.py`, `futures/__init__.py`,
+`contract_master.py` and two test docstrings. Asserted in `tests/test_riskunits_live.py`.
+
+**Not a change to `ContractMaster.coverage`'s check**, only to its stated reason. Requiring
+both `unadj` and `backadj` is still correct, because `propadj` is *derived on read* by
+cotdata from those two (`cotdata.prices._ratio_adjust`). Both stored tiers are the
+precondition for the one derived tier. Same check, sounder reason.
+
+---
+
+## A9. `propadj` is not strictly positive, and cotdata's own docstring says otherwise
+
+**Contradicts:** `cotdata/src/cotdata/prices.py`, `_ratio_adjust`: "A ratio-adjusted series
+preserves percentage returns and stays strictly positive." Recorded here rather than edited,
+same reason as the header of this document: cotdata is a shared checkout currently clean on
+`main`.
+
+**Measured.** Ratio adjustment scales each segment by a positive factor, so it *preserves*
+the sign of the underlying series rather than imposing one. Across all 47 symbols in the
+store, `propadj` has exactly **one** non-positive close anywhere: crude on **2020-04-20**,
+where the unadjusted settlement was -37.63 and the propadj close is -24.11. The docstring's
+claim holds wherever the underlying market stayed positive, which is everywhere except the
+one day WTI did not.
+
+This is the third time this session's lineage has re-made the same assumption. The first
+version of `test_notional_live.py` asserted the *unadjusted* series could never be negative;
+that was corrected. The first version of `_sigma_series` then raised on any non-positive
+close in a `propadj` series, which meant refusing to compute a volatility for crude at all,
+across its entire 43-year history, over one real day in 2020. The live test caught it.
+
+**Resolution, and why it is a rate and not a presence test.** The two cases are three orders
+of magnitude apart with nothing in between:
+
+| | non-positive rate |
+|---|---|
+| `propadj`, CL (a real settlement) | **0.009%** (1 of 10,882) |
+| `propadj`, all other 46 symbols | 0% |
+| `backadj`, ZS | 52.3% |
+| `backadj`, DC | 41.2% |
+| `backadj`, ZN | 8.9% |
+
+`MAX_NONPOSITIVE_RATE = 0.01` sits in that empty gap. Below it, the returns *touching* a
+non-positive close are masked (undefined from a negative base, undefined across a sign
+change) and the market keeps its volatility everywhere else. Above it, the series is not what
+it claims to be and `_sigma_series` raises.
+
+**Consequence for anything downstream:** a price series being negative is not evidence of a
+wrong series, in any of the three adjustments. Only the *rate* is.
+
+---
+
 ## What did not need amending
 
 Worth recording, because a spec that survives contact is as much a result as one that does

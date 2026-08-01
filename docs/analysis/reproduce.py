@@ -13,7 +13,10 @@ Prints, in order:
   4. breadth-depth over the same 12 weeks
   5. tolerance sensitivity, on both the wide and the liquid panels
   6. the open-interest identity exception rate, by year
+  7. what the ranked universe is made of, by venue
+  8. the price-series measurements behind amendments A8 and A9 (normalisation)
 """
+import numpy as np
 import pandas as pd
 
 from crowdmon.futures import (
@@ -134,5 +137,114 @@ def main() -> None:
                   f"phi={row['phi'].iloc[0]:.3f}")
 
 
+def _ann_vol(s: pd.Series) -> float:
+    r = s.pct_change().replace([np.inf, -np.inf], np.nan).dropna()
+    return float(r.std() * np.sqrt(252))
+
+
+def normalisation() -> None:
+    """Amendments A8 and A9: which price series volatility needs, and why not the other two.
+
+    Independent of the COT store: these are claims about `cotdata`'s three price adjustments.
+    """
+    import cotdata
+
+    rule("8. NORMALISATION: the price series volatility needs (A8, A9)")
+
+    print("\n--- A8: annualised vol by adjustment. `backadj` percent returns are not vol ---")
+    rows = []
+    for sym in ["DC", "ZS", "ZN", "CT", "CL", "NG", "GC", "SI", "HG", "ES", "6E", "ZC", "LE"]:
+        b = cotdata.get_prices(sym, adjustment="backadj")["Close"].dropna()
+        p = cotdata.get_prices(sym, adjustment="propadj")["Close"].dropna()
+        if b.empty or p.empty:
+            continue
+        vb, vp = _ann_vol(b), _ann_vol(p)
+        rows.append({"symbol": sym, "vol_backadj": f"{vb:.4g}", "vol_propadj": f"{vp:.4g}",
+                     "inflation": f"{vb / vp:.3g}x",
+                     "backadj_nonpos": f"{(b <= 0).mean() * 100:.1f}%"})
+    print(pd.DataFrame(rows).to_string(index=False))
+    print("\nGOLD is the case that makes this a refusal: never negative, so it passes every")
+    print("implausibility screen, and still wrong by ~2x in the UNDERSTATING direction.")
+
+    print("\n--- A8: `unadj` hides its damage in the full sample and wrecks short windows ---")
+    rows = []
+    for sym in ["GC", "CL", "NG", "ZS", "ZN", "ES", "DC", "LE"]:
+        u = cotdata.get_prices(sym, adjustment="unadj")["Close"].dropna()
+        p = cotdata.get_prices(sym, adjustment="propadj")["Close"].dropna()
+        idx = u.index.intersection(p.index)
+        if len(idx) < 200:
+            continue
+        u, p = u.loc[idx], p.loc[idx]
+        ru = u.pct_change().replace([np.inf, -np.inf], np.nan)
+        rp = p.pct_change().replace([np.inf, -np.inf], np.nan)
+        ratio = (ru.rolling(63).std() / rp.rolling(63).std()) \
+            .replace([np.inf, -np.inf], np.nan).dropna()
+        # Restricted to actual roll dates. Taking the max over ALL days would pick up
+        # crude's 2020-04-21 move off a negative settlement (306%), which is a real price
+        # crossing zero and not a roll artifact at all. This column is about rolls.
+        try:
+            roll_days = idx.intersection(cotdata.roll_dates(sym))
+        except Exception:                                          # noqa: BLE001
+            roll_days = idx[:0]
+        worst = ru.loc[roll_days].abs().max() if len(roll_days) else float("nan")
+        rows.append({"symbol": sym,
+                     "full_sample": f"{_ann_vol(u) / _ann_vol(p):.2f}x",
+                     "worst_63d": f"{ratio.max():.2f}x",
+                     "on": str(ratio.idxmax().date()),
+                     "windows_over_1.25x": f"{(ratio > 1.25).mean() * 100:.1f}%",
+                     "rolls": len(roll_days),
+                     "worst_roll_day": f"{worst * 100:.1f}%"})
+    print(pd.DataFrame(rows).to_string(index=False))
+
+    print("\n--- A8 cross-check: dollar vol two independent ways, mid-history ---")
+    print("(a) unadj price x sigma_pct(propadj)   (b) std(diff(backadj))")
+    rows = []
+    for sym in ["GC", "CL", "ZS", "ZN", "DC", "ES", "6E", "KC"]:
+        p = cotdata.get_prices(sym, adjustment="propadj")["Close"].dropna()
+        b = cotdata.get_prices(sym, adjustment="backadj")["Close"].dropna()
+        u = cotdata.get_prices(sym, adjustment="unadj")["Close"].dropna()
+        idx = p.index.intersection(b.index).intersection(u.index)
+        if len(idx) < 200:
+            continue
+        p, b, u = p.loc[idx], b.loc[idx], u.loc[idx]
+        a = (u * p.pct_change().replace([np.inf, -np.inf], np.nan)
+             .rolling(63).std()).dropna()
+        bb = b.diff().rolling(63).std().dropna()
+        both = a.index.intersection(bb.index)
+        at = both[len(both) // 3]
+        rows.append({"symbol": sym, "date": str(at.date()), "path_a": f"{a.loc[at]:.4f}",
+                     "path_b": f"{bb.loc[at]:.4f}", "a/b": f"{a.loc[at] / bb.loc[at]:.3f}"})
+    print(pd.DataFrame(rows).to_string(index=False))
+
+    print("\n--- A9: `propadj` is NOT strictly positive. Rate separates event from artifact ---")
+    import json
+    import os
+    import pathlib
+    man = json.loads(
+        (pathlib.Path(os.environ["COTDATA_STORE"]) / "manifests" / "prices.json").read_text())
+    syms = sorted({k.rsplit("_", 1)[0] for k in man.get("prices", man)})
+    hits = []
+    for sym in syms:
+        try:
+            p = cotdata.get_prices(sym, adjustment="propadj")["Close"].dropna()
+        except Exception:                                          # noqa: BLE001
+            continue
+        n = int((p <= 0).sum())
+        if n:
+            hits.append({"symbol": sym, "non_positive": n, "bars": len(p),
+                         "rate": f"{n / len(p) * 100:.5f}%",
+                         "first": str(p[p <= 0].index.min().date()),
+                         "min_close": f"{p.min():.2f}"})
+    print(f"{len(syms)} symbols scanned; {len(hits)} with any non-positive propadj close")
+    print(pd.DataFrame(hits).to_string(index=False) if hits else "  (none)")
+    print("\nAgainst backadj, for the same question:")
+    print(pd.DataFrame([
+        {"symbol": s,
+         "rate": f"{(cotdata.get_prices(s, adjustment='backadj')['Close'].dropna() <= 0).mean() * 100:.1f}%"}
+        for s in ["ZS", "DC", "ZN", "CT", "CL"]]).to_string(index=False))
+    print("\nMAX_NONPOSITIVE_RATE = 1% sits in the empty gap between those two tables.")
+
+
 if __name__ == "__main__":
     main()
+    normalisation()

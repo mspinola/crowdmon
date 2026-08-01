@@ -37,8 +37,10 @@ def test_every_registry_symbol_but_the_uncovered_ones_joins(live):
 
 
 def test_a_joinable_symbol_has_both_price_tiers(live):
-    """Notional needs `unadj`; volatility needs `backadj`. A symbol with only one is not
-    joinable for layer 2 even though it looks fine in a spec table."""
+    """Notional needs `unadj`. Volatility needs `propadj`, which cotdata DERIVES from
+    `unadj` + `backadj`, so both stored tiers are the precondition for the one derived
+    tier. A symbol with only one is not joinable for layer 2 even though it looks fine in a
+    spec table."""
     cov = live.coverage()
     ok = cov[cov["joinable"]]
     assert ok["has_unadj_price"].all() and ok["has_backadj_price"].all()

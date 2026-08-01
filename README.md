@@ -61,15 +61,23 @@ either producer imports this package.
 
 ## Status
 
-**Layer 1, normalisation through rung 3, and the two price-free engines.**
+**Layer 1, the full normalisation ladder, and the two price-free engines.**
 `VintageCotSource` is the `CotSource` seam over `cotdata`'s vintage store; `ContractMaster`
-is the market-code to multiplier join; `add_notional` is contracts to USD, and it **refuses
-back-adjusted prices** rather than documenting the requirement. Flow decomposition and
-fragility-weighted exit size run alongside, and need no prices, no multiplier and no
-normalisation — every input is a column the canonical schema already carries, which is what
-makes them the right first consumers of it.
+is the market-code to multiplier join; `add_notional` is contracts to USD; `add_risk_units`
+is notional scaled by volatility, which module spec §5.2 makes the default unit for any
+cross-market comparison. Flow decomposition and fragility-weighted exit size run alongside,
+and need no prices, no multiplier and no normalisation. Every input is a column the canonical
+schema already carries, which is what makes them the right first consumers of it.
 
-Vol-scaled risk units (rung 4) are next.
+The two normalisation modules each **refuse** every price series but their own, rather than
+documenting the requirement: notional wants `unadj` (tradeable levels), risk units want
+`propadj` (percentage returns). Both errors are invisible on a spot check, since notional's
+is exactly zero at the present date and back-adjusted volatility understates gold by half
+without ever producing an implausible number, so both are a `raise`, with the measured
+figures in the docstring and pinned by a live test.
+
+Next: exit pressure's real denominator (`T = Q / (κ·V)`), which needs a volume source this
+workspace does not have.
 
 ```python
 from crowdmon.futures import decompose, fragility_frame, latest, top_by

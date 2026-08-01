@@ -120,16 +120,17 @@ src/crowdmon/
     cot_adapter.py          the CotSource seam: refuses lookahead, filters on provenance
     io.py                   canonical panels + the OI identity as a reported rate
     contract_master.py      market code to multiplier, never an inner join
-    notional.py             rung 3, contracts to USD. Refuses back-adjusted prices
+    notional.py             rung 3, contracts to USD. Refuses anything but unadj
+    riskunits.py            rung 4, notional x sigma. Refuses anything but propadj
     flow.py                 A.3 flow decomposition
     fragility.py            A.2 Q_sell / Q_buy / Phi
     breadth.py              §6.2 breadth-depth quadrant
     pressure.py             A.5 exit capacity, days-to-liquidate pending a volume source
 ```
 
-`riskunits.py` (rung 4, vol-scaled notional) belongs **here beside `notional.py`, not in
-`core/`**: it needs `backadj` where notional needs `unadj`, and that asymmetry is a fact
-about futures continuous-contract construction rather than a general one.
+`riskunits.py` sits **here beside `notional.py`, not in `core/`**: it needs `propadj` where
+notional needs `unadj`, and that asymmetry is a fact about futures continuous-contract
+construction rather than a general one.
 
 **The rule for `core/`: only what is genuinely asset-class agnostic.** When in doubt it goes
 in `futures/` and can be promoted later, which is cheap; demoting something after the equity
@@ -172,22 +173,35 @@ file grows a second table or the weights split per asset class.
 
 ## Layer 2 trap, now coded and guarded
 
-Notional must come from **unadjusted** prices and volatility from **back-adjusted** returns,
-so the two factors of `net_notional × σ` come from different series on purpose. Off
-back-adjusted, notional is wrong by +294% (gold 2002) and +257% (crude 2004), and crude's
-back-adjusted series reads -27.52 on a day the market traded at +11.57. The error is
-**exactly zero at the present date** and grows monotonically backwards, so it passes every
-spot check anyone would run while corrupting the whole evaluation history.
+The two factors of `net_notional × σ` come from **three different price series**, and each
+module refuses the others. All three refusals are measured, not asserted, and each is a
+`raise` rather than a warning because each error is invisible to the check a reasonable
+person would actually run.
 
-`notional.add_notional` **raises rather than warns** on any adjustment but `unadj`. Keep
-that guard hard and keep the measured numbers in its docstring: they are what makes it a
-guard rather than a comment, and a future reader who only sees recent data will find nothing
-wrong. `test_notional_live.py` pins them against the real store.
+| Module | Wants | Refuses, and why it slips past a spot check |
+|---|---|---|
+| `notional` | `unadj` | `backadj` notional is wrong by +294% (gold 2002), +257% (crude 2004), and **exactly 0% today**, growing monotonically backwards |
+| `riskunits` | `propadj` | `backadj` percent vol is 201x too high for ZS, 182x for ZN, and **0.47x for gold**, which never goes negative and passes every implausibility screen |
+| `riskunits` | `propadj` | `unadj` full-sample vol looks fine (GC 1.01x) while a 63-day window spanning a roll is up to 9.84x off; crude's worst roll day is a fabricated 130.7% move |
 
-A negative price is **not** by itself a sign of the wrong series. WTI settled at -37.63 on
-2020-04-20 and `unadj` records it faithfully, so a long position genuinely had negative
-notional that day. Nothing clips or rejects one, and anything downstream assuming
-`sign(notional) == sign(position)` is wrong on real data.
+`test_notional_live.py` and `test_riskunits_live.py` pin every one of those numbers against
+the real store, and `docs/analysis/reproduce.py` prints them. If cotdata's adjustment logic
+changes, they fail and the docstrings get corrected rather than quietly becoming folklore.
+
+**An earlier version of this file said volatility wanted `backadj`. That was wrong.**
+Additive back-adjustment preserves absolute price CHANGES, not percentage returns. Module
+spec §5.1 had it right ("ratio-adjusted (not difference-adjusted) so returns are correct").
+See `docs/design/amendments-2026-08-01.md` A8.
+
+A negative price is **not** by itself a sign of the wrong series, in any of the three
+adjustments. WTI settled at -37.63 on 2020-04-20; `unadj` records it faithfully and `propadj`
+carries it through at -24.11, because ratio adjustment scales by a positive factor and so
+preserves the underlying sign. Only the **rate** distinguishes an event from an artifact:
+across all 47 symbols `propadj` has exactly one non-positive close (0.009% of crude) against
+`backadj`'s 52.3% for soybeans. Nothing clips or rejects a negative price, `riskunits` masks
+only the returns touching one, and anything downstream assuming `sign(notional) ==
+sign(position)` is wrong on real data. See amendment A9: this assumption has now been made
+and corrected three times in this codebase's short history.
 
 ## Commands
 
