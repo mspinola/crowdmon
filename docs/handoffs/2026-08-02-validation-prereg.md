@@ -4,6 +4,10 @@
 composite author, §4, §5 and §7 by the commonality/impact session, §8 by the human.
 **Frozen means frozen:** §7 is a pre-registration, so amending it after a result is seen
 destroys the only thing it was for. Append an outcome section instead.
+**One pre-execution correction, 2026-08-02:** §7.7 named an instrument that cannot take this
+input (`run_gauntlet` needs a `TradeLog`; §7 produces none). Corrected in place with the
+original text quoted, no threshold or window touched, nothing yet run. §7.9 added with the
+environment gaps. See §7.7's note.
 **Date:** 2026-08-02
 **Lives:** here, permanently. **Runs:** in `npf`, through `crucible`. See §8.
 **Target:** a session that has written none of this package
@@ -354,7 +358,7 @@ This check has no bearing on §7.5. It is a precondition for running §7.5, not 
 
 | outcome | criterion |
 |---|---|
-| **supported** | pooled p < 0.05 **and** at least 6 of the 9 clean units have a lead-in median above 0.50 |
+| **supported** | pooled **raw** p < 0.05 (see §7.7 for which p binds and why) **and** at least 6 of the 9 clean units have a lead-in median above 0.50 |
 | **contradicted** | pooled median at or below 0.50, or 5 or more of 9 units below it |
 | **uninformative** | anything else, including p between 0.05 and 0.20 |
 
@@ -383,13 +387,63 @@ Each of these turns the test into a restatement of its own inputs.
 
 ### 7.7 crucible integration
 
+> **Corrected 2026-08-02, before execution and before any result was seen.** The original
+> text of this subsection told the evaluator to call `run_gauntlet(..., n_variants=log)`.
+> **That call cannot be made.** `run_gauntlet(trades: TradeLog, ...)` judges a directional
+> strategy from a trade log, and §7 produces no trades: it tests whether a monitor's reading
+> is elevated ahead of an episode. `D` **must never be traded directly** (`composite.py`,
+> §A.10), so there will never be a `TradeLog` here and the gauntlet is the wrong instrument.
+>
+> Recorded rather than silently edited, because §7 is frozen. The freeze exists to stop
+> thresholds moving once results are visible. **No threshold, episode, window or statistic
+> changes below**, and nothing has been run. Fixing an instruction that cannot be executed is
+> not what the freeze protects against, and leaving it would have cost the evaluator its
+> first hour.
+
 Under npf governance the denominator is the whole search, so the count is stated here rather
 than reconstructed later. The primary run is **one variant**: the single form in §7.4. Every
 robustness run (window 9 or 17 weeks, gap 0 or 28 days, mean instead of median, block length 8
-or 21, `phi_percentile=False`) is a **further variant and must be counted in the
+or 21, `phi_percentile=False`) is a **further variant and must be recorded in a
 `SearchSpaceLog`** whether or not it is reported. That is **11 variants** if the full
-robustness set is run, and the evaluator must pass the log itself to
-`run_gauntlet(..., n_variants=log)` rather than a hand-written integer.
+robustness set is run, and the evaluator passes the log itself rather than a hand-written
+integer.
+
+**The instrument is `crucible.validation.sidak_correction`, not the gauntlet.**
+
+```python
+from crucible.validation import SearchSpaceLog, sidak_correction
+
+log = SearchSpaceLog("crowdmon:D_leadin")     # every variant tried, including discards
+p_corrected = sidak_correction(p_raw, log)    # duck-typed on the log, no integer to fudge
+```
+
+`sidak_correction` takes the block-bootstrap p from §7.4 step 6 and the log itself. It is the
+sanctioned path for a hypothesis that is not a trade log, and ADR-0002 is explicit that handing
+over the ledger rather than a self-reported number is "the difference between a measurement and
+an attestation".
+
+**Which p the verdict binds on, decided here rather than after the fact.**
+
+| | binds §7.5 | reported |
+|---|---|---|
+| **raw** block-bootstrap p | **yes** | always |
+| Šidák-corrected p at the full variant count | no | **always, beside it** |
+
+The raw p binds **because this document exists**. Šidák corrects for having *selected* the
+best of `n` attempts, and a pre-registration that froze the form before any result was seen is
+exactly the artifact establishing that no selection occurred. Correcting a genuinely
+pre-committed single hypothesis by its own robustness checks would be double-counting.
+
+**That permission is conditional and the conditions are absolute.** The corrected p becomes
+binding the moment any of these happens: the evaluator deviates from §7.4 in any respect, or
+reports a robustness variant as the headline, or adds a variant not listed above, or runs the
+primary more than once.
+
+**And the corrected figure is expected to be uninformative, which is not evidence against
+`D`.** At 11 variants Šidák maps a raw p of 0.05 to **0.431**, and clearing 0.05 corrected
+would need a raw p of **0.00465**. Nine correlated units will not produce that. Stating it now
+stops a reader treating the corrected column as a failed test rather than as the conservative
+bound it is.
 
 ### 7.8 Deferred, with a reason and a date
 
@@ -398,6 +452,29 @@ Per §4, §10's mechanical test that "vintage replay reproduces historical value
 It becomes executable once the store has sat through a revision, which needs weekly releases
 after 2026-08-01 to accumulate. Re-check no earlier than **2026-11-01**, by which point roughly
 13 releases will have landed.
+
+### 7.9 What the evaluator has to set up, measured 2026-08-02
+
+Added so the first hour is not spent discovering it. §8 says the work runs in `npf`; these are
+the gaps between that and a working environment.
+
+| | state | action |
+|---|---|---|
+| `crucible` in `npf/.venv` | **present**, editable from `../crucible` | none |
+| `cotdata` in `npf/.venv` | **present** | none |
+| **`crowdmon` in `npf/.venv`** | **absent** | `npf/.venv/bin/python -m pip install --no-deps -e ../crowdmon` |
+| `COTDATA_STORE` | required, exported from the shell profile | confirm it is set; a launchd-style context will not have it |
+
+**Installing `crowdmon` beside `crucible` does not breach the boundary.** `test_boundaries.py`
+is a source-level check that crowdmon's own code never imports `crucible`, not a claim about
+what may share a virtualenv. `npf` already holds both `cotdata` and `crucible`, and being the
+place where they legitimately meet is what makes it the right host. The evaluator writes its
+verdict in `npf`, importing both; nothing in `crowdmon` changes.
+
+**Two things that will not be found ready.** `add_composite` has never been run on TFF (B12),
+which §7.2 needs for two of its four clean episodes, and there is no existing script that
+computes a lead-in window. Both are the evaluator's to build, and neither should be built here
+first: doing so would spend the cleanliness this document is trying to preserve.
 
 ---
 
