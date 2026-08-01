@@ -1,6 +1,6 @@
 # Handoff: §A.8 reflexivity, the cascade amplification factor
 
-**Status:** claimed, not started
+**Status:** **COMPLETE**, shipped as `futures/reflexivity.py`. See the closing section
 **Date:** 2026-08-02
 **Claimed by:** the session that built `trigger.py`, `composite.py`, `extremity.py`,
 `seasonal.py`, `concentration.py` and `weight_sensitivity.py`
@@ -164,3 +164,62 @@ first and, per point 3 above, the mildest rather than the scariest.
 staircase looks like more machinery than the section warrants, the fallback that keeps the
 honesty is to report the bracket and skip `w_h` entirely: two numbers per market and direction,
 labelled all-fast and all-slow, with no base case at all.
+
+---
+
+## Built 2026-08-02 by the composite author: `futures/reflexivity.py`
+
+Appended below the view it acts on, per this directory's lifecycle. Reproducer:
+`docs/analysis/reproduce.py` section 15. Corrections filed as
+[`2026-08-02 §B13-B15`](../design/amendments-2026-08-02.md).
+
+### What shipped, and it is the staircase as specified
+
+`staircase`, `headline`, `bracket`, `implied_gross_pool`, `effective_lambda` and a
+`format_block` exported as `format_cascade_block`. 24 tests. **No horizon is picked**, the two
+candidate answers are the bracket, and `g_up` / `g_down` are separate frames that nothing sums.
+
+The one addition to the design: the cohort heights are **constrained** as well as unknown.
+Cohorts must reproduce the observed net, so with `w_h . P . s_h` per cohort,
+
+    net = P . sum(w_h . s_h)      ->      P = |net| . H / |sum(s)|   (uniform split)
+
+Mixed signs therefore imply a gross pool 3x the net and unanimous signals imply gross equals
+net. Against naively using `|net|` at every step this **cuts the unanimous markets by 3x and
+leaves the mixed ones alone**, so it reorders the cross-market ranking rather than rescaling
+it, the same class as A20's Amihud-without-the-multiplier.
+
+### Three things measured here contradict what was written down first
+
+Including two of mine and one of the view's. Detail in B13-B15; the short form:
+
+| | written first | measured |
+|---|---|---|
+| pool scaling | `l.g` linear in `P` | **`l.g ~ sqrt(P)`**. Tripling multiplies by 1.7321 |
+| worst step | nearest is mildest, then nearest is always worst | **a race**, decided by `d_(i+1)/d_i > sqrt(Q_(i+1)/Q_i)` |
+| `sum(s) == 0` | structurally barred | **reachable** without a config change |
+
+The pool-scaling error is the one that mattered: it put gold's worst reading at `l.g = 1.231`,
+"no equilibrium", when computed it is **0.602 and 2.51x**. Nothing at gold crosses 1. The
+cohort constraint still moves the headline 64%, which is worth having, but it is not the
+difference between finite and infinite and an earlier draft of this section said it was.
+
+### What A.8 emits
+
+Per market and direction: the staircase, `l`, `g`, `l.g` and the amplification at each step,
+the **worst** step, and the all-fast/all-slow bracket. `f`, the trend fraction, is an explicit
+multiplier defaulting to 1.0 and labelled an upper bound rather than an estimate; per the
+square-root scaling its overstatement is `1/sqrt(f)`, not `1/f`.
+
+**The headline is `max` over steps, not the nearest step.** Both the view and my correction to
+it assumed one of the two orderings always holds. Neither does.
+
+### Not wired into `composite.py`
+
+Unchanged from the handoff body: §A.9 has no term for it, exactly as it has none for §A.6's
+commonality (`2026-08-02 §B2`), so it is reported beside `D` rather than inside it.
+
+### Status
+
+**Closed.** The horizon blocker this handoff was filed on is resolved, and resolved by
+dissolving the question rather than answering it.

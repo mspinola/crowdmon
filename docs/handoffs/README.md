@@ -28,7 +28,7 @@ with.
 | Handoff | Status |
 |---|---|
 | [2026-08-01-flow-decomposition.md](2026-08-01-flow-decomposition.md) | complete — layer 3, flow decomposition and fragility-weighted exit size |
-| [2026-08-02-reflexivity.md](2026-08-02-reflexivity.md) | **claimed, not started, now unblocked.** §A.8 cascade amplification. The horizon decision it was blocked on is answered in an appended views section |
+| [2026-08-02-reflexivity.md](2026-08-02-reflexivity.md) | **COMPLETE.** §A.8 cascade amplification, shipped as `futures/reflexivity.py`. The horizon decision it was blocked on was dissolved rather than answered: `g` is a staircase, so no horizon is picked. Corrections in `2026-08-02 §B13-B15` |
 | [2026-08-02-validation-prereg.md](2026-08-02-validation-prereg.md) | **complete and frozen, awaiting execution.** §10 pre-registration. Both sessions have written their halves; it needs a cold session neither of them can supply |
 
 ## A handoff can also be a claim

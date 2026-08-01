@@ -609,6 +609,68 @@ def constant_invariance() -> None:
     print("weights' ORDERING (2026-08-01 §A22) and the phi_percentile reading (§A15).")
 
 
+def reflexivity() -> None:
+    """2026-08-02 B13-B15: the cascade staircase, and three claims that did not survive it."""
+    from crowdmon.futures import reflexivity as rx
+    from crowdmon.futures import trigger as trig
+
+    rule("15. CASCADE AMPLIFICATION: the staircase (2026-08-02 B13, B14, B15)")
+
+    print("\nB13. l.g grows as sqrt(pool), not linearly.")
+    sigma, vol, net = 0.011, 180_000.0, 119_795.0
+    for label, q, d in (("60d, pool = |net|", net, 0.137087),
+                        ("20d, pool = |net|", net, 0.019376),
+                        ("20d, whole 3x gross", 3 * net, 0.019376)):
+        lam = rx.effective_lambda(sigma, q, vol)
+        lg = lam * q / d
+        amp = rx._amplification(lg)
+        print(f"  {label:22s} l.g = {lg:.3f}   amp = {amp:.2f}x")
+    ratio = ((rx.effective_lambda(sigma, 3 * net, vol) * (3 * net))
+             / (rx.effective_lambda(sigma, net, vol) * net))
+    print(f"  tripling the pool multiplies l.g by {ratio:.4f}  (sqrt(3) = {3 ** 0.5:.4f})")
+    print("  The linear reading put the third row at 1.231, 'no equilibrium'. It is 0.602.")
+
+    print("\nB14. Trigger distance is NOT monotonic in lookback.")
+    for symbol in ("GC", "ZC", "CL"):
+        out = trig.trigger_prices(symbol, lookbacks=(20, 60, 250))
+        dist = {int(r.lookback_days): abs(r.move_from_spot) for r in out.itertuples()}
+        nearest = min(dist, key=dist.get)
+        print(f"  {symbol}: " + "  ".join(f"{k}d {v:.2%}" for k, v in dist.items())
+              + f"   nearest = {nearest}d")
+
+    print("\n  Worst step per direction, across the universe:")
+    syms = ("GC SI HG PL PA CL NG HO RB ZC ZS ZW ZM ZL KC CC SB CT LE HE "
+            "ZN ZF ZT ZB 6E 6J 6B 6A 6C 6S ES NQ YM").split()
+    multi = past = 0
+    for symbol in syms:
+        try:
+            stairs = rx.staircase(trig.trigger_prices(symbol, lookbacks=(20, 60, 250)),
+                                  net_contracts=100_000.0, sigma_daily=0.015,
+                                  volume=150_000.0)
+        except Exception:
+            continue
+        for _, side in stairs.groupby("direction"):
+            if len(side) < 2:
+                continue
+            multi += 1
+            ranked = side.sort_values("distance")
+            if ranked["lg"].idxmax() != ranked.index[0]:
+                past += 1
+    print(f"  multi-step direction-staircases: {multi};  peaking PAST the nearest: {past}")
+    print("  Net-independent: lg_2/lg_1 = sqrt(2).d_1/d_2, so the count needs no real position.")
+
+    print("\nB15. sum(s) == 0 is reachable without a config change.")
+    for label, signals in (("flat lookback", [0, -1, 1]),
+                           ("short history", [-1, None, 1]),
+                           ("fourth lookback", [1, -1, 1, -1])):
+        try:
+            rx.implied_gross_pool(signals, 100_000.0)
+            print(f"  {label:18s} -> NOT refused (unexpected)")
+        except rx.ReflexivityError:
+            print(f"  {label:18s} -> refused, as it must be")
+    print("  Parity protects the count of CONTRIBUTING signals, not len(DEFAULT_LOOKBACKS).")
+
+
 if __name__ == "__main__":
     main()
     normalisation()
@@ -618,3 +680,4 @@ if __name__ == "__main__":
     trigger_guard()
     vintage_coverage()
     constant_invariance()
+    reflexivity()
