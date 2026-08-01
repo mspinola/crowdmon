@@ -28,6 +28,15 @@ with.
 | Handoff | Status |
 |---|---|
 | [2026-08-01-flow-decomposition.md](2026-08-01-flow-decomposition.md) | complete — layer 3, flow decomposition and fragility-weighted exit size |
+| [2026-08-02-reflexivity.md](2026-08-02-reflexivity.md) | **claimed, not started** — §A.8 cascade amplification |
+
+## A handoff can also be a claim
+
+Two modules were built twice in one afternoon because each session started the obvious next
+piece without re-checking. Writing the claim here before starting is the fix, and it costs a
+few minutes against a duplicated module. A `claimed, not started` handoff says what is being
+taken, what it is blocked on, and what decision it needs, so another session can object before
+either of us has written anything.
 
 ## How this differs from the neighbouring directories
 
