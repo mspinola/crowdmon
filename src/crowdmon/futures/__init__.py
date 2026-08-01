@@ -136,6 +136,14 @@ from .seasonal import (
     seasonality_report,
     week_of_year,
 )
+from .trigger import (
+    DEFAULT_LOOKBACKS,
+    TriggerError,
+    format_block,
+    trigger_block,
+    trigger_prices,
+    vol_shock_reduction,
+)
 from .volume import (
     DEFAULT_ADV_WINDOW,
     DEFAULT_STRESS_LOOKBACK,
@@ -176,6 +184,8 @@ __all__ = [
     "add_risk_units", "risk_coverage_report", "RiskUnitsError", "RISK_COLUMNS",
     "RISK_ADJUSTMENT", "DEFAULT_VOL_WINDOW", "DEFAULT_MIN_PERIODS",
     # engines
+    "trigger_prices", "trigger_block", "format_block", "vol_shock_reduction",
+    "TriggerError", "DEFAULT_LOOKBACKS",
     "seasonal_profile", "deseasonalise", "seasonality_report", "week_of_year",
     "SeasonalError", "DEFAULT_MIN_YEARS",
     "plausible_variants", "reference_variants", "sweep", "summarise",

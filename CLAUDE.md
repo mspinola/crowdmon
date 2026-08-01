@@ -146,6 +146,7 @@ src/crowdmon/
     commonality.py          A.6 beta_bar and T_eff. NOT wired into the composite, see below
     weight_sensitivity.py   §6.3 / A.11. Phi has NO signal independent of the weights
     seasonal.py             §5.4. Measured at <=1.4% of variance; adjustment defaults OFF
+    trigger.py              §9.3 / A.7. F*=F_{t-k}, from an OBSERVED pool not a fitted AUM
     extremity.py            §6.1 / A.4 vol-scaled positioning vs 3y of own history
     volume.py               A.5 denominator. `front` is whole-market, `reconstructed` is not
     composite.py            A.9 D = C x I x Phi. The whole system in one number
