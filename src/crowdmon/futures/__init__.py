@@ -83,6 +83,13 @@ from .extremity import (
 )
 from .flow import FLOW_STATES, decompose, state_distribution, tolerance_sensitivity
 from .fragility import contributions, fragility_frame, market_fragility
+from .impact import (
+    DEFAULT_AMIHUD_WINDOW,
+    IMPACT_COLUMNS,
+    add_impact,
+    amihud_series,
+    impact_coverage,
+)
 from .io import (
     PanelError,
     from_current_store,
@@ -107,6 +114,7 @@ from .riskunits import (
     RISK_COLUMNS,
     RiskUnitsError,
     add_risk_units,
+    sigma_series,
 )
 from .riskunits import coverage_report as risk_coverage_report
 from .volume import (
@@ -151,6 +159,10 @@ __all__ = [
     "market_fragility", "fragility_frame", "contributions",
     "decompose_breadth",
     "exit_pressure", "rank_markets", "top_by",
+    # exit COST, distinct from exit duration. A.9's composite term is pct(T_eff), which is
+    # `T`; this is A.5's square-root law and is reported beside it, not inside D.
+    "add_impact", "amihud_series", "impact_coverage", "IMPACT_COLUMNS",
+    "DEFAULT_AMIHUD_WINDOW", "sigma_series",
     # the denominator of T = Q/(kappa V). `VOLUME_SERIES` is "front" and is WHOLE-MARKET;
     # the series named "reconstructed" is the narrower one. volume.py has the measurements.
     "add_volume", "adv_series", "stress_adv_series", "volume_coverage", "VolumeError",

@@ -129,6 +129,7 @@ src/crowdmon/
   core/                     asset-class agnostic — shared with the equity monitor (spec §12)
     aggregate.py            trailing z-scores and percentiles. No lookahead by construction
     config.py               fragility weights, kappa, tolerances. Configured, never fitted
+    impact.py               A.5 square-root law + Amihud. Knows nothing about contracts
     report.py               markdown rendering. Knows nothing about categories
   futures/                  COT-specific. Knows about categories, market codes, open interest
     cot_adapter.py          the CotSource seam: refuses lookahead, filters on provenance
@@ -140,6 +141,7 @@ src/crowdmon/
     fragility.py            A.2 Q_sell / Q_buy / Phi
     breadth.py              §6.2 breadth-depth quadrant
     concentration.py        §6.2 CR4/CR8. Published, never null, needs nothing else
+    impact.py               A.5 exit COST. Amihud needs the multiplier, see A20
     extremity.py            §6.1 / A.4 vol-scaled positioning vs 3y of own history
     volume.py               A.5 denominator. `front` is whole-market, `reconstructed` is not
     composite.py            A.9 D = C x I x Phi. The whole system in one number
@@ -159,9 +161,14 @@ monitor has grown a dependency on it is not.
 place rather than be assumed into it, and it is genuinely agnostic (it knows nothing about
 markets or categories).
 
-`core/store.py` and `core/impact.py` are still **absent rather than stubbed**. Nothing needs
-them yet and an empty module invites being imported. The first wants history the vintage
-store does not have; the second wants a volume source that does not exist here.
+`core/impact.py` arrived once `futures/volume.py` supplied a whole-market volume. It holds
+the two formulas and nothing else: `I = Y.sigma.sqrt(Q/V)` and Amihud are true of any market
+with a price, a volatility and a volume. The unit conversions that need a CONTRACT stay in
+`futures/impact.py`, and one of them is load-bearing (see A20: Amihud without the multiplier
+is a different ranking, not a rescaled one).
+
+`core/store.py` is still **absent rather than stubbed**. Nothing needs it yet, an empty module
+invites being imported, and it wants history the vintage store does not have.
 
 One knowing exception to the agnostic rule: the fragility weights in `core/config.py` are
 keyed by Disaggregated and TFF category names. The handoff places them there, and the

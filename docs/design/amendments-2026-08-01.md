@@ -217,7 +217,7 @@ these are cheaper than they look:
 |---|---|---|
 | A.4 | ~~extremity, rolling 3y z-score of vol-scaled notional~~ | **built 2026-08-01**, see [A10](#a10-winsorising-damages-extremity-and-the-appendix-is-right-not-to-ask-for-it) |
 | A.5 | ~~stress-conditioned `V`, the volume-spike trap, `T = Q/(kappa V)`~~ | **built 2026-08-01**, see [A13](#a13-volume-was-in-the-store-all-along-under-a-parameter-named-for-the-front-month) |
-| A.5 | square-root impact `I = Y σ sqrt(Q/V)`, Amihud `Λ` | ~~volume~~ **nothing.** The volume both need is now in `futures/volume.py` |
+| A.5 | ~~square-root impact `I = Y σ sqrt(Q/V)`, Amihud `Λ`~~ | **built 2026-08-01**, see [A19](#a19-exit-cost-and-exit-duration-rank-markets-almost-independently) |
 | A.6 | liquidity commonality `β̄`, `T_eff = T(1 + γβ̄)` | ~~volume~~ nothing, see A13 |
 | A.7 | forced-seller model and trigger solver | prices + a CTA replication model |
 | A.8 | reflexivity amplification `1/(1 - ℓg)` | A.5 and A.7 |
@@ -687,3 +687,72 @@ years**; a REC market at 100.0 is extreme absolutely and ordinary against itself
 six markets currently most extreme against own history are ags on the short side, which is
 exactly the shape module spec §5.4 warns will appear as a seasonal artifact. Seasonal
 adjustment is still unbuilt, so that reading is unresolved.
+---
+
+## A19. Exit cost and exit duration rank markets almost independently
+
+**Adds** a measurement behind appendix §A.5, which gives both `T = Q/(kappa V)` and
+`I = Y sigma sqrt(Q/V)` without saying how much the two differ in practice. The answer is: as
+much as it is possible to differ.
+
+Measured on the latest week, 25 markets:
+
+| | |
+|---|---|
+| rank correlation, `T` vs square-root impact | **0.031** |
+| exit cost range | 46 to 350 bps, median 106 |
+| `Q/V` range | 0.16 to 2.11 days of total volume |
+
+Near-orthogonal, and the mechanism is plain once stated: **`T` carries no volatility and the
+cost is multiplicative in it.** Cotton has the longest days-to-liquidate in the set (7.1) and
+the fourth-highest cost, because its daily vol is 1.8%. Cocoa exits in 1.5 days and costs the
+third most, because its vol is 4.6%.
+
+| market | `T` (days) | cost (bps) | daily sigma |
+|---|---|---|---|
+| FCOJ | 4.4 | **350** | 4.96% |
+| Coffee | 4.3 | 251 | 3.65% |
+| Cocoa | **1.5** | 189 | 4.61% |
+| Cotton | **7.1** | 164 | 1.79% |
+| Silver | 1.4 | 123 | 3.13% |
+
+**Consequence.** Reporting one and not the other loses most of the information. A monitor that
+ranked only on `T` would put cotton at the top and cocoa eleventh; ranking only on cost
+reverses them. Both are emitted.
+
+**Neither is the composite's `I` term.** §A.9 defines `I = pct(T_eff)`, so `composite.py` is
+right to use the duration percentile. The square-root law is §A.5's *cost of forcing the
+exit*, reported beside `D` rather than inside it.
+
+## A20. Amihud without the contract multiplier is a different ranking, not a rescaled one
+
+**Adds** a constraint the appendix's `Lambda = <|r_t| / dollar volume_t>` does not state,
+because in equities it does not arise: a share's dollar volume is price times shares, and
+there is no multiplier to forget.
+
+In futures the multiplier spans four orders of magnitude across this universe (cocoa 10, RBOB
+gasoline 42,000), and prices are quoted in whatever unit the contract trades in: dollars per
+gallon for RBOB, cents per pound for copper. Dropping the multiplier therefore does not scale
+Amihud, it **reorders it**:
+
+| | |
+|---|---|
+| rank correlation, with vs without the multiplier | **0.500** |
+| markets moving more than five places | **8 of 25** |
+
+Cocoa reads 20th of 25 without it and 5th with it. RBOB gasoline reads illiquid without it and
+is among the most liquid markets in the set at $20bn a day.
+
+The correct ordering is the plausible one: orange juice ($40m/day), lumber ($18m/day) and
+Class III Milk ($66m/day) are the illiquid markets, gold ($103bn/day) and crude ($73bn/day)
+the liquid ones.
+
+**Why this is a `raise` rather than a note.** A multiplier-free dollar volume is still
+positive, still of roughly the right magnitude, and still produces a smooth-looking series.
+Nothing downstream can detect it. `futures.impact.amihud_series` refuses a missing or
+non-positive `point_value` outright, and `core.impact.amihud` documents the requirement on
+the argument it cannot check.
+
+Found while building A19: the first version of the measurement used price without the
+multiplier and put heating oil and RBOB among the most illiquid markets in the store, which
+is where it became obvious something was wrong.

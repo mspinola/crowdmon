@@ -55,7 +55,7 @@ adjustment scales by a positive factor, so it preserves the sign of the underlyi
 rather than imposing one. `cotdata.prices._ratio_adjust`'s own docstring says the result
 "stays strictly positive", which holds only where the market did. WTI settled at **-37.63 on
 2020-04-20** and crude's ``propadj`` close that day is -24.11. A first version of
-`_sigma_series` raised on any non-positive close and so refused to produce a volatility for
+`sigma_series` raised on any non-positive close and so refused to produce a volatility for
 crude at all, over one real day.
 
 The distinction that matters is rate, and the store separates the two cases by three orders
@@ -124,9 +124,15 @@ class RiskUnitsError(RuntimeError):
     """The inputs would produce a number that is not a risk unit."""
 
 
-def _sigma_series(symbol: str, adjustment: str, price_field: str,
-                  window: int, min_periods: int) -> pd.Series:
-    """Rolling daily volatility of percentage returns, as a fraction."""
+def sigma_series(symbol: str, adjustment: str = RISK_ADJUSTMENT,
+                 price_field: str = "Close", window: int = DEFAULT_VOL_WINDOW,
+                 min_periods: int = DEFAULT_MIN_PERIODS) -> pd.Series:
+    """Rolling daily volatility of percentage returns, as a fraction.
+
+    Public because `futures.impact` needs exactly this series, and the alternative was a
+    third copy of the propadj discipline (refuse the wrong adjustment, mask returns touching
+    a non-positive close, raise above a rate). One implementation, one place to correct it.
+    """
     import cotdata
 
     bars = cotdata.get_prices(symbol, adjustment=adjustment)
@@ -229,7 +235,7 @@ def add_risk_units(with_notional: pd.DataFrame, *,
     sigma_date = pd.Series(pd.NaT, index=out.index, dtype="datetime64[ns]")
     tol = pd.Timedelta(days=max_staleness_days)
     for sym, idx in out.groupby("symbol", dropna=True, sort=False).groups.items():
-        series = _sigma_series(str(sym), adjustment, price_field, window, min_periods)
+        series = sigma_series(str(sym), adjustment, price_field, window, min_periods)
         series = series.dropna()
         if series.empty:
             continue
