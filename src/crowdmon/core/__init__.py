@@ -8,11 +8,14 @@ core. This package is that decision made structural, not a guess about what migh
 belongs in `crowdmon.futures` and can be promoted later, which is a cheap move; demoting
 something from `core` after the equity monitor has grown a dependency on it is not.
 
-Deliberately absent rather than stubbed, because nothing needs them yet and an empty module
-invites being imported: `store.py` (parquet io), `aggregate.py` (rolling z-scores and
-percentiles) and `impact.py` (square-root law, Amihud). The first two want history the
-vintage store does not yet have and the third wants a volume source that does not exist in
-this workspace at all.
+`aggregate.py` arrived with extremity (module spec §6.1): trailing-window z-scores and
+percentiles, which know nothing about markets or categories and are the first thing here to
+earn its place rather than be assumed into it.
+
+Still deliberately absent rather than stubbed, because nothing needs them yet and an empty
+module invites being imported: `store.py` (parquet io) and `impact.py` (square-root law,
+Amihud). The first wants history the vintage store does not yet have and the second wants a
+volume source that does not exist in this workspace at all.
 
 One deliberate exception to the agnostic rule, in `config.py`: the COT fragility weights are
 keyed by Disaggregated and TFF category names. The layer-3 handoff places them here, and the
@@ -20,6 +23,6 @@ keyed by Disaggregated and TFF category names. The layer-3 handoff places them h
 too, with 13F holder types instead. If that second map ever lands, this file either grows a
 second table or the weights split out per asset class.
 """
-from . import config, report
+from . import aggregate, config, report
 
-__all__ = ["config", "report"]
+__all__ = ["aggregate", "config", "report"]

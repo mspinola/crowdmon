@@ -114,6 +114,7 @@ Reaching for anything else fails the boundary test on purpose: a new dependency 
 ```
 src/crowdmon/
   core/                     asset-class agnostic — shared with the equity monitor (spec §12)
+    aggregate.py            trailing z-scores and percentiles. No lookahead by construction
     config.py               fragility weights, kappa, tolerances. Configured, never fitted
     report.py               markdown rendering. Knows nothing about categories
   futures/                  COT-specific. Knows about categories, market codes, open interest
@@ -125,6 +126,7 @@ src/crowdmon/
     flow.py                 A.3 flow decomposition
     fragility.py            A.2 Q_sell / Q_buy / Phi
     breadth.py              §6.2 breadth-depth quadrant
+    extremity.py            §6.1 / A.4 vol-scaled positioning vs 3y of own history
     pressure.py             A.5 exit capacity, days-to-liquidate pending a volume source
 ```
 
@@ -136,9 +138,13 @@ construction rather than a general one.
 in `futures/` and can be promoted later, which is cheap; demoting something after the equity
 monitor has grown a dependency on it is not.
 
-`core/store.py`, `core/aggregate.py` and `core/impact.py` are **absent rather than stubbed**.
-Nothing needs them yet and an empty module invites being imported. The first two want history
-the vintage store does not have; the third wants a volume source that does not exist here.
+`core/aggregate.py` arrived with extremity: it is the first thing in `core/` to earn its
+place rather than be assumed into it, and it is genuinely agnostic (it knows nothing about
+markets or categories).
+
+`core/store.py` and `core/impact.py` are still **absent rather than stubbed**. Nothing needs
+them yet and an empty module invites being imported. The first wants history the vintage
+store does not have; the second wants a volume source that does not exist here.
 
 One knowing exception to the agnostic rule: the fragility weights in `core/config.py` are
 keyed by Disaggregated and TFF category names. The handoff places them there, and the

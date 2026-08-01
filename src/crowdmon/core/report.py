@@ -23,6 +23,13 @@ import pandas as pd
 NO_SEPARATOR = frozenset({"year", "days_elapsed", "traders", "d_traders",
                           "trader_count_long", "trader_count_short", "n_categories"})
 
+#: Columns that are IDENTIFIERS and must never be read as numbers, however numeric they look.
+#: CFTC market codes are zero-padded strings: `001612` is wheat, and rendering it as a number
+#: gives `1,612`, which has lost the leading zeros and gained a separator. It is no longer a
+#: code anyone can look up, and nothing about the output says so.
+NEVER_NUMERIC = frozenset({"market_code", "cftc_contract_market_code", "contract_code",
+                           "symbol", "snapshot_id", "row_sha256"})
+
 
 def to_markdown(frame: pd.DataFrame, *, decimals: int = 4) -> str:
     """Markdown table with numbers formatted for reading rather than for round-tripping.
@@ -44,7 +51,7 @@ def to_markdown(frame: pd.DataFrame, *, decimals: int = 4) -> str:
         if pd.api.types.is_datetime64_any_dtype(col):
             disp[c] = col.dt.date.astype(str)
             continue
-        numeric = as_numeric(col)
+        numeric = None if str(c) in NEVER_NUMERIC else as_numeric(col)
         if numeric is None:
             disp[c] = col.map(lambda v: "" if pd.isna(v) else str(v))
             continue

@@ -208,7 +208,7 @@ these are cheaper than they look:
 
 | § | Not built | Blocked on |
 |---|---|---|
-| A.4 | extremity, rolling 3y z-score of vol-scaled notional | `riskunits` (rung 4, in flight) |
+| A.4 | ~~extremity, rolling 3y z-score of vol-scaled notional~~ | **built 2026-08-01**, see [A8](#a8-winsorising-damages-extremity-and-the-appendix-is-right-not-to-ask-for-it) |
 | A.5 | square-root impact `I = Y σ sqrt(Q/V)`, Amihud `Λ`, stress-conditioned `V`, the volume-spike trap | **volume**, which does not exist in this workspace |
 | A.6 | liquidity commonality `β̄`, `T_eff = T(1 + γβ̄)` | volume |
 | A.7 | forced-seller model and trigger solver | prices + a CTA replication model |
@@ -372,3 +372,87 @@ not.
   finite, published fuel supply visible beforehand.
 - **§6.3's weights** produce a bounded, well-behaved Phi across the whole history. A3 is
   about how to *read* it, not about the weights being wrong.
+
+## A8. Winsorising damages extremity, and the appendix is right not to ask for it
+
+**Contradicts:** module spec §6.1, "Rolling z-score and percentile of vol-scaled net
+notional, per market per category, 3-year window, **winsorised**." Appendix §A.4 gives the
+plain `z_t = (x_t − μ_W)/s_W` and specifies no winsorisation. The appendix is authoritative,
+so it wins on precedence alone; what makes this an amendment rather than a footnote is that
+the measurement independently agrees.
+
+**Why it misfires here.** Winsorising assumes the values it clips are outliers. In
+positioning data they are usually the top of a **build**, because positions accumulate over
+months rather than spiking for a week. Clipping them removes the build itself, shrinks the
+scale, and manufactures a score the data does not support.
+
+**Measured**, worst case in twenty years, Platinum / Other Reportable / 2026-01-27. The
+trailing window's six largest values are a monotone run-up ending at the current point
+(31.5m, 47.1m, 47.6m, 54.4m, 55.7m, 62.5m):
+
+| | mean | std | z |
+|---|---|---|---|
+| raw | 9,815,959 | 8,590,872 | **6.13** |
+| winsorised 5% | 8,493,972 | 2,444,729 | **22.10** |
+
+The standard deviation shrinks 3.5x and the score nearly quadruples on identical data.
+Panel-wide:
+
+| winsor | median abs z | 99th | max | share above 6 |
+|---|---|---|---|---|
+| **0.00** | 0.85 | 3.65 | **9.6** | 0.05% |
+| 0.05 | 0.91 | 4.31 | 22.1 | 0.32% |
+| 0.10 | 1.00 | 5.46 | 27.4 | 0.75% |
+
+`core.aggregate.DEFAULT_WINSOR = 0.0`. The parameter is kept, because a genuinely spiky
+series would benefit from it, and it defaults off.
+
+**The percentile is unaffected at any setting**, since ranks ignore the magnitude of the
+tails (platinum reads 1.0000 either way). That is the strongest argument for §6.1's own
+instruction that the *percentile* is what should be reported: the one free parameter in the
+module touches only the secondary number.
+
+## A9. Extreme positioning readings persist far longer than a percentile implies
+
+**Adds** a measurement behind module spec §11 item 7 ("positioning extremes persist for
+quarters"), which the spec states as a caution and which is directly quantifiable.
+
+Over 117,940 scored market-weeks, 27 markets, 2006-2026:
+
+    share above the 95th percentile:  10.11%   (nominal 5%)
+    share below the  5th percentile:   8.90%   (nominal 5%)
+
+Twice the nominal rate, because the readings are serially dependent. Consecutive-week
+episodes above the 95th percentile, counted per market-category:
+
+| | |
+|---|---|
+| episodes | 2,477 |
+| mean run length | 4.8 weeks |
+| median | 3 weeks |
+| 90th percentile | 12 weeks |
+| longest | 42 weeks |
+| share of hot weeks inside runs of 8+ weeks | **57.6%** |
+
+**A 95th-percentile reading is not a one-in-twenty event; it is the middle of an episode.**
+The direct consequence for anything downstream: percentile exceedances are not independent,
+so work that treats "weeks above the 95th" as a sample size has an effective sample roughly a
+fifth of its nominal one. That is `crucible`'s problem rather than this package's, but the
+measurement belongs where it was made.
+
+It also confirms the measure behaves as intended. An indicator that flickered in and out week
+to week would be describing noise.
+
+## A10. Extremity cannot run on the breadth panel, and this is permanent
+
+**Adds** a constraint the spec does not state. Module spec §6.1 specifies a 3-year window;
+the vintage store begins 2025-01-07 and holds about nineteen months. So extremity runs only
+on `io.from_current_store` (**27 markets**, 2006 onward) and never on the 346-market vintage
+panel that `fragility` and `flow` use.
+
+`extremity.add_extremity` raises on a too-short panel rather than returning an all-null
+column, because a column of nulls does not say why it is null.
+
+Breadth and depth are in different places and stay there. Any cross-market work combining
+extremity with fragility is combining a 27-market measure with a 279-market one, and the
+intersection is the 27.

@@ -59,6 +59,13 @@ from .cot_adapter import (
     VintageCotSource,
     provenance_summary,
 )
+from .extremity import (
+    EXTREMITY_COLUMNS,
+    ExtremityError,
+    add_extremity,
+    extremity_report,
+    latest_extremes,
+)
 from .flow import FLOW_STATES, decompose, state_distribution, tolerance_sensitivity
 from .fragility import contributions, fragility_frame, market_fragility
 from .io import (
@@ -106,6 +113,8 @@ __all__ = [
     "add_risk_units", "risk_coverage_report", "RiskUnitsError", "RISK_COLUMNS",
     "RISK_ADJUSTMENT", "DEFAULT_VOL_WINDOW", "DEFAULT_MIN_PERIODS",
     # engines
+    "add_extremity", "extremity_report", "latest_extremes", "ExtremityError",
+    "EXTREMITY_COLUMNS",
     "decompose", "state_distribution", "tolerance_sensitivity", "FLOW_STATES",
     "market_fragility", "fragility_frame", "contributions",
     "decompose_breadth",
