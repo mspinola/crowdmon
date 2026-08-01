@@ -671,6 +671,49 @@ def reflexivity() -> None:
     print("  Parity protects the count of CONTRIBUTING signals, not len(DEFAULT_LOOKBACKS).")
 
 
+def roll_dates_coverage() -> None:
+    """2026-08-02 B16: roll congestion is not blocked, and the wrong argument type is silent."""
+    import cotdata
+
+    rule("16. ROLL DATES: coverage, and the silent wrong-argument case (2026-08-02 B16)")
+
+    symbols = cotdata.all_symbols()
+    rows = []
+    for sym in symbols:
+        dates = cotdata.roll_dates(sym.internal)
+        rows.append({"symbol": sym.internal, "rolls": len(dates),
+                     "first": dates[0].date() if len(dates) else None,
+                     "last": dates[-1].date() if len(dates) else None,
+                     "norgate": sym.norgate, "yahoo": sym.yahoo})
+    frame = pd.DataFrame(rows)
+    ok = frame[frame["rolls"] > 0]
+
+    print(f"\n  registry symbols : {len(frame)}")
+    print(f"  non-empty        : {len(ok)}")
+    print(f"  empty            : {int((frame['rolls'] == 0).sum())}")
+    print(f"  rolls per symbol : min {ok['rolls'].min()}  "
+          f"median {int(ok['rolls'].median())}  max {ok['rolls'].max()}")
+    print(f"  span             : {ok['first'].min()} to {ok['last'].max()}")
+
+    print("\n  deepest:")
+    print(ok.sort_values("rolls", ascending=False)
+            .head(3)[["symbol", "rolls", "first", "last"]].to_string(index=False))
+
+    print("\n  the empties, and why they are not a gap:")
+    print(frame[frame["rolls"] == 0][["symbol", "norgate", "yahoo"]].to_string(index=False))
+    print("  norgate=None, sourced from Yahoo: equity ETF proxies, so no Delivery Month.")
+
+    # The trap. all_symbols() yields Symbol namedtuples, and roll_dates returns an empty
+    # index rather than raising when handed one, so the obvious one-liner reports zero
+    # coverage across the whole universe and reads like missing data.
+    wrong = sum(len(cotdata.roll_dates(sym)) for sym in symbols)
+    right = sum(len(cotdata.roll_dates(sym.internal)) for sym in symbols)
+    print(f"\n  passing Symbol objects : {wrong} rolls across {len(symbols)} symbols")
+    print(f"  passing s.internal     : {right} rolls across {len(symbols)} symbols")
+    print("  Same store, same function, 0% and 100%. A universe-wide zero is a bug in the")
+    print("  call before it is a fact about the data.")
+
+
 if __name__ == "__main__":
     main()
     normalisation()
@@ -681,3 +724,4 @@ if __name__ == "__main__":
     vintage_coverage()
     constant_invariance()
     reflexivity()
+    roll_dates_coverage()
