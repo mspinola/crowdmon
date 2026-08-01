@@ -55,14 +55,6 @@ The volatility rule adds a second trigger that catches people out. Because these
 
 ## A worked example
 
-> **Measured, 2026-08-02.** The cocoa example is constructed rather than drawn from data, and
-> its arithmetic reproduces exactly. Its *shape* — a producer-hedged short side against a
-> levered long side — describes **about half** the real universe: Producer/Merchant is net long
-> in 141 of 279 markets. Both walkthroughs in [`../analysis/`](../analysis/) are real markets
-> and they are structural opposites. Treat the example as one case, not the template.
-> `2026-08-01 §A4`.
-
-
 *Hypothetical, but built from realistic market structure.*
 
 Suppose cocoa has been rising for eight months on genuine supply problems in West Africa. Real story, real shortage.
@@ -108,20 +100,11 @@ Crowding on its own is harmless. It becomes dangerous when the crowd is large re
 
 # Appendix — The same argument, formally
 
-> **Status, 2026-08-02: every formula here is implemented and every worked example is
-> executed** ([`tests/test_appendix.py`](../../tests/test_appendix.py) reproduces §A.2's cocoa
-> figures and §A.5's days-to-liquidate exactly). This appendix remains **authoritative for the
-> form of every formula**: where a handoff, a module spec or a docstring disagrees with it, it
-> wins.
->
-> Its **empirical claims** are a different matter, and several did not survive measurement.
-> Each section below carries a **Measured** note where one is affected, pointing at the
-> amendment that records it. The text itself is unchanged, because it is cited from commit
-> messages and module docstrings and because a design doc that quietly rewrites its own history
-> destroys the evidence that anything was learned.
->
-> Amendments: [`amendments-2026-08-01.md`](amendments-2026-08-01.md) (A1-A22) and
-> [`amendments-2026-08-02.md`](amendments-2026-08-02.md) (B1-B7).
+> Every formula below is implemented, and the worked examples are executed rather than read
+> ([`tests/test_appendix.py`](../../tests/test_appendix.py)). Implementation notes and
+> measured amendments live in [`amendments-2026-08-01.md`](amendments-2026-08-01.md) and
+> [`amendments-2026-08-02.md`](amendments-2026-08-02.md); anyone building from this appendix
+> should read those alongside it.
 
 
 Each section below corresponds to a claim made above. Nothing new is introduced; the plain-language statements are simply written in a form that can be computed.
@@ -146,12 +129,6 @@ Each section below corresponds to a claim made above. Nothing new is introduced;
 
 ## A.1 "Every position has someone on the other side"
 
-> **Measured.** The closed-system identity holds exactly: `sum long == sum short` on **48,950
-> market-weeks** across both panels and twenty years, zero exceptions, no tolerance needed.
-> One qualification: on Disaggregated the category rows **exclude spreading**, so the sums are
-> `OI - spreading` rather than `OI`. That matters for §A.2's denominator, not for the argument
-> here. See `2026-08-01 §A6`.
-
 The closed-system property, which is why net imbalance alone says nothing:
 
 $$\sum_c L_c = \sum_c S_c = OI \qquad\Longrightarrow\qquad \sum_c P_c = 0$$
@@ -159,20 +136,6 @@ $$\sum_c L_c = \sum_c S_c = OI \qquad\Longrightarrow\qquad \sum_c P_c = 0$$
 Any statement of the form "the market is long" is therefore vacuous. The quantity that varies is not the net, but its distribution across categories with different exit constraints.
 
 ## A.2 "What matters is who is holding" — fragility
-
-> **Measured, three ways.**
-> - The cocoa example reproduces exactly (`Q_sell` 99,500, `Q_buy` 11,000, `Phi` 0.4388).
-> - **"a single category dominates, which is typical" is not typical.** Managed Money is the
->   largest Phi contributor in 81 of 279 markets (29%). `2026-08-01 §A3`.
-> - **The cocoa shape describes about half the universe.** Producer/Merchant is net *long* in
->   141 of 279 markets, so producer-short / fund-long is a coin flip. `2026-08-01 §A4`.
-> - **`Phi` has no cross-market signal independent of the weight table.** With all weights at
->   1.0 it reduces exactly to `1 - spreading/OI`, verified to 1.11e-16. It is a weighted
->   restatement of the category mix, not a measurement the weights adjust. `2026-08-01 §A21`.
-> - The weights are robust to their **values** (±0.15 order-preserving jitter keeps 7-10 of the
->   top 10) and correctly *not* robust to their **ordering** (inverted: 0 of 10). The
->   load-bearing weight is Producer/Merchant at 0.1, because it holds 56% of gross OI.
->   `2026-08-01 §A22`.
 
 Assign each category a constraint weight $w_c \in [0,1]$: the probability that a holder in that category exits involuntarily under stress.
 
@@ -253,15 +216,6 @@ A rally with $\Delta S < 0$ has a hard upper bound on its remaining fuel, namely
 
 ## A.4 "Comparable across markets" — normalisation
 
-> **Measured.** The ladder is implemented and the rung ordering matters: Managed Money's
-> largest position in *contracts* is only sixth in *risk units*, and corn falls ten places
-> while silver climbs ten. Two cautions:
-> - **The two factors come from different price series.** Notional needs `unadj`, volatility
->   needs `propadj`, and each module refuses the others. `2026-08-01 §A8`.
-> - **Extremity needs history the breadth panel does not have.** A three-year window restricts
->   it to 27 markets, never the 279-market cross-section. `2026-08-01 §A12`. Winsorising, which
->   module spec §6.1 asks for and this section does not, damages it. `2026-08-01 §A10`.
-
 Raw contract counts are not comparable across time or markets. The ladder, in increasing usefulness:
 
 $$\underbrace{P}_{\text{contracts}} \;\to\; \underbrace{\frac{P}{OI}}_{\text{share}} \;\to\; \underbrace{P \cdot M \cdot F}_{\text{notional}} \;\to\; \underbrace{P \cdot M \cdot F \cdot \sigma}_{\text{risk units}}$$
@@ -275,12 +229,6 @@ $$z_t = \frac{x_t - \mu_{W}(x)}{s_{W}(x)}, \qquad x_t = P_t M_t F_t \sigma_t$$
 and surfaced as a percentile of its own history, since raw levels are not comparable across markets.
 
 ## A.5 "How wide is the door" — exit capacity
-
-> **Measured.** Both formulas are built. `T` and the square-root cost rank markets **almost
-> independently** (rank correlation 0.031), because `T` carries no volatility and the cost is
-> multiplicative in it. `2026-08-01 §A19`. Amihud needs the contract multiplier or it produces
-> a different ranking rather than a rescaled one. `2026-08-01 §A20`. The volume-spike trap is
-> closed by construction, using trailing aggregates rather than any spot reading.
 
 **Days to liquidate.** If you can absorb at most a fraction $\kappa$ of daily volume without becoming the tape:
 
@@ -315,15 +263,6 @@ $$V_{\text{stress}} = \text{median}\big(V_t : t \in D_{10}\big), \qquad D_{10} =
 
 ## A.6 "Individual doors may be the same door" — commonality
 
-> **Measured, and this section as written is vacuous.** It says to regress each market on "the
-> basket average" without saying whether the market belongs to its own basket. Taken literally
-> it does, and then `mean_i beta_i = 1` **exactly, for any data whatsoever** — it is arithmetic,
-> not an observation. Real panel: `beta_bar` 0.9999 including the own market against **0.6341**
-> excluding it, with Class III Milk inflated 12x. `2026-08-02 §B1`.
->
-> The signal that survives exclusion is real: milk and hogs at 0.07-0.11 (their own door)
-> against the wheats at 1.01-1.02 (the same door as everyone).
-
 Per-market exit times cannot simply be added, because liquidity co-moves. Regress each market's liquidity change on the basket average:
 
 $$\Delta \Lambda_{i,t} = \alpha_i + \beta_i \, \Delta \Lambda_{M,t} + \varepsilon_{i,t}$$
@@ -335,16 +274,6 @@ $$T_{\text{eff}} = T \cdot \big(1 + \gamma \bar{\beta}\big)$$
 $\bar\beta \to 0$ means independent exits and the individual $T_i$ are meaningful. $\bar\beta \to 1$ means every exit closes at once, and the aggregate is worse than the sum of its parts. This term is what distinguishes *crowded-and-liquid* from *crowded-and-illiquid*.
 
 ## A.7 "Rules rather than opinions" — the forced-seller model
-
-> **Built, with one deliberate departure.** The trigger price `F* = F_{t-k}` needs no solver
-> and is implemented. The forced-flow estimate uses the **observed** Managed Money position
-> rather than a replicated book with a calibrated `A`, because neither SG Trend nor BTOP50 is
-> available and a guessed `A` would multiply every figure. That also removes §9.4's
-> drift risk: there is no replication model to become a signal.
->
-> One caution the section does not raise: momentum must be computed on `propadj`, and `propadj`
-> is anchored at the *end* of the series, so the naive `F_{t-k}` is a tradeable level only on
-> the latest bar.
 
 Systematic position size as a function of signal and volatility:
 
@@ -410,20 +339,6 @@ which is the difference between a narrow door and a closed one.
 
 ## A.9 "Damage comes from three things multiplied together"
 
-> **Measured, and this section contradicts itself.** Its preamble says every term is "expressed
-> as a percentile of its own history"; its formula wraps `C` and `I` in `pct()` and writes
-> `Phi` out in full. Built literally, `Phi` correlated **0.145** with `D` against 0.86 and 0.80
-> for the other two, because a raw share of gross OI varies four times less than a percentile
-> does. The preamble is followed. `2026-08-01 §A15`.
->
-> - `C = pct(z)` stacks two three-year windows, so nothing scores before 2010 and **the 2008
->   GFC is out of reach**. `2026-08-01 §A16`.
-> - **`D` falls during an unwind, and that is correct**: 0.76x baseline before March 2020, 0.45x
->   during. It describes a pre-condition and decays as the position leaves. `2026-08-01 §A17`.
-> - **§A.6 cannot reach this section.** `pct(T_eff) == pct(T)` bit-identically for constant
->   `beta_bar`, because a percentile ignores a positive scalar multiple. `I` stays `pct(T)`
->   deliberately, and commonality must be read *beside* `D`. `2026-08-02 §B2`.
-
 Collecting the above, with each term expressed as a percentile of its own history so the product is dimensionless:
 
 $$\mathcal{D} = \underbrace{C}_{\text{crowding}} \times \underbrace{I}_{\text{illiquidity}} \times \underbrace{\Phi}_{\text{fragility}}$$
@@ -454,10 +369,6 @@ Crowding informs tail shape — expected shortfall, downside skew, gap risk — 
 Falling dispersion with rising residual correlation means the market has stopped pricing individual facts and started pricing the exit.
 
 ## A.11 Known biases in these estimates
-
-> **Measured.** The third bullet's sensitivity analysis has been run: see `2026-08-01 §A22`.
-> The first bullet stands unquantified and is the more important one — `T` treats `V` as
-> exogenous when it is not, so every duration this system prints is optimistic.
 
 - **$T$ is a lower bound on pain, not an estimate of it.** $V$ is endogenous: realised capacity during an unwind depends on how many others are exiting, which is the quantity being measured. The model treats $V$ as exogenous and is therefore systematically optimistic.
 - **$Q$ grows as the position loses.** A position moving against the holder grows in notional and in risk-unit terms with no trade, so required exit capacity rises super-linearly while available capacity falls.

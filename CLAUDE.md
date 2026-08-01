@@ -38,11 +38,11 @@ not about next week's return. Positioning extremes persist for quarters.
 **The appendix of `crowdmon_plain_language_summary.md` (§A.1-A.11) is the authoritative
 statement of every formula.** Where a handoff and the appendix disagree, the appendix wins.
 
-**Authoritative for FORM, not for its empirical claims.** Several of the latter did not
-survive measurement, and each affected section now carries a `Measured` note pointing at the
-amendment. The original text is unchanged on purpose: it is cited from commit messages, and a
-design doc that quietly rewrites its own history destroys the evidence that anything was
-learned.
+**Keep it a clean statement of the concept.** It is what someone reads to understand what
+this package is for, so measured corrections and wrong paths belong in the dated amendment
+files, not inline. The appendix carries one pointer to them and nothing more. Anyone building
+from a formula there should read the amendments alongside it, and several sections need that:
+§A.6's regression is vacuous as literally written, and §A.9's preamble and formula disagree.
 
 It is written in LaTeX, which renders on GitHub and not in every viewer. The source is plain
 text either way, so read the file rather than a rendering if the math matters.
