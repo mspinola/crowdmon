@@ -64,6 +64,16 @@ non-positive close anywhere (0.009% of crude's history); ``backadj`` runs 52.3% 
 and 41.2% for Class III Milk. So a few are a market event, where only the returns *touching*
 them are undefined and get masked, and many are a wrong series, which raises.
 
+**Risk units do not change a duration, and must not be fed into one alone.** Appendix §A.5's
+`T = Q / (kappa V)` is unit-free: `Q` and `V` merely have to be in the SAME units. Every rung
+of §A.4's ladder therefore gives the identical answer, and the appendix's cocoa example
+returns 19.9 days in contracts, in notional, and in risk units alike.
+
+The failure that guards against is easy to reach and silent when reached. A vol-scaled `Q`
+over a contract-denominated `V` is wrong by exactly `M x F x sigma`, which for cocoa is 750x:
+the appendix's twenty days becomes **fifty-nine years**, and nothing in the units of the
+answer says so, because days are still days. `test_appendix.py` pins all four cases.
+
 **The cross-check.** Dollar volatility per contract-unit is reachable two independent ways:
 ``unadj_price x sigma_pct(propadj)`` and ``std(diff(backadj))``, the latter being precisely
 what additive adjustment does preserve. On mid-history dates across eight markets they agree
