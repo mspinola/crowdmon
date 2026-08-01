@@ -129,6 +129,15 @@ from .volume import (
     stress_adv_series,
     volume_coverage,
 )
+from .weight_sensitivity import (
+    REFERENCE_WEIGHTINGS,
+    SensitivityError,
+    flat_phi_identity,
+    plausible_variants,
+    reference_variants,
+    summarise,
+    sweep,
+)
 
 __all__ = [
     # ingestion
@@ -148,6 +157,8 @@ __all__ = [
     "add_risk_units", "risk_coverage_report", "RiskUnitsError", "RISK_COLUMNS",
     "RISK_ADJUSTMENT", "DEFAULT_VOL_WINDOW", "DEFAULT_MIN_PERIODS",
     # engines
+    "plausible_variants", "reference_variants", "sweep", "summarise",
+    "flat_phi_identity", "SensitivityError", "REFERENCE_WEIGHTINGS",
     "market_concentration", "add_concentration_extremity",
     "concentration_vs_fragility", "quadrant", "ConcentrationError",
     "CONCENTRATION_COLUMNS",

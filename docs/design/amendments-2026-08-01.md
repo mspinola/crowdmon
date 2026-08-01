@@ -756,3 +756,60 @@ the argument it cannot check.
 Found while building A19: the first version of the measurement used price without the
 multiplier and put heating oil and RBOB among the most illiquid markets in the store, which
 is where it became obvious something was wrong.
+## A21. `Phi` has no cross-market signal independent of the weight table
+
+**Adds** an algebraic fact that reframes module spec §6.3 and appendix §A.2, and that neither
+states. Set every weight to 1.0 and, because the Disaggregated category rows exclude
+spreading:
+
+    sum_c (L_c + S_c) = 2 . (OI - spreading)
+    Phi_flat = 2(OI - spreading) / (2 . OI) = 1 - spreading / OI
+
+**Verified to 1.11e-16 on all 27,194 market-weeks** of the twenty-year panel and on the
+279-market latest week. Median `Phi_flat` is 0.9417.
+
+So under equal weights `Phi` measures the spreading share and nothing else. **`Phi` is not a
+measurement that the weights adjust; it is a weighted restatement of the category mix**, and
+every cross-market difference in a real `Phi` comes from the weight table rather than from
+positioning. Worth knowing before reading any `Phi` ranking, and it is also why
+percentile-ising `Phi` in the composite mattered so much ([A15](#a15-taking-a9-literally-leaves-phi-doing-almost-none-of-the-work)):
+the raw quantity has very little spread to begin with.
+
+## A22. The weights are robust to their values, not to their ordering, and one matters most
+
+**Discharges** module spec §6.3's requirement that weights be "subjected to sensitivity
+analysis rather than presented as estimates" and appendix §A.11's "results should be reported
+with sensitivity analysis across plausible weightings". Neither had been run, against four
+published analyses that rank on `Phi`, `Q_sell` or `D`.
+
+**Plausible class**: order-preserving jitter of ±0.15, since §6.3's judgement is an ordering
+before it is a set of values. 200 variants, fixed seed.
+
+| ranking | top-10 min | median | rank corr min |
+|---|---|---|---|
+| `q_sell_over_oi` | 7 | 9 | 0.782 |
+| `q_buy_over_oi` | **4** | 8 | 0.849 |
+| `phi` | 5 | 9 | 0.784 |
+
+**Robust to values.** The sell-side top-10 keeps at least 7 of 10 under every plausible
+weighting, and the result holds equally in 2012, 2018 and 2026.
+
+**Not robust to ordering, correctly.** Inverting §6.3's order destroys the ranking: 0 of 10
+survive, rank correlation −0.045, `Phi` correlation −0.699. A `Phi` insensitive to the
+ordering would be measuring nothing.
+
+**Producer/Merchant is the load-bearing weight.** Raising it from 0.1 to 0.3 is the only
+single-weight move that pulls `Phi` correlation below 0.96 (to 0.900); a 20% cut to Managed
+Money leaves it at 0.988. The reason is mass rather than importance: Producer/Merchant holds
+**56% of gross open interest**, so at 0.1 it contributes 5.7% of `Phi` and at 0.3 it
+contributes 17% and overtakes Managed Money. The weight nobody would think to argue about
+decides the most.
+
+**Consequence for a published result.** `Q_buy/OI` is the less stable ranking (worst case 4
+of 10) precisely because it is dominated by Producer/Merchant. The
+[2026-07-28 first-rankings](../analysis/2026-07-28-first-rankings.md) walkthrough selected
+CIG Rockies as the top buy-side market; that selection should be read as indicative rather
+than ordered. The sell-side pick is on firmer ground.
+
+**Not covered**: TFF weights (same machinery, unrun), `kappa`, and whether the ordering itself
+is right, which is a claim about holder behaviour that COT cannot settle.

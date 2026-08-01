@@ -142,6 +142,7 @@ src/crowdmon/
     breadth.py              §6.2 breadth-depth quadrant
     concentration.py        §6.2 CR4/CR8. Published, never null, needs nothing else
     impact.py               A.5 exit COST. Amihud needs the multiplier, see A20
+    weight_sensitivity.py   §6.3 / A.11. Phi has NO signal independent of the weights
     extremity.py            §6.1 / A.4 vol-scaled positioning vs 3y of own history
     volume.py               A.5 denominator. `front` is whole-market, `reconstructed` is not
     composite.py            A.9 D = C x I x Phi. The whole system in one number
