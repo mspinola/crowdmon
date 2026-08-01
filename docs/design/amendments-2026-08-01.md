@@ -208,7 +208,7 @@ these are cheaper than they look:
 
 | § | Not built | Blocked on |
 |---|---|---|
-| A.4 | ~~extremity, rolling 3y z-score of vol-scaled notional~~ | **built 2026-08-01**, see [A8](#a8-winsorising-damages-extremity-and-the-appendix-is-right-not-to-ask-for-it) |
+| A.4 | ~~extremity, rolling 3y z-score of vol-scaled notional~~ | **built 2026-08-01**, see [A10](#a10-winsorising-damages-extremity-and-the-appendix-is-right-not-to-ask-for-it) |
 | A.5 | square-root impact `I = Y σ sqrt(Q/V)`, Amihud `Λ`, stress-conditioned `V`, the volume-spike trap | **volume**, which does not exist in this workspace |
 | A.6 | liquidity commonality `β̄`, `T_eff = T(1 + γβ̄)` | volume |
 | A.7 | forced-seller model and trigger solver | prices + a CTA replication model |
@@ -373,7 +373,7 @@ not.
 - **§6.3's weights** produce a bounded, well-behaved Phi across the whole history. A3 is
   about how to *read* it, not about the weights being wrong.
 
-## A8. Winsorising damages extremity, and the appendix is right not to ask for it
+## A10. Winsorising damages extremity, and the appendix is right not to ask for it
 
 **Contradicts:** module spec §6.1, "Rolling z-score and percentile of vol-scaled net
 notional, per market per category, 3-year window, **winsorised**." Appendix §A.4 gives the
@@ -412,7 +412,7 @@ tails (platinum reads 1.0000 either way). That is the strongest argument for §6
 instruction that the *percentile* is what should be reported: the one free parameter in the
 module touches only the secondary number.
 
-## A9. Extreme positioning readings persist far longer than a percentile implies
+## A11. Extreme positioning readings persist far longer than a percentile implies
 
 **Adds** a measurement behind module spec §11 item 7 ("positioning extremes persist for
 quarters"), which the spec states as a caution and which is directly quantifiable.
@@ -443,7 +443,7 @@ measurement belongs where it was made.
 It also confirms the measure behaves as intended. An indicator that flickered in and out week
 to week would be describing noise.
 
-## A10. Extremity cannot run on the breadth panel, and this is permanent
+## A12. Extremity cannot run on the breadth panel, and this is permanent
 
 **Adds** a constraint the spec does not state. Module spec §6.1 specifies a 3-year window;
 the vintage store begins 2025-01-07 and holds about nineteen months. So extremity runs only
