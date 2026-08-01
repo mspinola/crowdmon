@@ -28,8 +28,8 @@ with.
 | Handoff | Status |
 |---|---|
 | [2026-08-01-flow-decomposition.md](2026-08-01-flow-decomposition.md) | complete — layer 3, flow decomposition and fragility-weighted exit size |
-| [2026-08-02-reflexivity.md](2026-08-02-reflexivity.md) | **claimed, not started** — §A.8 cascade amplification |
-| [2026-08-02-validation-prereg.md](2026-08-02-validation-prereg.md) | **open, jointly drafted** — §10 pre-registration. Sections 4, 5 and 7 reserved for the other session |
+| [2026-08-02-reflexivity.md](2026-08-02-reflexivity.md) | **claimed, not started, now unblocked.** §A.8 cascade amplification. The horizon decision it was blocked on is answered in an appended views section |
+| [2026-08-02-validation-prereg.md](2026-08-02-validation-prereg.md) | **complete and frozen, awaiting execution.** §10 pre-registration. Both sessions have written their halves; it needs a cold session neither of them can supply |
 
 ## A handoff can also be a claim
 

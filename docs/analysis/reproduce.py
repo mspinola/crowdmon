@@ -18,6 +18,9 @@ Prints, in order:
   9. the volume measurements behind amendment A13, and the real T = Q/(kappa V)
  10. exit COST: the square-root law and Amihud (2026-08-01 A19, A20)
  11. liquidity commonality, and why it cannot reach the composite (2026-08-02 A1, A2)
+ 12. the trigger guard: sign agreement against distance disagreement (2026-08-02 B9)
+ 13. vintage coverage, behind §4 of the validation pre-registration (2026-08-02 B10)
+ 14. which configured constants can move D, behind §5 (2026-08-02 B11)
 """
 import numpy as np
 import pandas as pd
@@ -527,6 +530,85 @@ def trigger_guard() -> None:
     print("of points on backadj, which is why trigger_prices refuses it.")
 
 
+def vintage_coverage() -> None:
+    """What the vintage store can and cannot support, for pre-registration §4.
+
+    The question is not "how far back do report dates go", which is what both sessions
+    had been quoting. It is "how many keys carry more than one observation", because a
+    key observed once has no as-published value to replay against, whatever its report
+    date says.
+    """
+    rule("13. VINTAGE COVERAGE (validation pre-registration §4)")
+    from cotdata import vintage_ingest as vi
+
+    obs = vi.read_observations()
+    if obs.empty:
+        print("no vintage observations in this store")
+        return
+    obs = obs.assign(report_date=pd.to_datetime(obs["report_date"]))
+
+    key = ["report_date", "market_code", "report_type", "combined", "category"]
+    per_key = obs.groupby(key, observed=True)["observed_at"].nunique()
+
+    print(f"observations          {len(obs):,}")
+    print(f"distinct keys         {len(per_key):,}")
+    print(f"keys observed twice+  {int((per_key > 1).sum()):,}   <- the replayable ones")
+    print(f"report dates          {obs.report_date.min():%Y-%m-%d} .. "
+          f"{obs.report_date.max():%Y-%m-%d}  ({obs.report_date.nunique()} weeks)")
+    print(f"observed_at           {obs.observed_at.min()} .. {obs.observed_at.max()}")
+
+    print("\nreport weeks captured per capture date (a backfill spans many weeks at once):")
+    print(obs.assign(_o=pd.to_datetime(obs["observed_at"]).dt.date)
+             .groupby("_o")["report_date"].agg(["min", "max", "nunique"]).to_string())
+
+    print("\nrelease-date provenance, by REPORT WEEK (the index a PIT replay joins on):")
+    by_week = obs.groupby("report_date")["release_date_source"].agg(
+        lambda s: "/".join(sorted(set(s))))
+    print(by_week.value_counts().to_string())
+    print("\n`derived` is report_date + 3d weekend-adjusted, a guess: cotdata's own "
+          "vintage_schedule\ndocstring says strict PIT evaluation must be able to exclude it.")
+
+    strict = int((by_week == "published").sum())
+    print(f"\nreport weeks with an OBSERVED release date: {strict} of {len(by_week)}")
+    print("report weeks with a replayable revision:     "
+          f"{obs.loc[per_key[per_key > 1].index.get_level_values(0).unique()].report_date.nunique() if (per_key > 1).any() else 0}"
+          f" of {len(by_week)}")
+
+
+def constant_invariance() -> None:
+    """Which of the three configured constants can move `D`, for pre-registration §5.
+
+    `gamma` was already shown unable to reach the composite (`2026-08-02 §B2`). The same
+    argument applies to `kappa`, and it had not been made: `T = Q / (kappa . V)` with a
+    global `kappa`, and `I = pct(T)` taken WITHIN a market, so `kappa` is a positive scalar
+    under a monotonic transform and cancels exactly. Asserting that is cheap; measuring it
+    costs one build and closes the question an evaluator would otherwise spend a day on.
+    """
+    rule("14. CAN THE CONFIGURED CONSTANTS MOVE D? (pre-registration §5)")
+    from reproduce_composite import build
+
+    from crowdmon.futures import composite as cmp
+
+    pct_by_market = cmp._percentile_by_market
+    win, minp = cmp.DEFAULT_WINDOW, cmp.DEFAULT_MIN_PERIODS
+
+    panel = build()
+    print(f"panel: {len(panel):,} market-weeks, {panel.market_code.nunique()} markets")
+    base = pct_by_market(panel, "dtl_sell", window=win, min_periods=minp)
+
+    print("\nkappa enters as T = Q / (kappa . V), so changing it scales dtl by a constant:")
+    for kappa in (0.05, 0.4, 1.0):
+        scaled = panel.assign(_s=panel["dtl_sell"] * (0.2 / kappa))
+        got = pct_by_market(scaled, "_s", window=win, min_periods=minp)
+        print(f"  kappa 0.2 -> {kappa:<5} max |change in I| = "
+              f"{(got - base).abs().max():.2e}")
+
+    print("\nY does not appear in add_composite at all: the square-root law feeds the exit")
+    print("COST, and D's I term is the exit DURATION. They are orthogonal (2026-08-01 §A19).")
+    print("\nSo none of kappa, Y or gamma can move D by any amount. What moves D is the")
+    print("weights' ORDERING (2026-08-01 §A22) and the phi_percentile reading (§A15).")
+
+
 if __name__ == "__main__":
     main()
     normalisation()
@@ -534,3 +616,5 @@ if __name__ == "__main__":
     exit_cost()
     commonality()
     trigger_guard()
+    vintage_coverage()
+    constant_invariance()
