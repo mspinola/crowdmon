@@ -30,7 +30,8 @@ not about next week's return. Positioning extremes persist for quarters.
 |---|---|
 | [`crowdmon_plain_language_summary.md`](docs/design/crowdmon_plain_language_summary.md) — the argument in prose, **and the authoritative appendix** | here |
 | [`crowdmon_futures_cot_module.md`](docs/design/crowdmon_futures_cot_module.md) — the primary spec, §13 build order | here |
-| [`amendments-2026-08-01.md`](docs/design/amendments-2026-08-01.md) — where measurement contradicted the above | here |
+| [`amendments-2026-08-01.md`](docs/design/amendments-2026-08-01.md) — A1-A22, **closed** | here |
+| [`amendments-2026-08-02.md`](docs/design/amendments-2026-08-02.md) — B1-B5, seasonality. The open file | here |
 | `crowdmon_step2_normalisation.md` — layer 2, proposed and measured, **not accepted** | `../cotdata/docs/design/` |
 | `cot_vintage.md` — the vintage store this reads | `../cotdata/docs/design/` |
 
@@ -144,6 +145,7 @@ src/crowdmon/
     impact.py               A.5 exit COST. Amihud needs the multiplier, see A20
     commonality.py          A.6 beta_bar and T_eff. NOT wired into the composite, see below
     weight_sensitivity.py   §6.3 / A.11. Phi has NO signal independent of the weights
+    seasonal.py             §5.4. Measured at <=1.4% of variance; adjustment defaults OFF
     extremity.py            §6.1 / A.4 vol-scaled positioning vs 3y of own history
     volume.py               A.5 denominator. `front` is whole-market, `reconstructed` is not
     composite.py            A.9 D = C x I x Phi. The whole system in one number

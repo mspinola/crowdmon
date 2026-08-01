@@ -3,22 +3,26 @@
 Working agreement: measure, do not assume; if a measurement contradicts a doc, fix the doc and
 say so.
 
-The first file under the one-file-per-day convention that
-[`amendments-2026-08-01.md`](amendments-2026-08-01.md) closes. Cross-file references carry the
-date: `2026-08-01 §A15`.
+**This file opens the per-day amendments convention** set in `f194c4e`.
+[`amendments-2026-08-01.md`](amendments-2026-08-01.md) reached A22 and is closed. Sections
+here carry a **`B` prefix**, so a bare reference like "§B2" can never be ambiguous about which
+file it means; the next file takes `C`. Cross-file references still carry the date:
+`2026-08-01 §A15`.
 
-> **Filed here, measured on 2026-08-01.** The 08-01 file was closed to new sections partway
-> through that day and the daily convention begins on 08-02, which leaves a few hours with no
-> home. Both sections below were measured on 2026-08-01 against
-> `COTDATA_STORE=~/code/cotdata_store`. Whoever picks up the convention next may prefer a
-> different tie-break; this one is recorded rather than assumed.
+> **Filed under 08-02, measured on 08-01.** The 08-01 file was closed to new sections partway
+> through that day, which leaves a few hours with no home. Everything below was measured on
+> 2026-08-01 against `COTDATA_STORE=~/code/cotdata_store`.
+>
+> **B1 and B2 were originally filed as A1 and A2** in this file, by the commonality session,
+> before the `B` prefix landed. They are renumbered here so that "A1" means exactly one thing
+> across the whole directory. `6c2b488`'s commit message refers to them by the old labels.
 
-Every figure below is reproduced by `docs/analysis/reproduce.py` or asserted in
-`tests/test_commonality_live.py`.
+Figures below are reproduced by `docs/analysis/reproduce.py` (B1-B2),
+`docs/analysis/reproduce_seasonal.py` (B3-B7), or asserted in `tests/test_commonality_live.py`.
 
 ---
 
-## A1. §A.6's basket regression is vacuous unless the own market is excluded
+## B1. §A.6's basket regression is vacuous unless the own market is excluded
 
 **Contradicts:** appendix §A.6, which says to "regress each market's liquidity change on the
 basket average" without saying whether market `i` belongs to its own basket. Taken literally
@@ -64,7 +68,7 @@ crowded-and-illiquid exactly as the section claims.
 
 ---
 
-## A2. §A.6 cannot change §A.9's composite, because a percentile ignores a constant
+## B2. §A.6 cannot change §A.9's composite, because a percentile ignores a constant
 
 **Contradicts:** the implied connection between appendix §A.6 and §A.9. §A.6 defines
 `T_eff = T . (1 + gamma . beta_bar)` and §A.9 defines `I = pct(T_eff)`. Composed, the second
@@ -106,3 +110,109 @@ anywhere. `gamma_sensitivity` reports its effect in the same spirit as
 `flow.tolerance_sensitivity`, and on a constant `beta_bar` that report is a column of 1.000
 rank correlations, which is the finding above stated in the output rather than buried in a
 docstring.
+
+---
+
+## B3. Nothing is "dominated by seasonality", and the category §5.4 names is not seasonal at all
+
+**Contradicts** module spec §5.4: "Commercial and producer-merchant positioning in
+agricultural markets is strongly seasonal ... Raw z-scores on those categories are **dominated
+by seasonality** and will produce spurious extremes every year at the same time ... Managed
+Money is less affected but not immune."
+
+**Measured** over twenty years, 27 markets, on week-of-year variance share of extremity `z`:
+
+| category | ag | non-ag | ratio |
+|---|---|---|---|
+| other_reportable | 0.0074 | 0.0028 | 2.65x |
+| swap | 0.0141 | 0.0065 | 2.17x |
+| nonreportable | 0.0059 | 0.0056 | 1.04x |
+| **producer_merchant** | **0.0046** | **0.0049** | **0.95x** |
+| managed_money | 0.0016 | 0.0042 | 0.39x |
+
+Sample sizes are comparable (197 against 248 per week), so this is not a power artifact.
+
+- **"Dominated by seasonality" is false.** The largest share anywhere is **1.4%**. A component
+  that small cannot manufacture the spurious annual extremes §5.4 warns about.
+- **Producer/Merchant is not more seasonal in ags**, ratio 0.95. The categories that are, Swap
+  and Other Reportable, go unmentioned in §5.4.
+- **"Managed Money is less affected" holds**, and most clearly in ags: 0.0016, the lowest in
+  the table by a factor of three.
+
+## B4. Deseasonalising raises the standard deviation, so the adjustment is off by default
+
+**Amends** §5.4's instruction to "apply a seasonal decomposition ... before z-scoring
+commercial categories in ags."
+
+**Measured** on ag extremity `z`, applying the trailing week-of-year profile:
+
+| | |
+|---|---|
+| rows with a profile | 43,395 of 57,805 (75.1%) |
+| std before | 1.2489 |
+| std after | **1.3212** |
+| correlation | 0.9599 |
+| rows moved more than 0.5 z | 15.7% |
+
+A trailing week-of-year mean is an **estimate with its own error**, and when the component
+being removed is worth at most 1.4% of variance, that error exceeds the signal. Subtracting it
+adds noise. It is not a small intervention either: 15.7% of rows move by more than half a
+z-unit, and it costs a three-year warm-up on top of extremity's own.
+
+`seasonal.deseasonalise` exists and defaults off. Turning it on trades a visible caveat for an
+invisible transformation.
+
+## B5. `mean_spread` is noise-inflated, and it reversed my own first reading
+
+**Adds** a methodological caution that cost a wrong published statement before it was caught.
+
+`seasonality_report` emits two statistics. `variance_share` is the between-week share of total
+variance. `mean_spread` is max minus min of the ~53 weekly means, and is **biased upward by
+noise**, being the range of 53 noisy estimates.
+
+On a synthetic pair with identical true seasonal amplitude, adding noise moved `mean_spread`
+from 20.7 to 64.2 while `variance_share` correctly fell from 0.98 to 0.13.
+
+**On the real panel the two rank the categories nearly in reverse.** A first pass using
+`mean_spread` reported that ags carry roughly twice the seasonal swing and that Managed Money
+is the most seasonal ag category. Both are wrong. The concrete mechanism, for ag
+Producer/Merchant:
+
+| | week | mean z | observations |
+|---|---|---|---|
+| peak | 2 | +0.095 | 198 |
+| trough | **53** | **−0.597** | **33** |
+
+**ISO week 53 exists only in some years.** Excluding weeks with under 50 observations, the
+spread falls from **0.692 to 0.275** z-units, against a non-ag figure of 0.334 computed the
+same way, so on well-sampled weeks the ag swing is the *smaller* of the two.
+
+`seasonality_report` now sorts on `variance_share`, emits `per_week` so the bias is visible,
+and its docstring says never to compare `mean_spread` across groups of different size.
+
+## B6. No week-of-year scheme pins a seasonal moment
+
+**Adds** a floor on what §5.4's approach can resolve, which the spec does not state.
+
+The third Tuesday of August falls in ISO week 34, 33, 33, 33, 34 over 2020-2024;
+`dayofyear // 7` gives 33, 32, 32, 32, 33. A fixed point in the crop calendar drifts by ±1
+week against any weekly index, because 52 weeks is not 365 days.
+
+That smears any week-of-year profile by about a week in each direction. It is not something a
+better bucketing fixes, and it is asserted in `tests/test_seasonal.py` so nobody tries.
+
+## B7. Two earlier caveats are closed, and the readings they flagged are sound
+
+**Resolves** open caveats in
+[2026-07-28-extremity.md](../analysis/2026-07-28-extremity.md) ("real but modest, unmeasured
+for CR") and [2026-07-28-concentration.md](../analysis/2026-07-28-concentration.md) ("five of
+six markets extreme against own history are short-side ags, exactly what §5.4 predicts as an
+artifact").
+
+At **at most 1.4% of variance**, seasonality cannot lift five markets to the top of a
+percentile ranking. The concentration reading is not a seasonal artifact.
+
+Still open: seasonality of the **CR series itself** was not measured, only of extremity `z`.
+And this is the Disaggregated 27-market panel; the ICE/Nodal power and REC universe has its own
+calendar (compliance years, delivery periods) that is plausibly much stronger and is
+unmeasured, since those markets lack the history a three-year profile needs.

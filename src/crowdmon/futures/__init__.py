@@ -128,6 +128,14 @@ from .riskunits import (
     sigma_series,
 )
 from .riskunits import coverage_report as risk_coverage_report
+from .seasonal import (
+    DEFAULT_MIN_YEARS,
+    SeasonalError,
+    deseasonalise,
+    seasonal_profile,
+    seasonality_report,
+    week_of_year,
+)
 from .volume import (
     DEFAULT_ADV_WINDOW,
     DEFAULT_STRESS_LOOKBACK,
@@ -168,6 +176,8 @@ __all__ = [
     "add_risk_units", "risk_coverage_report", "RiskUnitsError", "RISK_COLUMNS",
     "RISK_ADJUSTMENT", "DEFAULT_VOL_WINDOW", "DEFAULT_MIN_PERIODS",
     # engines
+    "seasonal_profile", "deseasonalise", "seasonality_report", "week_of_year",
+    "SeasonalError", "DEFAULT_MIN_YEARS",
     "plausible_variants", "reference_variants", "sweep", "summarise",
     "flat_phi_identity", "SensitivityError", "REFERENCE_WEIGHTINGS",
     "market_concentration", "add_concentration_extremity",
