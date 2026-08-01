@@ -91,7 +91,16 @@ correlation on the latest panel: cotton has the longest `T` and the fourth-highe
 exits in a day and a half and costs the third most. Both are reported, and neither is the
 composite's `I` term, which §A.9 defines as `pct(T_eff)`.
 
-Next: liquidity commonality (§A.6), which wanted the same volume and is no longer blocked.
+**Liquidity commonality is measured, and it does not reach the composite.** §A.6 asks whether
+exits go through the same door, and the answer splits the universe cleanly: livestock and milk
+sit at β 0.07-0.11, grains and energy at 0.95-1.02. But two findings mean §A.6 cannot feed
+§A.9 as both sections are written. Including a market in its own basket makes β̄ identically 1
+**by algebra**, for any data at all; and even a correct constant β̄ leaves `pct(T_eff)`
+bit-identical to `pct(T)`, because a percentile ignores a scalar multiple. `t_effective` is
+offered and deliberately not wired into `D`. See
+[amendments-2026-08-02.md](docs/design/amendments-2026-08-02.md).
+
+Next: §A.7's forced-seller model and trigger solver, the last large unbuilt piece.
 
 ```python
 from crowdmon.futures import decompose, fragility_frame, latest, top_by

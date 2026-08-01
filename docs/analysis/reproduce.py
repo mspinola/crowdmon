@@ -16,7 +16,8 @@ Prints, in order:
   7. what the ranked universe is made of, by venue
   8. the price-series measurements behind amendments A8 and A9 (normalisation)
   9. the volume measurements behind amendment A13, and the real T = Q/(kappa V)
- 10. exit COST: the square-root law and Amihud (A19, A20)
+ 10. exit COST: the square-root law and Amihud (2026-08-01 A19, A20)
+ 11. liquidity commonality, and why it cannot reach the composite (2026-08-02 A1, A2)
 """
 import numpy as np
 import pandas as pd
@@ -434,8 +435,69 @@ def exit_cost() -> None:
           f"{df['multiplier'].max():g}")
 
 
+def commonality() -> None:
+    """2026-08-02 A1 and A2: the own-market identity, and the percentile no-op."""
+    from crowdmon.core.aggregate import rolling_percentile
+    from crowdmon.futures import (
+        ContractMaster,
+        VintageCotSource,
+        commonality_betas,
+        gamma_sensitivity,
+        illiquidity_panel,
+        rolling_betas,
+        t_effective,
+    )
+
+    rule("11. COMMONALITY: do the exits go through the same door? (2026-08-02 A1, A2)")
+
+    cot = ContractMaster.load().annotate(
+        VintageCotSource(report_type="disaggregated").load("2026-07-31"))
+    specs = (cot.dropna(subset=["symbol", "point_value"])[["symbol", "point_value"]]
+             .drop_duplicates("symbol").itertuples(index=False, name=None))
+    panel = illiquidity_panel(specs, start="2015-01-01")
+    print(f"\n{panel.shape[1]} markets, {panel.shape[0]} days, "
+          f"{panel.index.min().date()} to {panel.index.max().date()}")
+
+    excl = commonality_betas(panel)
+    incl = commonality_betas(panel, exclude_own=False)
+    out = pd.DataFrame({"excl_own": excl, "incl_own": incl})
+    out["inflation"] = (out["incl_own"] / out["excl_own"]).round(2)
+    print("\n--- A1: beta by market, with and without the own market in the basket ---")
+    print(out.round(3).sort_values("excl_own").to_string())
+    print(f"\nbeta_bar excluding own : {excl.mean():.4f}   <- a measurement")
+    print(f"beta_bar including own : {incl.mean():.4f}   <- an ALGEBRAIC IDENTITY, always 1")
+    print("The identity: sum_i cov(y_i, ybar) = cov(N.ybar, ybar) = N.var(ybar), so the mean")
+    print("beta is exactly 1 for ANY data, including independent series.")
+
+    print("\n--- A2: a constant beta_bar cannot move a percentile ---")
+    # Any strictly positive series demonstrates the invariance; the claim is about the
+    # transform, not the data. Scaled to day-like magnitudes so the table reads sensibly.
+    raw = panel.iloc[:, 0].dropna()
+    durations = (raw / raw.median() * 4.0).rename("t")
+    base = rolling_percentile(durations, window="1095D", min_periods=104)
+    for gamma in (0.25, 0.5, 2.0):
+        scaled = rolling_percentile(t_effective(durations, excl.mean(), gamma=gamma),
+                                    window="1095D", min_periods=104)
+        both = base.to_frame("a").join(scaled.rename("b")).dropna()
+        print(f"  gamma={gamma:<5} max |pct(T_eff) - pct(T)| = "
+              f"{(both['a'] - both['b']).abs().max():.2e}")
+    print("\ngamma sensitivity on a constant beta_bar (every rank corr is 1.000, which IS")
+    print("the finding, reported rather than argued):")
+    print(gamma_sensitivity(durations, excl.mean()).round(4).to_string(index=False))
+
+    print("\n--- A2: only a time-varying beta_bar reaches the composite ---")
+    bt = rolling_betas(panel).mean(axis=1).dropna()
+    mult = 1 + 0.5 * bt
+    print(f"  rolling beta_bar : {bt.min():.3f} to {bt.max():.3f}  (sd {bt.std():.3f})")
+    print(f"  1 + 0.5*beta_bar : {mult.min():.3f} to {mult.max():.3f}  "
+          f"-> {mult.max() / mult.min():.2f}x spread")
+    print("  by year:")
+    print(bt.groupby(bt.index.year).mean().round(3).to_string())
+
+
 if __name__ == "__main__":
     main()
     normalisation()
     volume_and_exit_capacity()
     exit_cost()
+    commonality()
