@@ -8,22 +8,36 @@ days to liquidate, where `Q` is the fragility-weighted position that must exit, 
 daily volume, and `kappa` (0.2) is the share of it a forced seller can take before the
 impact assumption stops holding.
 
-**`V` does not exist in this workspace.** There is no per-contract volume source: ADR-0007
-step 2, which would move the price side into `marketdata` and open the door to one, is on
-ice and nobody owns it. So this module does two things and refuses a third:
+**`V` now exists**, and this module's header used to say it did not. `volume.py` supplies it
+from exchange volume `cotdata` already stores, so `T` is a real duration for every market
+that joins.
 
-1. **Now**: rank on `Q_sell / OI` and `Q_buy / OI`. Open interest is a defensible depth
-   proxy — it is exactly known, published weekly beside the positioning it is being
-   compared against, and it needs no join. It is a *stock* where volume is a *flow*, so it
-   says how large the forced position is relative to the market rather than how many days
-   it takes to leave, and the ranking it produces is ordinal, not a duration.
-2. **Later**: `volume` is an optional argument and `T` is returned the moment one is
-   passed. Nothing else has to change.
-3. **Never**: estimate a volume. A fabricated denominator under the headline number of the
-   whole system is worse than a missing one, because a missing number is visibly missing
-   and an estimated one is not. `days_to_liquidate` is `None` when there is no volume, and
-   the column is present and null rather than absent, so a caller who forgets to check
-   gets nulls rather than a plausible figure.
+What changed is a measurement, not a dependency. ADR-0007 step 2 is still on ice and nobody
+owns it, and that was never what blocked this. Whole-market volume was always in the store,
+under a `cotdata` parameter named `front` that reads like front-month and is not. See
+`volume.py` for the two proofs: open interest matching the CFTC to the contract on 25 of 26
+markets, and curve concentration ordering exactly as contract structure predicts.
+
+So this module now does three things and still refuses the fourth:
+
+1. **`T = Q/(kappa V)`**, the real figure, whenever a volume is supplied. `volume.add_volume`
+   supplies both a calm trailing ADV and §A.5's stress-conditioned `V_stress`, and neither is
+   today's realised volume: during a selloff realised volume rises, so a spot denominator
+   makes `T` *fall* exactly as liquidity is being consumed.
+2. **`Q_sell / OI` and `Q_buy / OI` remain**, and are still what ranks a market with no volume
+   join. Open interest is exactly known and needs no join, but it is a *stock* where volume is
+   a *flow*, so it says how large the forced position is relative to the market rather than
+   how many days it takes to leave. The two are **not** interchangeable: measured on the
+   latest panel their rank correlation is 0.585, and Class III Milk sits 19th by `Q/OI` and
+   2nd by `T`. That divergence is the whole argument for the join.
+3. **Both denominators are reported and neither is "the" answer.** Stress volume is not
+   reliably the conservative one: 9 of 25 markets trade MORE under stress, so `T_stress` is
+   shorter than `T_calm` there. Which one binds is a property of the market.
+4. **Never estimate a volume.** A fabricated denominator under the headline number of the
+   whole system is worse than a missing one, because a missing number is visibly missing and
+   an estimated one is not. `days_to_liquidate` is `None` without a volume, and the column is
+   present and null rather than absent, so a caller who forgets to check gets nulls rather
+   than a plausible figure.
 """
 from __future__ import annotations
 
@@ -62,6 +76,7 @@ def exit_pressure(q: float, open_interest: float, *, volume: float | None = None
 
 
 def rank_markets(fragility: pd.DataFrame, *, volume: pd.Series | None = None,
+                 stress_volume: pd.Series | None = None,
                  kappa: float = cfg.KAPPA) -> pd.DataFrame:
     """Add the OI-denominated pressure ratios to a `market_fragility` frame.
 
@@ -70,10 +85,15 @@ def rank_markets(fragility: pd.DataFrame, *, volume: pd.Series | None = None,
     can be forced out from one whose shorts can be squeezed, and collapsing it into one
     figure throws away the only part that names a direction.
 
-    `volume` is an optional Series aligned to `fragility`'s index, in contracts per day.
-    When present, `dtl_sell` and `dtl_buy` are populated; when absent they are null columns
+    `volume` and `stress_volume` are optional Series aligned to `fragility`'s index, in
+    contracts per day, as `volume.add_volume` emits them. When present, `dtl_sell`/`dtl_buy`
+    and `dtl_sell_stress`/`dtl_buy_stress` are populated; when absent they are null columns
     rather than missing ones, so a downstream `.sort_values("dtl_sell")` fails loudly on
     nulls instead of silently ranking on something else.
+
+    Neither denominator may be a spot volume. Both of `add_volume`'s outputs are trailing
+    aggregates for that reason (§A.5's volume-spike trap), and passing today's reading here
+    would reintroduce exactly the artifact they exist to avoid.
     """
     if fragility.empty:
         return fragility
@@ -83,11 +103,12 @@ def rank_markets(fragility: pd.DataFrame, *, volume: pd.Series | None = None,
     for side in ("sell", "buy"):
         q = pd.to_numeric(out[f"q_{side}"], errors="coerce")
         out[f"q_{side}_over_oi"] = (q / oi).where(valid)
-        if volume is None:
-            out[f"dtl_{side}"] = pd.NA
-        else:
-            v = pd.to_numeric(volume, errors="coerce").reindex(out.index)
-            out[f"dtl_{side}"] = (q / (kappa * v)).where(v > 0)
+        for suffix, source in (("", volume), ("_stress", stress_volume)):
+            if source is None:
+                out[f"dtl_{side}{suffix}"] = pd.NA
+            else:
+                v = pd.to_numeric(source, errors="coerce").reindex(out.index)
+                out[f"dtl_{side}{suffix}"] = (q / (kappa * v)).where(v > 0)
     # The ratio of the two, which is the shape of the market in one number: above 1 the
     # long side is the fragile one, below 1 the short side is. Null where the denominator
     # is zero rather than infinite, because "no fragile shorts at all" is a statement about

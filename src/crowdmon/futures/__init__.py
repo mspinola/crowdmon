@@ -94,6 +94,18 @@ from .riskunits import (
     add_risk_units,
 )
 from .riskunits import coverage_report as risk_coverage_report
+from .volume import (
+    DEFAULT_ADV_WINDOW,
+    DEFAULT_STRESS_LOOKBACK,
+    STRESS_DECILE,
+    VOLUME_COLUMNS,
+    VOLUME_SERIES,
+    VolumeError,
+    add_volume,
+    adv_series,
+    stress_adv_series,
+    volume_coverage,
+)
 
 __all__ = [
     # ingestion
@@ -119,4 +131,9 @@ __all__ = [
     "market_fragility", "fragility_frame", "contributions",
     "decompose_breadth",
     "exit_pressure", "rank_markets", "top_by",
+    # the denominator of T = Q/(kappa V). `VOLUME_SERIES` is "front" and is WHOLE-MARKET;
+    # the series named "reconstructed" is the narrower one. volume.py has the measurements.
+    "add_volume", "adv_series", "stress_adv_series", "volume_coverage", "VolumeError",
+    "VOLUME_COLUMNS", "VOLUME_SERIES", "DEFAULT_ADV_WINDOW", "DEFAULT_STRESS_LOOKBACK",
+    "STRESS_DECILE",
 ]

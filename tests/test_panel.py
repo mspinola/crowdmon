@@ -79,9 +79,11 @@ def test_a_missing_required_column_is_named(history_panel):
 
 # ── Exit pressure (handoff §5) ──────────────────────────────────────────────
 def test_days_to_liquidate_is_none_without_a_volume():
-    """The refusal that matters most in this module. There is no per-contract volume
-    source in the workspace, and a fabricated denominator under the headline number of the
-    whole system is worse than a missing one: a missing number is visibly missing."""
+    """The refusal that matters most in this module, and it outlives a volume source
+    existing. `volume.add_volume` now supplies one, but a caller who does not pass it still
+    gets `None` rather than a default: a fabricated denominator under the headline number of
+    the whole system is worse than a missing one, because a missing number is visibly
+    missing."""
     out = exit_pressure(50_000, 200_000)
     assert out["days_to_liquidate"] is None
     assert out["volume"] is None
@@ -106,7 +108,9 @@ def test_rank_markets_keeps_the_two_directions_apart(vintage_panel):
 
     ranked = rank_markets(market_fragility(vintage_panel))
     assert "q_sell_over_oi" in ranked and "q_buy_over_oi" in ranked
-    assert ranked["dtl_sell"].isna().all(), "no volume source exists; this must stay null"
+    # rank_markets was called WITHOUT a volume, so the duration columns must be null. Not
+    # because no volume source exists (one does now), but because this call did not pass it.
+    assert ranked["dtl_sell"].isna().all(), "no volume was passed; this must stay null"
     # The asymmetry is the informative number, so it must not collapse to a constant.
     assert ranked["sell_to_buy"].nunique() > 1
 
