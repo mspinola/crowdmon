@@ -62,11 +62,26 @@ amendments §A15-A17 along with it, which is why the two were kept apart. `gamma
 **third** configured constant after `kappa` (0.2) and `Y` (0.75), and unlike those two the
 appendix sanctions no range for it, so it needs a sensitivity sweep before `D` consumes it:
 `flow.tolerance_sensitivity` and `weight_sensitivity.sweep` are the pattern.
-`T_eff` reduces to `T` exactly when `gamma = 0`, so this is that special case rather than an
-approximation of something else. The consequence is stated rather than hidden: **`D` is
-currently computed as though exits were independent across markets**, and §A.6's whole point
-is that they are not, so the illiquidity term is optimistic in precisely the conditions that
-matter. `beta_bar -> 1` is the case where every exit closes at once.
+**Built 2026-08-01, and it turns out it cannot reach this module.** §A.6 now exists as
+`futures/commonality.py`, and the composition of the two sections is a **no-op**: with a
+constant `beta_bar`, `T_eff` is a positive scalar multiple of `T`, and a percentile is
+invariant under any monotonic transform, so `pct(T_eff) == pct(T)` bit-identically. Measured
+maximum absolute difference **0.00e+00** at `gamma = 0.5` and at `gamma = 2.0`. The same holds
+for a per-market constant `beta_i`, because `I` is a percentile taken within a market.
+
+So wiring `t_effective` in here would change nothing about `D`. Only a **time-varying**
+`beta_bar_t` reaches the composite at all, and barely: on a rolling 252-day estimate the
+resulting multiplier spans 1.21 to 1.39, a 1.15x range, against `T`'s own 13x spread across
+markets in a single week, and `pct(T_eff)` correlates **0.985** with `pct(T)`.
+
+`I` therefore stays `pct(T)`, deliberately rather than for want of the input. See
+`docs/design/amendments-2026-08-02.md` §B2.
+
+What remains true is the caution, and it is now sharper: **`D` is computed as though exits
+were independent across markets**, and §A.6 measures that they are not. Excluding the own
+market from the basket, `beta_bar` is 0.634, with milk and hogs near 0.07 (their own door) and
+the wheats above 1.0 (the same door as everyone). §A.9 has no term that can carry that, which
+is a gap in the appendix rather than in this module.
 
 ---
 

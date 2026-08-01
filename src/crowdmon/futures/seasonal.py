@@ -27,7 +27,7 @@ share of extremity `z`:
 
 So deseasonalising by default would trade a visible caveat for an invisible transformation
 that removes at most 1.4% of the variation. `deseasonalise` exists for anyone who wants it on
-a specific series. See `docs/design/amendments-2026-08-02.md` §B1-B4.
+a specific series. See `docs/design/amendments-2026-08-02.md` §B3-B6.
 
 ## The lookahead this module exists to avoid
 
