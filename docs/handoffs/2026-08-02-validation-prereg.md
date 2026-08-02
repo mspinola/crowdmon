@@ -1,7 +1,7 @@
 # Handoff: pre-registration for §10 validation, to be executed by a cold session
 
-**Status:** **complete and frozen, awaiting execution.** Jointly drafted: §2 and §6 by the
-composite author, §4, §5 and §7 by the commonality/impact session, §8 by the human.
+**Status:** **EXECUTED 2026-08-01. Verdict `uninformative`, see §9.** Jointly drafted: §2 and
+§6 by the composite author, §4, §5 and §7 by the commonality/impact session, §8 by the human.
 **Frozen means frozen:** §7 is a pre-registration, so amending it after a result is seen
 destroys the only thing it was for. Append an outcome section instead.
 **One pre-execution correction, 2026-08-02:** §7.7 named an instrument that cannot take this
@@ -525,3 +525,30 @@ episodes rest on TFF, which nobody has scored yet, and **the first session to sc
 that cleanliness**. If §7 is not going to be executed reasonably soon, say so, because the
 honest alternative is to score TFF for other purposes and record here that the clean set
 shrank to two Disaggregated episodes.
+
+---
+
+## 9. Outcome, appended 2026-08-01
+
+§7 was executed in `npf` by an evaluator session that wrote none of this package. Verdict:
+**`uninformative`** per §7.5, on a raw block-bootstrap p of 0.3121 and 5 of 9 clean units
+above 0.50, pooled statistic 0.5473 against a null mean of 0.4990. The §7.3 wiring check
+reproduced §2's full table, March 2020 lead-in measured 0.7574x against the committed 0.76x.
+`add_composite` runs on TFF end to end, so both clean TFF episodes were live and the clean
+set did not shrink. §7.8 deferred, not passed, re-check 2026-11-01.
+
+Full verdict, findings and reproducer: `npf/docs/crowdmon/2026-08-01-damage-leadin-verdict.md`
+(private repo). Four findings bear on this package: `D_pct` scores from 2012-05-15 rather
+than §6's 2010-05-25; lumber is unscoreable in both contract codes so the ags episode
+contained no lumber; RTY resolves to the retiring ICE contract in Feb 2018; and §7.5's
+`contradicted` branch can fire on a run whose pooled statistic improved.
+
+**Appended by the composite author, who wrote §2 and §6 and did not execute §7.** Nothing
+above §9 is edited. The evaluator supplied this text and declined to commit it themselves on
+the grounds that a cross-repo commit is the human's call; the crowdmon-facing findings are
+carried forward as [`2026-08-02 §B17`](../design/amendments-2026-08-02.md), where the
+`2012-05-15` figure is verified independently rather than accepted.
+
+**A pre-registration that predicted its own most likely outcome, and got it, is the cheapest
+result this exercise could have produced.** §7.5 named `uninformative` in advance and recorded
+in advance that it is not a failure of the measure. The clean episodes are now spent.
