@@ -1383,6 +1383,12 @@ different questions"; and the justification for the gap rule given in
 Reproducer: `docs/analysis/reproduce.py`, the `flow_equivalence` block. Pinned offline in
 [`tests/test_flow_equivalence.py`](../../tests/test_flow_equivalence.py).
 
+> **Both are historical as of cotdata#93**, which removed the copy this section argued
+> against. Neither raises: the reproducer prints the figures with a note saying why it can no
+> longer derive them, and the test skips with the same reason. Regenerate against
+> `cotdata<=0.2.0`. A reproducer that crashed once the change it recommended was made would
+> read as a broken measurement rather than a completed one.
+
 ### They are the same function
 
 `cotdata.vintage_flow.decompose` is **`crowdmon.futures.flow.decompose` evaluated at
@@ -1472,3 +1478,79 @@ is genuinely `cotdata`'s. Removing it is a public-symbol removal in a PyPI packa
 change to a shared working tree that other sessions have checked out, which is not something
 to do as a side effect of a `crowdmon` amendment. Recorded as an open decision, with the
 measurement it needs now attached to it.
+
+---
+
+## B30. `coverage` solved one migration failure and does not know about its mirror image
+
+**Extends** [`§B17`](#b17) and [`§B18`](#b18), and connects them to [`§B26`](#b26) and
+[`§B27`](#b27), which were written later by a different session and never checked against
+the coverage report. Reproducer: `docs/analysis/reproduce.py`, the
+`lumber_is_one_instrument` block.
+
+### The trap that was solved, and the one beside it
+
+`coverage` keys on `market_code` rather than `(market_code, market_name)`, and §B17 records
+why: four **phantoms**, pre-migration NYBOT names sitting inside codes that score 742 weeks,
+so a name-keyed report invents more dead markets than it finds. That fix is correct and
+stands.
+
+It handles **one code carrying several names**. The mirror image is **one instrument
+carrying several codes**, and nothing in `coverage` knows about it:
+
+| | shape | handled by |
+|---|---|---|
+| phantom | one code, several names | `coverage`, by keying on the code |
+| **split** | **one instrument, several codes** | `continuity`, `macro_pca.merge_migrated_codes`, **not `coverage`** |
+
+The two markets the ladder reports as scoring nothing are **the two halves of one migrated
+contract**: `058643` runs 2006-06-13 to 2023-04-18 and `058644` runs 2023-02-21 to
+2026-07-28, they overlap in **7 weeks of 1051**, and both carry contract symbol `LBR`. §B26
+and §B27 established exactly this for the macro PCA, where merging them recovers the market.
+Nobody re-ran the coverage report afterwards.
+
+### So is "2 of 27 score nothing" real, or an artifact of the split?
+
+The suggestive number says artifact. Separately the codes hold 37 and 178 priced weeks;
+merged they hold **208 contiguous priced weeks**, twice the 104-week extremity window.
+
+**Measured end to end, it is real.** Merging the levels before any window (per §B27), through
+both halves of the pipeline rather than only the per-category half:
+
+| rung | `058643` | `058644` | merged |
+|---|---|---|---|
+| weeks | 880 | 178 | 1051 |
+| `price` | 37 | 178 | **208** |
+| `extremity_z` | 0 | 75 | **96** |
+| `illiquidity` | 0 | 75 | **92** |
+| `crowding` | 0 | 0 | **0** |
+| `damage_sell` non-null weeks | 0 | 0 | **0** |
+
+**Every rung rises substantially and the verdict does not move.** `crowding` is zero either
+way, because `C = pct(z)` stacks a second three-year window on top of the 96 z values and 96
+is not enough to fill it. The zero is a property of the instrument, which has four years of
+prices against a measure needing six, and not of the code split.
+
+What does change is the arithmetic of the headline: **2 of 27 becomes 1 of 26**, purely by
+counting one instrument once. The unscoreable *share* is barely moved; the count of dead
+markets is halved because one of the two was never a separate market.
+
+### What follows, and what does not
+
+**No code change.** `coverage` gaining a merge step would alter the report's row count and
+change no conclusion in it, and the handoff that commissioned this module put "changing any
+window, minimum or threshold" explicitly out of scope. Adding migration awareness is a build
+item for whoever wants it, not a correction.
+
+**§B18 is vindicated on the point it was least sure of.** It said `coverage` and the PCA
+disagreeing about lumber "is correct rather than a contradiction", because one needs prices
+and the other does not. That was an argument; this is the measurement behind it. Lumber has
+1051 weeks of perfectly good positioning and cannot be scored for damage, and both reports
+are right.
+
+**The reading that would have been wrong.** Stopping at "208 contiguous priced weeks, twice
+the window" gives the confident and false answer that the split caused the zero. It survives
+one round of checking, because merging only the per-category half of the pipeline also
+returns `crowding=0`, for the unrelated reason that `build()` still reads the unmerged store
+and every per-market rung reports `058644` alone. Two different routes to the same number,
+one of them meaningless. The end-to-end run is what distinguishes them.

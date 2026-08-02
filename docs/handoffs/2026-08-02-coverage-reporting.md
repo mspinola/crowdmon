@@ -1,6 +1,7 @@
 # Handoff: coverage reporting, which rung dropped a market and why
 
-**Status:** complete (PR #15), corrected same day (PR #17)
+**Status:** complete (PR #15), corrected twice the same day (PR #17, **PR #19**). Closed out
+2026-08-02, see [Close-out](#close-out-2026-08-02).
 **Date:** 2026-08-02
 **Claimed by:** the session that built `commonality.py`, `impact.py`, `volume.py`,
 `riskunits.py` and wrote §4, §5 and §7 of the validation pre-registration
@@ -190,3 +191,79 @@ Corrected output:
 this module's design rather than against it: a label naming one rung is insufficient precisely
 because two markets can share it and mean different things, which is why the full ladder is
 printed beside it.
+
+
+---
+
+## Close-out, 2026-08-02
+
+Everything above is preserved as issued. This records what the status line was missing and
+one measurement taken at close-out, so the next reader is not left with an open question the
+handoff never knew it had.
+
+### A third correction was never recorded
+
+The status line said "complete (PR #15), corrected same day (PR #17)". There was a **third**
+correction, **PR #19** (`7ff5d06`), which touched `coverage.py` and is the only one of the
+three that changed what the module *says about itself*:
+
+> The module docstring's table said `058643` "dies at the price join". `drops_at` returns
+> `extremity_z` for it, and `price` is 37 of 880 rather than 0, so the ladder cannot report
+> it at the price join in its own vocabulary. §B18 had already corrected the handoff that
+> guessed it; the docstring kept the guess.
+
+It also settled a contradiction a reader would otherwise hit head-on. §B18 says the two
+lumber codes "fail at the SAME rung". That is true of the **terminal** rung and false of
+`drops_at`, which is the first zero and is two rungs earlier for `058643`. Both statements
+are now on the record with the distinction named.
+
+Status line corrected. Nothing else in the body is touched.
+
+### The rename trap has a mirror image, and it was measured rather than assumed
+
+The module keys on `market_code`, which kills the four phantoms (one code, several names).
+It does **not** handle the opposite shape, one instrument carrying several codes, and
+[`§B26`](../design/amendments-2026-08-02.md) and `§B27` established after this handoff closed
+that **the two unscoreable markets are the two halves of one migrated contract**: `058643`
+and `058644` overlap in 7 weeks of 1051 and both carry symbol `LBR`.
+
+That raises a question this handoff could not have asked: **is "2 of 27 score nothing" a real
+finding, or an artifact of the split?** Separately the codes hold 37 and 178 priced weeks;
+merged they hold **208 contiguous** priced weeks, twice the 104-week extremity window, which
+makes "artifact" look like the obvious answer.
+
+Measured end to end, it is not:
+
+| rung | `058643` | `058644` | merged |
+|---|---|---|---|
+| `price` | 37 | 178 | **208** |
+| `extremity_z` | 0 | 75 | **96** |
+| `illiquidity` | 0 | 75 | **92** |
+| `crowding` | 0 | 0 | **0** |
+
+Every rung rises substantially and the verdict does not move. `C = pct(z)` stacks a second
+three-year window on the 96 z values and 96 does not fill it. **Lumber is unscoreable because
+it has four years of prices against a measure needing six, not because its code changed.**
+The headline moves from "2 of 27" to "1 of 26" purely by counting one instrument once.
+
+Full detail, including the plausible wrong answer that survives one round of checking, is
+[`§B30`](../design/amendments-2026-08-02.md). Reproducer:
+`docs/analysis/reproduce.py`, the `lumber_is_one_instrument` block.
+
+### No code change follows, deliberately
+
+Teaching `coverage` to merge migrated codes would change the report's row count and no
+conclusion in it, and this handoff's own Scope puts "changing any window, minimum or
+threshold" out of bounds. It is a build item for whoever wants it, not a correction, and it
+is now backed by a measurement saying what it would and would not buy.
+
+### Both flagged decisions stand
+
+The two decisions §"Two decisions this needs" refused to default are unchanged four PRs
+later: a zero-scoring market still stays in the panel and nothing filters it, and `LADDER` is
+still a hand-written list guarded by
+`test_the_ladder_covers_every_column_the_composite_consumes`. That guard has since earned its
+place: §B18 found the ladder skipping three rungs, and the same test now checks the columns
+`add_composite` **computes** and not only those it emits, which is the half that was blind.
+
+**Nothing is left open.**
