@@ -852,6 +852,51 @@ def roll_windows() -> None:
     print("  rather than a cleaner one, which is why the share is always reported beside it.")
 
 
+def trend_alignment() -> None:
+    """2026-08-02 B20: the alignment ceiling, and why the raw score is not comparable."""
+    import cotdata
+
+    from crowdmon.futures import (
+        alignment_series,
+        blend_sensitivity,
+        from_current_store,
+        momentum_panel,
+    )
+
+    rule("18. TREND ALIGNMENT: the score cannot reach 1 (2026-08-02 B20)")
+
+    registry = {s.cftc_code: s.internal for s in cotdata.all_symbols()}
+    panel = from_current_store()
+    money = panel[panel["category"] == "managed_money"].assign(
+        net=lambda d: d["long_contracts"] - d["short_contracts"])
+    positioning = (money.groupby(["report_date", "market_code"])["net"].sum()
+                   .unstack("market_code").sort_index())
+    mapping = {c: registry[c] for c in positioning.columns if c in registry}
+
+    equal = momentum_panel(mapping)
+    scores = alignment_series(positioning, equal)
+
+    print(f"\n  weeks: {len(scores):,}  "
+          f"{scores['report_date'].min().date()} to {scores['report_date'].max().date()}")
+    print("\n" + scores[["alignment", "alignment_ceiling", "alignment_vs_ceiling",
+                          "momentum_strength"]]
+          .describe(percentiles=[0.05, 0.5, 0.95]).round(3).to_string())
+
+    lo, hi = scores["alignment_ceiling"].min(), scores["alignment_ceiling"].max()
+    print(f"\n  The ceiling runs {lo:.3f} to {hi:.3f}, so the raw score is not comparable")
+    print("  across weeks. 0.30 against a 0.34 ceiling is an expressed book; 0.30 against")
+    print("  a 0.97 ceiling is not. alignment_vs_ceiling is the comparable figure.")
+
+    print("\n  blend weights, swept rather than fitted:")
+    panels = {"equal": equal,
+              "fast": momentum_panel(mapping, weights=(0.6, 0.3, 0.1)),
+              "slow": momentum_panel(mapping, weights=(0.1, 0.3, 0.6))}
+    print(blend_sensitivity(positioning, panels).round(4).to_string(index=False))
+    print("\n  Level moves more than ordering, the same shape 2026-08-01 §A22 found for the")
+    print("  fragility weights.")
+    print("\n  NOT sliced by any named episode, deliberately. See the module docstring.")
+
+
 if __name__ == "__main__":
     main()
     normalisation()
@@ -864,4 +909,5 @@ if __name__ == "__main__":
     reflexivity()
     roll_dates_coverage()
     roll_windows()
+    trend_alignment()
     coverage_ladder_report()

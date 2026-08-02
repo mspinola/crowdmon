@@ -43,6 +43,18 @@ reasonable person would actually run. That asymmetry is also why `riskunits` bel
 beside `notional` rather than in `crowdmon.core`: it is a fact about futures
 continuous-contract construction, not a general one.
 """
+from .alignment import (
+    ALIGNMENT_COLUMNS,
+    DEFAULT_METHOD,
+    DEFAULT_MIN_MARKETS,
+    AlignmentError,
+    alignment_series,
+    blend_sensitivity,
+    blended_tsmom,
+    format_alignment_block,
+    max_attainable,
+    momentum_panel,
+)
 from .breadth import decompose_breadth
 from .commonality import (
     COMMONALITY_COLUMNS,
@@ -229,6 +241,9 @@ __all__ = [
     "roll_calendar", "in_roll_window", "roll_window_stats", "roll_adjusted_adv",
     "exit_collision", "format_roll_block", "RollError", "ROLL_COLUMNS",
     "DEFAULT_WINDOW_BARS", "MIN_EXCLUDED_SHARE",
+    "blended_tsmom", "momentum_panel", "alignment_series", "max_attainable",
+    "blend_sensitivity", "format_alignment_block", "AlignmentError",
+    "ALIGNMENT_COLUMNS", "DEFAULT_MIN_MARKETS", "DEFAULT_METHOD",
     "seasonal_profile", "deseasonalise", "seasonality_report", "week_of_year",
     "SeasonalError", "DEFAULT_MIN_YEARS",
     "plausible_variants", "reference_variants", "sweep", "summarise",
