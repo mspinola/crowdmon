@@ -30,6 +30,7 @@ with.
 | [2026-08-01-flow-decomposition.md](2026-08-01-flow-decomposition.md) | complete — layer 3, flow decomposition and fragility-weighted exit size |
 | [2026-08-02-reflexivity.md](2026-08-02-reflexivity.md) | **COMPLETE.** §A.8 cascade amplification, shipped as `futures/reflexivity.py`. The horizon decision it was blocked on was dissolved rather than answered: `g` is a staircase, so no horizon is picked. Corrections in `2026-08-02 §B13-B15` |
 | [2026-08-02-validation-prereg.md](2026-08-02-validation-prereg.md) | **EXECUTED 2026-08-01, verdict `uninformative`.** §10 pre-registration, run in `npf` by a cold session. Outcome appended as §9, crowdmon-facing findings as `2026-08-02 §B17`. §7.8 deferred, re-check 2026-11-01. **The clean episodes are spent** |
+| [2026-08-02-coverage-reporting.md](2026-08-02-coverage-reporting.md) | **claimed, not started.** Per-market scoreable-week reporting keyed on `market_code`, naming the rung a market drops out at. Came out of §B17; prerequisite for the three unclaimed cross-market items |
 
 ## A handoff can also be a claim
 
