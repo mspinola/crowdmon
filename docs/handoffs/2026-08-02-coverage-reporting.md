@@ -1,6 +1,6 @@
 # Handoff: coverage reporting, which rung dropped a market and why
 
-**Status:** claimed, not started
+**Status:** complete (PR #15)
 **Date:** 2026-08-02
 **Claimed by:** the session that built `commonality.py`, `impact.py`, `volume.py`,
 `riskunits.py` and wrote §4, §5 and §7 of the validation pre-registration
@@ -110,3 +110,51 @@ things that should stay apart.
 
 `weight_sensitivity.sweep` and `flow.tolerance_sensitivity` for the shape. `2026-08-01 §A13`
 for the standard: a coverage claim carries a measured number, not an assurance.
+
+
+---
+
+## Outcome, 2026-08-02
+
+Shipped as `futures/coverage.py`: `coverage_ladder`, `unscoreable`, `coverage_summary`,
+`format_coverage`. 19 new tests, 13 offline and 6 live. Full suite 367 passed, 2 skipped.
+
+**Both decisions were taken the way the handoff proposed, and are recorded here rather than
+left implicit.**
+
+1. **A zero-scoring market stays in the panel.** `unscoreable` returns them; nothing filters.
+   Silently dropping is what let the pre-registration's ags episode name six markets and run
+   on five, and a `raise` would break every existing caller for a condition that has been
+   true for the whole life of the package.
+2. **The rung sequence is a hand-written list**, `LADDER`, because the columns live at two
+   different grains and no single frame knows the whole chain. That is itself part of why the
+   gap survived. The staleness a hand-written list invites is caught by
+   `test_the_ladder_covers_every_column_the_composite_consumes`, which fails when a rung is
+   added upstream and not added here.
+
+### What the ladder actually reports
+
+    058643  RANDOM LENGTH LUMBER   weeks=880  price=37   extremity_z=0   DROPS AT extremity_z
+    058644  LUMBER                 weeks=178  price=178  extremity_z=75  DROPS AT composite
+
+**The handoff's premise was right and its detail was slightly wrong.** It predicted `058643`
+would drop at the price join. It drops at `extremity_z`: 37 weeks of price out of 880 is not
+enough to ever fill a standardisation window, so the first rung that reaches **zero** is two
+rungs later than the rung that caused it. The distinction matters for how the output reads,
+and `drops_at` names the first zero rather than the root cause, so the full ladder has to be
+printed beside it. `format_coverage` does.
+
+`058644` behaves exactly as predicted: complete at every rung including `exit_duration=178`,
+then `composite=0`.
+
+### The rename trap, measured on the real panel
+
+    codes carrying more than one name : 11 of 27
+    zero-scoring, keyed on code       : 2
+    zero-scoring, keyed on code+name  : 6
+
+The four phantoms are the pre-migration NYBOT names for cotton, cocoa, sugar and coffee, each
+inside a code scoring 742 weeks. Pinned by `test_a_market_that_changed_name_appears_once`, in
+the shape of A.8's pooling-trap test.
+
+Reproducer: `docs/analysis/reproduce.py` section 17.

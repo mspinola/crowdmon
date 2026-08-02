@@ -85,6 +85,15 @@ from .cot_adapter import (
     VintageCotSource,
     provenance_summary,
 )
+from .coverage import (
+    LADDER,
+    TERMINAL_RUNG,
+    CoverageError,
+    coverage_ladder,
+    coverage_summary,
+    format_coverage,
+    unscoreable,
+)
 from .extremity import (
     EXTREMITY_COLUMNS,
     ExtremityError,
@@ -234,4 +243,10 @@ __all__ = [
     "add_volume", "adv_series", "stress_adv_series", "volume_coverage", "VolumeError",
     "VOLUME_COLUMNS", "VOLUME_SERIES", "DEFAULT_ADV_WINDOW", "DEFAULT_STRESS_LOOKBACK",
     "STRESS_DECILE",
+    # Which markets can be scored AT ALL, and where the ones that cannot drop out. The rung
+    # helpers above each answer one join; this answers the whole chain, keyed on market_code
+    # because 11 of 27 codes carry more than one name and grouping on the name invents four
+    # unscoreable markets that do not exist. See coverage.py.
+    "coverage_ladder", "unscoreable", "coverage_summary", "format_coverage",
+    "CoverageError", "LADDER", "TERMINAL_RUNG",
 ]
