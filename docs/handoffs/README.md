@@ -27,7 +27,7 @@ with.
 
 | Handoff | Status |
 |---|---|
-| [2026-08-01-flow-decomposition.md](2026-08-01-flow-decomposition.md) | complete — layer 3, flow decomposition and fragility-weighted exit size |
+| [2026-08-01-flow-decomposition.md](2026-08-01-flow-decomposition.md) | **complete, closed out 2026-08-02 as §10.** Layer 3, flow decomposition and fragility-weighted exit size. Landed as `0917eb1` with **no PR**, predating the PR workflow. §9's premise 4 is now closed (the appendix surfaced and is executed in `tests/test_appendix.py`); its §6 cocoa answer was sharpened by `2026-08-02 §B28`. **Leaves one open decision**: `decompose` exists in both `cotdata.vintage_flow` and `crowdmon.futures.flow` |
 | [2026-08-02-reflexivity.md](2026-08-02-reflexivity.md) | **COMPLETE.** §A.8 cascade amplification, shipped as `futures/reflexivity.py`. The horizon decision it was blocked on was dissolved rather than answered: `g` is a staircase, so no horizon is picked. Corrections in `2026-08-02 §B13-B15` |
 | [2026-08-02-validation-prereg.md](2026-08-02-validation-prereg.md) | **EXECUTED 2026-08-01, verdict `uninformative`.** §10 pre-registration, run in `npf` by a cold session. Outcome appended as §9, crowdmon-facing findings as `2026-08-02 §B17`. §7.8 deferred, re-check 2026-11-01. **The clean episodes are spent** |
 | [2026-08-02-macro-book-pca.md](2026-08-02-macro-book-pca.md) | **complete (PR #21).** `futures/macro_pca.py`. PC1 is the grain complex on Disaggregated and the macro book on TFF (`B21`), so the report type is the subject rather than a parameter. Reaches 2008; no episode examined, deliberately |
