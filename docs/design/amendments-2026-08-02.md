@@ -1265,9 +1265,10 @@ and asserted so.
 the handoff's §6 question with per-category sign frequencies and concludes that "any rule
 that assumes producers are short and funds are long will be wrong about half the
 Disaggregated universe". The direction of that finding is right. **The magnitude is
-understated by a factor of about 1.5, and the most interesting case is invisible in it.**
+understated by between 1.4x and 1.5x depending on the denominator, and the most interesting
+case is invisible in it.**
 
-Reproducer: `docs/analysis/reproduce.py` section 21, report week 2026-07-28.
+Reproducer: `docs/analysis/reproduce.py`, the `template_shape` block, report week 2026-07-28.
 
 > **The analysis document is not amended.** `docs/analysis/` is point-in-time and records
 > what was measured against a named week; editing it to match a later reading erases the
@@ -1294,28 +1295,55 @@ a hypothetical here. It is what the data does.
 
 ### The joint distribution, which is the one the question asked for
 
-| shape | markets | of 279 | of the 237 with a live MM book |
+| shape | markets | of 279 | of the 237 with a directional MM net |
 |---|---|---|---|
 | **template** (PM short, MM long) | 76 | 27.2% | **32.1%** |
 | inverted (PM long, MM short) | 67 | 24.0% | 28.3% |
 | **same side, both short** | 50 | 17.9% | 21.1% |
 | **same side, both long** | 44 | 15.8% | 18.6% |
-| MM exactly flat, no fund position | 42 | 15.1% | n/a |
+| MM net flat | 42 | 15.1% | n/a |
+
+**"MM net flat" is not "no fund position", and the distinction is this package's own
+thesis.** Of the 42, forty are genuinely empty, but `064DZS` and `064DZT` (both Nodal PJM.DOM
+day-ahead power) each carry Managed Money long 750 against short 750: a 1,500-lot gross book
+that nets to zero. A net is not a holding, which is exactly why Phi uses gross over `2·OI`.
+They are excluded from the second denominator because they have no *directional* net to
+compare against the hedger, not because the fund is absent.
 
 Two corrections fall out, and the second is the substantive one.
 
 **The template shape is a minority at under a third, not half.** A rule assuming
 Producer/Merchant short and Managed Money long is wrong in 203 of 279 markets (72.8%), or
-161 of 237 (67.9%) counting only markets where the fund holds anything. §2 says "about
+161 of 237 (67.9%) counting only markets with a directional MM net. §2 says "about
 half". Measured as the conjunction it actually asserts, it is closer to seven in ten.
 
-**Hedger and fund sit on the SAME side in 94 markets, 39.7% of those with a live fund
-book.** This case does not appear anywhere in the marginal table, cannot be derived from it,
-and is not contemplated by the template at all. The template's implicit model is a two-sided
-market in which the fragile side is opposed by an immovable one. In two markets out of five
-that opposition does not exist, and `Q_sell` versus `Q_buy` is being set by Swap Dealer and
-Other Reportable rather than by the hedger-versus-fund axis the worked example is built
-around.
+**Hedger and fund sit on the SAME side in 94 markets: 33.7% of all 279, or 39.7% of the 237
+with a directional MM net.** This case does not appear anywhere in the marginal table, cannot
+be derived from it, and is not contemplated by the template at all. The template's implicit
+model is a two-sided market in which the fragile side is opposed by an immovable one. In a
+third of this universe that opposition does not exist.
+
+**Both denominators are quoted deliberately.** 33.7% is the one comparable to §2's own
+figures, which are all over 279. Quoting only 39.7% would be the same convenient-denominator
+move this section is correcting, two paragraphs after making the charge.
+
+Where the Q axis lands when the opposition is gone, counting the single largest contributor
+per market:
+
+| shape | side | managed_money | producer_merchant | swap | other_reportable | nonreportable |
+|---|---|---|---|---|---|---|
+| template, 76 | `Q_sell` | **51** | 0 | 14 | 7 | 4 |
+| template, 76 | `Q_buy` | 0 | **43** | 17 | 16 | 0 |
+| same side, 94 | `Q_sell` | 26 | 13 | **35** | 17 | 3 |
+| same side, 94 | `Q_buy` | **32** | 12 | 27 | 21 | 2 |
+
+On template markets the axis is clean: Managed Money tops `Q_sell` in 51 of 76 and
+Producer/Merchant tops `Q_buy` in 43 of 76, and neither ever tops the other side. On
+same-side markets it genuinely shifts, **but to a plurality rather than a takeover**: Swap
+Dealer plus Other Reportable top `Q_sell` in 52 of 94 (55%) and `Q_buy` in 48 of 94 (51%),
+and Managed Money is still the single largest `Q_buy` contributor in 32 of 94. The useful
+statement is that the hedger-versus-fund axis stops being reliable, not that some other pair
+replaces it.
 
 ### What this changes, and what it does not
 
@@ -1329,8 +1357,9 @@ What it does change is the standing advice on interpreting a headline Phi. `frag
 contributions` is already printed beside every Phi for the reason 2026-08-01 §A6 gives, that
 one category dominating changes what the number means. B28 adds a second reason: **check
 whether the two large categories are opposed before reading the market as having a fragile
-side and a stable one.** In 40% of this universe there is no stable counterparty in the
-template's sense, and the question of who absorbs a forced exit has a different answer.
+side and a stable one.** In a third of this universe (94 of 279) there is no stable
+counterparty in the template's sense, and the question of who absorbs a forced exit has a
+different answer.
 
 ### Why the margins were reached for first
 
