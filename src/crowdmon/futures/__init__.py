@@ -134,6 +134,7 @@ from .macro_pca import (
     BOOK_CATEGORY,
     MACRO_PCA_COLUMNS,
     PANEL_INPUT,
+    RISK_PANEL_INPUT,
     MacroPcaError,
     absorption_ratio,
     format_absorption,
@@ -301,6 +302,6 @@ __all__ = [
     # object and a different quantity. Reaches 2008; `D` starts 2010-05-25.
     "positioning_panel", "select_markets", "absorption_ratio", "rolling_absorption",
     "loading_rotation", "shuffled_null", "window_sensitivity", "format_absorption",
-    "MacroPcaError", "MACRO_PCA_COLUMNS", "PANEL_INPUT", "BOOK_CATEGORY",
+    "MacroPcaError", "MACRO_PCA_COLUMNS", "PANEL_INPUT", "RISK_PANEL_INPUT", "BOOK_CATEGORY",
     "PCA_DEFAULT_WINDOW",
 ]

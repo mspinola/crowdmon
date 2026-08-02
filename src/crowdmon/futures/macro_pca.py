@@ -38,13 +38,35 @@ years.** 25 markets gives 746 complete weeks ending 2023-12-26, because the 25th
 delists and truncates everything to it. 24 gives **947** weeks ending 2026-07-28. Below 24
 nothing further is bought.
 
-**3. This reaches 2008 and `D` does not.** The differenced panel starts **2008-06-10** against
-`D`'s **2010-05-25**, because `C = pct(z)` stacks two three-year windows (`2026-08-01 §A16`)
-and this needs one. **It is the only engine here whose history covers a genuine systemic
-unwind.** That is also a hazard: it invites exactly the after-the-fact window-picking the §10
-pre-registration exists to prevent. **No episode in this module's history has been examined by
-its author.** If it is to be pointed at 2008, that test belongs in a pre-registration written
-by someone else.
+**3. The reach back to 2008 depends entirely on the panel input, and the first version of
+this module threw it away.**
+
+`PANEL_INPUT` decides how far the point-in-time series starts, and the difference is the whole
+of the 2008 crisis:
+
+| input | panel starts | **`rolling_absorption` starts** |
+|---|---|---|
+| `net_contracts` (default) | 2006-06-20 | **2008-06-10** |
+| `net_risk_usd_z` | 2008-06-10 | **2010-06-01** |
+
+The z-scored version was the original default because §7's panel-construction line says
+"matrix of z-scored positioning". **It costs 103 weeks running 2008-06-10 to 2010-05-25, which
+is exactly the systemic unwind, and it buys nothing**: `absorption_ratio` standardises columns
+inside every window, so the panel arriving pre-standardised is redundant work. Measured over
+the 844 overlapping weeks the two rolling series correlate at **0.9607** with a mean absolute
+difference of **0.0086** and means of 0.153 against 0.152.
+
+**The claim as first shipped was wrong in the form that matters.** The differenced z-scored
+panel does start in 2008, but `rolling_absorption` stacks `min_periods` on top of it and its
+first reading was **2010-06-01, one week after `D`'s 2010-05-25 floor.** So the descriptive
+whole-panel figure reached 2008 and the point-in-time series, the only one you would use, did
+not. Under `net_contracts` it genuinely does.
+
+**No episode in this module's history has been examined by its author**, and that is a
+prohibition rather than a note. 2008 is the last unspent episode in this package, and it is
+unspent precisely because `C = pct(z)` could never see it, so no session has had the option of
+peeking. If it is to be pointed at 2008, that test belongs in a pre-registration written by a
+session that did not build this, for the same reason neither builder could specify §7.
 
 ---
 
@@ -98,10 +120,22 @@ import pandas as pd
 #: `CROWDING_CATEGORY`: it is the weight-1.0 holder in `core/config.py`.
 BOOK_CATEGORY: dict[str, str] = {"disaggregated": "managed_money", "tff": "leveraged"}
 
-#: What is z-scored and then differenced. Risk units rather than contracts, because module
-#: spec §5.2 makes vol-scaled notional the default unit for any cross-market comparison, and a
-#: PCA over raw contracts would load on market size.
-PANEL_INPUT = "net_risk_usd_z"
+#: What gets differenced to form the panel.
+#:
+#: **`net_contracts` rather than §7's z-scored risk units, and that choice is worth two years
+#: of history.** `absorption_ratio` standardises columns inside every window, so feeding it a
+#: pre-standardised panel is redundant: the two rolling series correlate at **0.9607** with a
+#: mean absolute difference of **0.0086**. What the z-scored form costs is `add_extremity`'s
+#: own trailing window, which pushes the first point-in-time reading from 2008-06-10 to
+#: 2010-06-01 and hides the entire 2008 unwind.
+#:
+#: A PCA over raw contracts does not load on market size the way spec §5.2 warns, because a
+#: correlation matrix is scale-free by construction. §5.2's argument is about comparing
+#: LEVELS across markets, which this does not do.
+PANEL_INPUT = "net_contracts"
+
+#: The §7-literal alternative, kept because the spec says it and it is one argument away.
+RISK_PANEL_INPUT = "net_risk_usd_z"
 
 #: Trailing window for `rolling_absorption`, in report weeks. 156 is three years, matching the
 #: `1095D` the rest of the package standardises over. **The appendix sanctions no value**, so
@@ -144,10 +178,17 @@ def positioning_panel(per_category: pd.DataFrame, *,
         if required not in per_category.columns:
             raise MacroPcaError(
                 f"panel is missing {required!r}; expected an add_extremity(...) frame")
-    if column not in per_category.columns:
+    if column == "net_contracts" and column not in per_category.columns:
+        if not {"long_contracts", "short_contracts"} <= set(per_category.columns):
+            raise MacroPcaError(
+                "panel has neither `net_contracts` nor the long/short columns to derive it")
+        per_category = per_category.assign(
+            net_contracts=pd.to_numeric(per_category["long_contracts"], errors="coerce")
+            - pd.to_numeric(per_category["short_contracts"], errors="coerce"))
+    elif column not in per_category.columns:
         raise MacroPcaError(
-            f"panel has no {column!r} column. That comes from `add_extremity`, which needs "
-            f"`add_risk_units` before it.")
+            f"panel has no {column!r} column. `net_risk_usd_z` comes from `add_extremity`, "
+            f"which needs `add_risk_units` before it.")
 
     report_types = set(per_category.get("report_type", pd.Series(dtype=object)).unique())
     wanted = category

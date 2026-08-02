@@ -112,7 +112,7 @@ for the market selection, `weight_sensitivity.sweep` for the parameter sweep sha
 
 Shipped as `futures/macro_pca.py`: `positioning_panel`, `select_markets`, `absorption_ratio`,
 `rolling_absorption`, `loading_rotation`, `shuffled_null`, `window_sensitivity`,
-`format_absorption`. 28 tests, 21 offline and 7 live. Amendments `B21`-`B23`.
+`format_absorption`. 29 tests, 21 offline and 8 live. Amendments `B21`-`B24`.
 
 **All four flagged decisions were taken as proposed**, with one correction found by measuring.
 
@@ -128,7 +128,7 @@ Shipped as `futures/macro_pca.py`: `positioning_panel`, `select_markets`, `absor
 `loading_rotation` shipped as `1 - cos` and was wrong. An eigenvector's sign is not
 identified, so the positive-sum pin flips whenever that sum crosses zero, and **8 of 843
 readings came back at ~1.99 against a median of 0.0004**. `1 - |cos|` is bounded in `[0, 1]`
-and those weeks read ~0.002, which is what they always were. `B23`.
+and those weeks read ~0.002, which is what they always were. `B24`.
 
 The handoff predicted this in the abstract ("without a pin, loading rotation will report a
 flip that is an artifact of `numpy`"). It got the remedy wrong: a pin is not enough, because
@@ -140,9 +140,32 @@ the pin itself is what flips. The measure has to not care.
 "PC1 approximates the aggregate systematic book" is true of one panel and false of the other.
 So the report type is the subject of this engine rather than a parameter to it.
 
+### The correction that arrived after the first push
+
+**The claim above about reaching 2008 was wrong in the form that matters, and the other
+session's independent panel is what surfaced it.** The differenced z-scored panel does start
+2008-06-10, but `rolling_absorption` stacks `min_periods` on top and its first reading was
+**2010-06-01, one week after `D`'s floor**. The descriptive whole-panel figure reached 2008;
+the point-in-time series, the only form anyone would use, did not.
+
+The default panel input is now `net_contracts`, which starts the rolling series at
+**2008-06-10** and genuinely covers the unwind. The z-scoring bought nothing: the two rolling
+series correlate at **0.9607** with a mean absolute difference of **0.0086**, because
+`absorption_ratio` standardises inside every window anyway. `B22`, with `RISK_PANEL_INPUT`
+keeping the §7-literal form one argument away.
+
+Their count was also right against mine: **5 complete weeks, not zero** (`B23`). Mine was
+measured on a narrower z-scored panel. Five usable rows in twenty years is the same
+conclusion, and the test now asserts a rate rather than a pinned number.
+
 ### Not done, deliberately
 
-The panel reaches **2008-06-10** against `D`'s 2010-05-25, so this is the only engine here
-whose history covers a genuine systemic unwind. **No episode in it has been examined.**
+This is the only engine here whose point-in-time history covers a genuine systemic unwind.
+**No episode in it has been examined.** 2008 is the last unspent episode in the package and
+is unspent precisely because `C = pct(z)` could never reach it, so no session has had the
+option of looking. That makes it more valuable than the ones §2 already declared, not less.
+
 Pointing it at 2008 is the after-the-fact window-picking §7 of the pre-registration exists to
-prevent, and by now this session is the wrong one to specify that test.
+prevent, and whoever specifies that test should be a session that did not build this, for the
+same reason neither builder could specify §7. **Written here as a prohibition rather than a
+note**, so a later session does not read it as a nicety and open the window casually.

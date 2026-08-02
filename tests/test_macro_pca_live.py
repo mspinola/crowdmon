@@ -58,9 +58,15 @@ def test_high_cell_coverage_still_gives_no_complete_weeks(disagg):
     coverage = float(panel.notna().mean().mean())
     complete = int(panel.dropna().shape[0])
     assert coverage > 0.90, f"cell coverage fell to {coverage:.1%}"
-    assert complete == 0, (
-        f"{complete} weeks are complete across every market; if the panel has genuinely "
-        f"filled in, this test has outlived the finding and should be rewritten")
+    # 5 of 1051 on the current panel. NOT zero, which an earlier version of this test
+    # asserted from a narrower z-scored panel; the other session measured 5 independently
+    # and was right. Five usable rows out of a thousand is an empty rectangle in every sense
+    # that matters, and the assertion is written as a rate so it says that rather than
+    # pinning a number that will drift.
+    assert complete / len(panel) < 0.02, (
+        f"{complete} of {len(panel)} weeks are complete across every market "
+        f"({complete / len(panel):.1%}); if the panel has genuinely filled in, this test "
+        f"has outlived the finding and should be rewritten rather than relaxed")
 
 
 def test_dropping_two_markets_buys_the_whole_panel(disagg):
@@ -79,19 +85,74 @@ def test_dropping_two_markets_buys_the_whole_panel(disagg):
     assert len(panel[wider].dropna()) <= len(complete)
 
 
-def test_the_panel_reaches_2008_and_the_composite_does_not(disagg):
-    """The property that makes this module worth more than another reading beside `D`.
+def test_the_POINT_IN_TIME_series_reaches_2008_not_merely_the_panel(disagg):
+    """**The claim this module first shipped with was wrong in the form that matters.**
 
-    `C = pct(z)` stacks two three-year windows so `D` starts 2010-05-25. This needs one.
+    The differenced panel starting before 2010 is not the property worth having. What matters
+    is where `rolling_absorption` starts, because that is the only form anyone would use, and
+    it stacks `min_periods` on top of the panel. Under the original `net_risk_usd_z` input the
+    panel began 2008-06-10 and the rolling series began **2010-06-01, one week after `D`'s
+    floor**. The descriptive figure reached 2008; the usable one did not.
+
+    Under `net_contracts` the rolling series genuinely starts 2008-06-10.
     """
     import pandas as pd
 
-    from crowdmon.futures import select_markets
+    from crowdmon.futures import rolling_absorption, select_markets
 
     _, panel = disagg
-    first = panel[select_markets(panel)].dropna().index.min()
-    assert first < pd.Timestamp("2009-01-01"), f"panel starts {first.date()}, expected 2008"
-    assert first < pd.Timestamp("2010-05-25"), "must predate D's floor or the claim is empty"
+    cols = select_markets(panel)
+    panel_start = panel[cols].dropna().index.min()
+    rolling_start = rolling_absorption(panel, markets=cols)["report_date"].min()
+
+    assert panel_start < pd.Timestamp("2007-01-01"), (
+        f"panel starts {panel_start.date()}; the default input should reach 2006")
+    assert rolling_start < pd.Timestamp("2009-01-01"), (
+        f"the POINT-IN-TIME series starts {rolling_start.date()}, so it cannot see the 2008 "
+        f"unwind. A panel that reaches 2008 is not the same claim.")
+    assert rolling_start < pd.Timestamp("2010-05-25"), (
+        "the rolling series must predate D's floor or this module adds no reach at all")
+
+
+def test_the_z_scored_input_is_redundant_and_costs_the_2008_window(disagg):
+    """Why the default is `net_contracts` and not §7's literal z-scored panel.
+
+    `absorption_ratio` standardises columns inside every window, so a pre-standardised panel
+    is redundant work that costs `add_extremity`'s own trailing window.
+    """
+    import pandas as pd
+
+    from crowdmon.futures import (
+        ContractMaster,
+        add_extremity,
+        add_notional,
+        add_risk_units,
+        from_current_store,
+        positioning_panel,
+        rolling_absorption,
+        select_markets,
+    )
+    from crowdmon.futures.macro_pca import RISK_PANEL_INPUT
+
+    _, default_panel = disagg
+    risk_frame = add_extremity(add_risk_units(add_notional(
+        ContractMaster.load().annotate(from_current_store()))))
+    risk_panel = positioning_panel(risk_frame, column=RISK_PANEL_INPUT)
+
+    a = rolling_absorption(default_panel, markets=select_markets(default_panel))
+    b = rolling_absorption(risk_panel, markets=select_markets(risk_panel))
+    a_s = a.set_index("report_date")["absorption"]
+    b_s = b.set_index("report_date")["absorption"]
+    shared = a_s.index.intersection(b_s.index)
+
+    assert len(shared) > 500
+    assert a_s.loc[shared].corr(b_s.loc[shared]) > 0.90, (
+        "the two inputs should agree closely, which is what makes the z-scoring redundant")
+    assert float((a_s.loc[shared] - b_s.loc[shared]).abs().mean()) < 0.05
+    lost = b_s.index.min() - a_s.index.min()
+    assert lost > pd.Timedelta(days=600), (
+        f"the z-scored input should cost roughly two years of point-in-time history, "
+        f"lost {lost.days} days")
 
 
 def test_absorption_beats_its_shuffled_null_on_both_panels(disagg, tff):

@@ -946,43 +946,83 @@ ranking claim was never available.
 
 ---
 
-## B22. 95.7% cell coverage, zero complete weeks, and a delisting that costs two years
+## B22. The z-scored panel costs the entire 2008 window and buys nothing
 
-**Adds** the measurements behind `macro_pca.select_markets`. Nothing here contradicts a doc;
-it establishes why the selection step exists at all.
+**Corrects a claim this module shipped with**, and the correction is the module's whole point.
+
+`macro_pca` first defaulted to §7's literal "matrix of z-scored positioning", differencing
+`net_risk_usd_z`. The differenced panel started 2008-06-10, and that was reported as reaching
+the 2008 unwind where `D` cannot.
+
+**The panel is not the claim.** `rolling_absorption` stacks `min_periods` on top of it, so the
+point-in-time series, the only form anyone would use, began **2010-06-01, one week after `D`'s
+2010-05-25 floor.** The descriptive whole-panel figure reached 2008; the usable one did not.
+
+| input | panel starts | **rolling starts** |
+|---|---|---|
+| `net_contracts` | 2006-06-20 | **2008-06-10** |
+| `net_risk_usd_z` | 2008-06-10 | **2010-06-01** |
+
+**And the z-scoring buys nothing**, because `absorption_ratio` standardises columns inside
+every window, so a pre-standardised panel is redundant work. Over the 844 overlapping weeks:
 
 | | |
 |---|---|
-| Disaggregated panel | 948 weeks x 26 markets |
-| cells present | **95.5%** |
-| **weeks with no missing market** | **0** |
+| correlation of the two rolling series | **0.9607** |
+| mean absolute difference | **0.0086** |
+| means | 0.153 against 0.152 |
+| weeks the raw panel sees and the z-scored one does not | **103**, 2008-06-10 to 2010-05-25 |
 
-The holes are spread across markets rather than concentrated in weeks, so a coverage figure
-that reads as nearly complete yields an empty rectangle and a naive listwise PCA returns
-nothing at all.
+So the default is `net_contracts` and `RISK_PANEL_INPUT` keeps the §7-literal form one
+argument away. §5.2's warning that raw contracts load on market size does not apply: a
+correlation matrix is scale-free, and §5.2 is about comparing levels across markets, which
+this does not do.
 
-| markets kept | complete weeks | span ends |
-|---|---|---|
-| 26 | **0** | n/a |
-| 25 | 746 | **2023-12-26** |
-| **24** | **947** | 2026-07-28 |
-| 22 | 947 | same |
-
-**Dropping two markets buys the whole panel; dropping one fewer costs two and a half years**,
-because the 25th delists and truncates everything to it. Selection is derived from the
-coverage counts rather than hand-picked, and ties break toward more markets so the rule never
-drops one it did not have to.
-
-**The panel starts 2008-06-10 and `D` starts 2010-05-25.** `C = pct(z)` stacks two three-year
-windows ([2026-08-01 §A16](amendments-2026-08-01.md)); this needs one. So the absorption ratio
-reaches the 2008 crisis, and it is the only engine in the package whose history covers a
-genuine systemic unwind. **No episode in it has been examined by its author**, deliberately:
-pointing this at 2008 is exactly the after-the-fact window-picking the §10 pre-registration
-exists to prevent, and it belongs in a pre-registration written by someone else.
+**The general shape, which is the third time today:** a warm-up window inherited from an
+upstream module silently became the binding constraint on a downstream one. Same as `D`'s two
+stacked three-year windows (`2026-08-01 §A16`) and `058644`'s 75 weeks of `z` against a 104
+minimum (`§B17`).
 
 ---
 
-## B23. An eigenvector's sign is not identified, and a signed cosine reports the flip as news
+## B23. High cell coverage, an empty rectangle, and a delisting that costs two years
+
+**Adds** the measurements behind `macro_pca.select_markets`.
+
+| | |
+|---|---|
+| Disaggregated panel | 1051 weeks x 27 markets |
+| cells present | **95.8%** |
+| weeks complete across every market | **5** |
+
+The holes are spread across markets rather than concentrated in weeks, so 95.8% coverage
+yields **five usable rows in twenty years** and a naive listwise PCA is empty in every sense
+that matters. *(An earlier draft of this section said zero, measured on a narrower z-scored
+panel. The other session measured 5 independently and was right; the assertion is now written
+as a rate rather than a pinned number.)*
+
+| markets kept | complete weeks | span ends |
+|---|---|---|
+| 27 | 5 | n/a |
+| 25 | 889 | 2026-06-02 |
+| **24** | **1050** | 2026-07-28 |
+| 22 | 1050 | same |
+
+**Dropping the right markets buys the whole panel; stopping one short costs two years**,
+because a delisted market truncates everything to its own last week. Selection is derived from
+the coverage counts, and ties break toward more markets so the rule never drops one it did not
+have to.
+
+**2008 is the last unspent episode in this package**, and it is unspent precisely because
+`C = pct(z)` could never reach it, so no session has ever had the option of looking. That
+makes it more valuable than the ones §2 of the pre-registration already declared, not less.
+**No episode in this module's history has been examined by its author**, deliberately, and
+whoever specifies a 2008 test should be a session that did not build the PCA, for the same
+reason neither builder could specify §7.
+
+---
+
+## B24. An eigenvector's sign is not identified, and a signed cosine reports the flip as news
 
 **Records a defect this module shipped with for one run**, caught by measuring rather than by
 a test, and the reason `loading_rotation` uses `1 - |cos|` rather than `1 - cos`.

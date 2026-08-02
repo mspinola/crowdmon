@@ -35,7 +35,7 @@ def _panel(n_markets=10, *, weeks=WEEKS, common=0.8, seed=7):
     return pd.DataFrame(data, index=weeks)
 
 
-def _frame(panel, category="managed_money", column="net_risk_usd_z", report_type="disaggregated"):
+def _frame(panel, category="managed_money", column="net_contracts", report_type="disaggregated"):
     """Long-form `add_extremity`-shaped frame from a wide panel."""
     long = panel.stack().rename(column).reset_index()
     long.columns = ["report_date", "market_code", column]
@@ -155,9 +155,9 @@ def test_an_unknown_report_type_raises_rather_than_returning_an_empty_panel():
 
 
 def test_a_missing_extremity_column_raises_and_says_where_it_comes_from():
-    frame = _frame(_panel(n_markets=8)).drop(columns=["net_risk_usd_z"])
+    frame = _frame(_panel(n_markets=8), column="net_risk_usd_z").drop(columns=["net_risk_usd_z"])
     with pytest.raises(MacroPcaError, match="add_extremity"):
-        positioning_panel(frame)
+        positioning_panel(frame, column="net_risk_usd_z")
 
 
 # ── the point-in-time form ──────────────────────────────────────────────────
