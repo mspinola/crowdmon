@@ -1,6 +1,6 @@
 # Handoff: macro-book PCA, the futures absorption ratio
 
-**Status:** complete (PR #20)
+**Status:** complete (PR #21)
 **Date:** 2026-08-02
 **Claimed by:** the session that built `commonality.py`, `impact.py`, `volume.py`,
 `riskunits.py` and `coverage.py`
