@@ -18,14 +18,28 @@ it listed six markets and ran on five (`2026-08-02 §B17`).
 **1. A count is necessary and not sufficient, because the two known failures are at different
 rungs.** Both lumber codes score nothing, for unrelated reasons:
 
-| code | weeks | `dtl_sell` | `damage_sell` | dies at |
-|---|---|---|---|---|
-| 058643 | 880 | 24 | 0 | the price join |
-| 058644 | 178 | **178** | 0 | the stacked percentile windows |
+| code | weeks | `dtl_sell` | `damage_sell` | `drops_at` | root cause |
+|---|---|---|---|---|---|
+| 058643 | 880 | 24 | 0 | `extremity_z` | price coverage collapses to 37 weeks of 880 |
+| 058644 | 178 | **178** | 0 | `crowding` | history length, 75 weeks of `z` against 104 |
 
 `058644` has a complete exit duration in **every one of its weeks** and still scores nothing.
 A report that says only "0 scoreable weeks" sends a maintainer to look at prices, where there
 is nothing wrong. So the ladder reports every rung and names the one that bites.
+
+**`drops_at` is the FIRST zero, not the root cause, and the two are two rungs apart for
+`058643`.** Its prices thin out at `price` (37 of 880), but `price` is not zero, so the ladder
+cannot report it there; the first rung that actually reaches zero is `extremity_z`, because a
+37-week price series can never fill a standardisation window. Read `drops_at` as "the earliest
+rung with nothing left" and the row beside it for why. An earlier version of this table named
+the price join for `058643`, which is the root cause and is not what the function returns.
+
+**Nor is `drops_at` the terminal rung.** Both codes end at zero everywhere below `crowding`, so
+a terminal-rung label would read `crowding` for both and lose the distinction entirely. That is
+why the first zero is the useful one: it is what separates these two markets, and it is what
+`2026-08-02 §B18` is describing when it says a single label is insufficient. §B18 states the
+two codes fail at the same rung; that is true of the terminal rung and not of `drops_at`, which
+is the number this module emits.
 
 **2. Key on `market_code`. `market_name` is a display label and nothing else.**
 
