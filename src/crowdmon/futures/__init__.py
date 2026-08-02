@@ -154,6 +154,7 @@ from .io import (
 )
 from .macro_pca import (
     BOOK_CATEGORY,
+    DEFAULT_MAX_CONCURRENT_SHARE,
     MACRO_PCA_COLUMNS,
     PANEL_INPUT,
     RISK_PANEL_INPUT,
@@ -161,6 +162,7 @@ from .macro_pca import (
     absorption_ratio,
     format_absorption,
     loading_rotation,
+    merge_migrated_codes,
     positioning_panel,
     rolling_absorption,
     select_markets,
@@ -329,6 +331,11 @@ __all__ = [
     "loading_rotation", "shuffled_null", "window_sensitivity", "format_absorption",
     "MacroPcaError", "MACRO_PCA_COLUMNS", "PANEL_INPUT", "RISK_PANEL_INPUT", "BOOK_CATEGORY",
     "PCA_DEFAULT_WINDOW",
+    # A market split across two codes by a venue migration is dropped TWICE by
+    # `select_markets`, which maximises complete weeks and only sees a matrix. Merging is
+    # opt-in because it changes which markets the PCA runs over, and it happens on LEVELS
+    # before the difference or the old code's final position vanishes into a NaN.
+    "merge_migrated_codes", "DEFAULT_MAX_CONCURRENT_SHARE",
     # One layer under coverage: a market_code is not an instrument, and a code's series can
     # have a hole in the middle. Either makes a long-lived market look young, which is what
     # every stacked window here refuses to score. Keyed on SYMBOL, deliberately the opposite

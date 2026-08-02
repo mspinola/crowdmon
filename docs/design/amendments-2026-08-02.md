@@ -1200,3 +1200,58 @@ reported; the splice is left to a caller willing to argue for it in the open.
 **The tolerance is 21 days and exclusive.** Above 21 and below 28 the store contains nothing,
 so the threshold is not cutting a continuum in half. Lumber's single 21-day gap sits exactly
 on it and is correctly silent.
+
+---
+
+## B27. `select_markets` drops a migrated market twice, and the merge has to precede the difference
+
+**Extends** [`§B26`](#b26) and `macro_pca.select_markets`. Reproducer: `futures/macro_pca.py`
+`merge_migrated_codes`, against `COTDATA_STORE` as of 2026-08-02.
+
+### The interaction neither module could see alone
+
+`select_markets` maximises listwise-complete weeks and receives only a matrix, so it cannot
+know that two short columns are one long instrument. `continuity` knows, and is never
+consulted. On the Disaggregated panel the two facts compose into a silent loss:
+
+| | markets kept | complete weeks | span | PC1 share |
+|---|---|---|---|---|
+| as shipped | 24 of 27 | 1050 | 2006-06-20 to 2026-07-28 | 0.1310 |
+| `merge_migrations=True` | **25 of 26** | **1050** | same | **0.1262** |
+
+**Lumber's `058643` and `058644` are two of the three exclusions**, and merged the market
+rejoins over the *same* 1050 weeks with nothing dropped to make room. The cost of the split
+was never coverage. It was that the instrument was invisible.
+
+`PANEL_INPUT` is `net_contracts`, which is price-free, so this is not the same market
+`coverage.py` reports as unscoreable. Lumber has **no usable price series and 880 weeks of
+perfectly good positioning**, and the two reports disagreeing about it is correct rather than
+a contradiction.
+
+### The ordering is load-bearing and the wrong order fails silently
+
+Merge the **levels** and the handoff week records the position moving between contracts:
+lumber steps from -2130 to -906 and the difference is a real -1224. Merge the **differences**
+instead and the old code's final week is `NaN` in both inputs, one series having ended and the
+other having no prior value, so **the exit never happens**. The position simply ceases to
+exist and no reading anywhere says so.
+
+`positioning_panel` therefore merges inside itself, before its own `.diff()`, rather than
+offering the operation to a caller holding a differenced frame. `test_macro_pca_migrations.py`
+asserts the right answer and separately asserts that the wrong order produces `NaN`, so a
+refactor that moves the merge fails in the tests rather than in someone's PCA.
+
+### Concurrency is the guard, and nothing on this store is near it
+
+Summing is only valid for a handoff. Two codes reporting together throughout are an aggregate
+and its components, or a double count, and summing them counts the same open interest twice.
+Measured concurrent share of the union: **lumber 5 of 1050 weeks, 0.5%**, the Russell roughly
+4%. The bar is 0.25, so it rejects a shape that does not occur here rather than tuning one
+that does. **A market left unmerged is dropped; a market wrongly merged is double-counted, and
+the second is the worse failure**, which is why the guard fails toward leaving codes separate.
+
+### Off by default
+
+Turning this on changes which markets the PCA runs over and therefore every figure downstream,
+including B21's PC1 composition and B23's selection table. Default output is byte-identical
+and asserted so.

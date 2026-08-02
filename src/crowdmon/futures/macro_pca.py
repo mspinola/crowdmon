@@ -155,6 +155,15 @@ DEFAULT_SEED = 20260802
 
 MACRO_PCA_COLUMNS = ["report_date", "absorption", "rotation", "n_markets", "n_weeks"]
 
+#: Above this share of concurrent weeks, two codes sharing a symbol are not a migration and
+#: must not be summed. A handoff has the old code winding down while the new one builds, so
+#: the two overlap briefly. Two codes reporting together for most of their lives are an
+#: aggregate and its components, or a genuine double count, and summing them would count the
+#: same open interest twice. Measured on this store: **lumber's two codes are concurrent for 5
+#: of 1050 weeks, 0.5%**, and the Russell's for roughly 4%. Nothing sits near this bar, so it
+#: is a guard against a shape that does not occur here rather than a tuned parameter.
+DEFAULT_MAX_CONCURRENT_SHARE = 0.25
+
 
 class MacroPcaError(ValueError):
     """The inputs cannot support a macro-book PCA."""
@@ -164,7 +173,10 @@ class MacroPcaError(ValueError):
 def positioning_panel(per_category: pd.DataFrame, *,
                       category: str | None = None,
                       column: str = PANEL_INPUT,
-                      difference: bool = True) -> pd.DataFrame:
+                      difference: bool = True,
+                      merge_migrations: bool = False,
+                      max_concurrent_share: float = DEFAULT_MAX_CONCURRENT_SHARE
+                      ) -> pd.DataFrame:
     """Wide matrix of positioning CHANGES, weeks x markets.
 
     `per_category` is an `add_extremity(...)` frame. `difference=False` returns the level
@@ -173,6 +185,14 @@ def positioning_panel(per_category: pd.DataFrame, *,
 
     Keyed on `market_code`, never on `market_name`: 11 of 27 codes carry more than one name
     (`coverage.py`).
+
+    `merge_migrations=True` collapses codes that `ContractMaster` resolves to one symbol into
+    a single column first, so an instrument whose history is split across a venue migration is
+    not dropped twice by `select_markets`. **Off by default**, because turning it on changes
+    which markets the PCA runs over and therefore every figure downstream: on this store it
+    takes the Disaggregated panel from 24 markets of 27 to 25 of 26 and moves PC1's share from
+    0.1310 to 0.1262. See `merge_migrated_codes`, which also explains why it happens before
+    the difference.
     """
     for required in ("report_date", "market_code", "category"):
         if required not in per_category.columns:
@@ -213,7 +233,61 @@ def positioning_panel(per_category: pd.DataFrame, *,
     wide = rows.pivot_table(index="report_date", columns="market_code", values=column)
     wide.index = pd.to_datetime(wide.index)
     wide = wide.sort_index()
+    if merge_migrations:
+        wide = merge_migrated_codes(wide, per_category,
+                                    max_concurrent_share=max_concurrent_share)
     return wide.diff() if difference else wide
+
+
+def merge_migrated_codes(wide: pd.DataFrame, per_category: pd.DataFrame, *,
+                         max_concurrent_share: float = DEFAULT_MAX_CONCURRENT_SHARE
+                         ) -> pd.DataFrame:
+    """Sum sibling market codes into one column per instrument, on **levels**.
+
+    `select_markets` maximises listwise-complete weeks, so a market whose history is split
+    across two codes presents as two short columns and is dropped twice over. Measured on the
+    Disaggregated panel: lumber's `058643` and `058644` are **both** dropped, which is two of
+    the three exclusions that take the panel from 27 markets to 24. Merged, the panel keeps
+    **25 of 26 markets over the same 1050 complete weeks and the same span**, so the market
+    rejoins at no cost in coverage. `2026-08-02 §B26` and `futures/continuity.py`.
+
+    **This must run before the difference, and that is not a stylistic preference.** Sum the
+    levels and the handoff week yields one real change as the position moves between
+    contracts. Sum the differences instead and the old code's final position vanishes into a
+    `NaN` rather than being recorded as the exit it was: lumber's last week under `058643`
+    carries -1660 contracts that simply cease to exist, and the merged series never sees them
+    leave. `positioning_panel` therefore merges inside itself rather than offering this to a
+    caller holding an already-differenced frame.
+
+    **Only codes `ContractMaster` resolves to the same symbol are candidates**, and a null
+    symbol is never a candidate: an unresolved code is not evidence of a shared instrument.
+    Concurrency is the second gate, see `DEFAULT_MAX_CONCURRENT_SHARE`.
+
+    The merged column takes the **symbol** as its name, so a reader of a loadings table can
+    see that a column is an instrument rather than a code.
+    """
+    if "symbol" not in per_category.columns:
+        raise MacroPcaError(
+            "merging migrated codes needs a `symbol` column, which "
+            "`ContractMaster.load().annotate(panel)` adds. Pass an annotated frame.")
+    spec = (per_category.dropna(subset=["symbol"])
+            .drop_duplicates("market_code")
+            .set_index("market_code")["symbol"])
+    out = wide.copy()
+    for symbol, codes in spec.groupby(spec).groups.items():
+        present = [c for c in codes if c in out.columns]
+        if len(present) < 2:
+            continue
+        block = out[present]
+        union = int(block.notna().any(axis=1).sum())
+        concurrent = int(block.notna().all(axis=1).sum())
+        if not union or concurrent / union > max_concurrent_share:
+            # Not a handoff. Left as separate columns rather than silently summed, because
+            # double-counting open interest is a worse failure than dropping a market.
+            continue
+        out = out.drop(columns=present)
+        out[str(symbol)] = block.sum(axis=1, min_count=1)
+    return out.sort_index(axis=1)
 
 
 def select_markets(panel: pd.DataFrame, *,
@@ -226,6 +300,14 @@ def select_markets(panel: pd.DataFrame, *,
     delists.
 
     Ties are broken toward MORE markets, so the rule never drops a market it did not have to.
+
+    **A market whose history is split across two CFTC codes is dropped twice over**, because
+    each half is short and this rule maximises complete weeks. That is not a market the rule
+    "did not have to" drop, it is one it could not see: on the Disaggregated panel lumber's
+    `058643` and `058644` are two of the three exclusions taking 27 markets to 24, and merged
+    they rejoin over the same 1050 weeks. This function only sees a matrix and cannot detect
+    it. Pass `positioning_panel(..., merge_migrations=True)` upstream, which is where the
+    symbol is still known. `futures/continuity.py`, `2026-08-02 §B26`.
     """
     if panel.empty:
         return []
