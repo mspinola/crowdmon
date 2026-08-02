@@ -1138,3 +1138,65 @@ Determinism needed more than "no RNG". Ties in the distance matrix are broken by
 the market order is sorted before use and a test feeds shuffled columns and asserts identical
 labels. Separately, `np.fill_diagonal` on a derived DataFrame's `.values` **raises** under
 copy-on-write, so the distance matrix is built through numpy rather than by mutating a frame.
+## B26. A hole in a code's series is not one finding, it is two, and only one of them is a migration
+
+**Closes** the third §B17 finding, that `hist_codes` migrations are invisible downstream.
+Reproducer: `futures/continuity.py` against `COTDATA_STORE` as of 2026-08-02.
+**B19 through B25 were taken by the roll-congestion, trend-alignment, macro-PCA and
+clustering PRs while this was open, so this is B26.**
+
+### The information was already present and nothing put it together
+
+`ContractMaster` resolves both Russell codes to `RTY` and sets `is_historical_code` correctly
+on the ICE one. The gap was never the registry. It was that no reader joins a code's *internal
+continuity* to its *siblings*:
+
+| code | venue | weeks | span | longest internal gap |
+|---|---|---|---|---|
+| `239742` | CME | 587 | 2006-06-13 to 2026-07-28 | **3255 d, 8.9 years**, ending 2017-08-15 |
+| `23977A` | ICE | 516 | 2008-07-22 to 2018-06-05 | none |
+
+**The two are complementary, not redundant**, and `23977A` covers `239742`'s hole almost
+exactly. Together they are a continuous twenty-year market. Apart, the CME code looks like it
+began in 2017, which is why `pct(D)` does not reach it until 2023 and why the
+pre-registration's Feb 2018 unit was scored on the **retiring** venue with a 163-week
+reference series against 444 for its peers.
+
+Lumber is the clean case for contrast: `058643` hands off to `058644` in 2023 with a two-month
+overlap and no holes on either side.
+
+### The measurement that shaped the API, and would have made a naive fix wrong
+
+Over all 51 codes in the two current-state panels, **46 have a longest inter-week gap of 8
+days**, which is a holiday shift. The five that do not are two unrelated causes:
+
+| code | longest gap | sibling fills it? | what it is |
+|---|---|---|---|
+| `239742` RTY | 3255 d | **yes, `23977A`** | a venue migration |
+| `004603` oats | 294 d | no | intermittent reporting, and it recurs |
+| `240741` NKD | 168 d | no | intermittent reporting, and it recurs |
+| `112741` NZD | 28 d | no | one missed month in 2006 |
+| `058644` LBR | 21 d | n/a | exactly at the tolerance, not over it |
+
+**So "this code has a hole" is not actionable and a report emitting only that would have
+invented migrations for oats and the Nikkei.** `gap_filled_by` is the column that separates a
+venue seam from a market that genuinely stopped reporting, and the two are opposite findings:
+one means the history exists elsewhere, the other means it does not exist.
+
+Oats and the Nikkei were both checked rather than assumed. Neither is a single outage: oats
+returns from holes ending 2024-11-05, 2025-09-09 and 2026-05-19, the Nikkei from 2024-12-10,
+2025-04-08, 2025-09-23 and 2026-03-03. **Two of those land in autumn 2025 and neither is the
+shutdown**, which `2026-08-01` records as breaking release dates and leaving report dates
+intact. These are report-date absences, so they are a different thing that happens to be
+nearby.
+
+### What was deliberately not built
+
+**The codes are not stitched.** Concatenating `23977A` onto `239742` yields a continuous `RTY`
+and also splices two venues with different tick sizes, different participants and a
+contract-size scale, which is a decision with consequences at every rung above it. The seam is
+reported; the splice is left to a caller willing to argue for it in the open.
+
+**The tolerance is 21 days and exclusive.** Above 21 and below 28 the store contains nothing,
+so the threshold is not cutting a continuum in half. Lumber's single 21-day gap sits exactly
+on it and is correctly silent.

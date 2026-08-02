@@ -95,6 +95,15 @@ from .concentration import (
     market_concentration,
     quadrant,
 )
+from .continuity import (
+    CONTINUITY_COLUMNS,
+    DEFAULT_TOLERANCE_DAYS,
+    ContinuityError,
+    continuity,
+    format_continuity,
+    migrations,
+    unexplained_gaps,
+)
 from .contract_master import (
     CONTRACT_COUNT_COLUMNS,
     SPEC_COLUMNS,
@@ -320,4 +329,12 @@ __all__ = [
     "loading_rotation", "shuffled_null", "window_sensitivity", "format_absorption",
     "MacroPcaError", "MACRO_PCA_COLUMNS", "PANEL_INPUT", "RISK_PANEL_INPUT", "BOOK_CATEGORY",
     "PCA_DEFAULT_WINDOW",
+    # One layer under coverage: a market_code is not an instrument, and a code's series can
+    # have a hole in the middle. Either makes a long-lived market look young, which is what
+    # every stacked window here refuses to score. Keyed on SYMBOL, deliberately the opposite
+    # of coverage's key, because the question is which codes serve one instrument. A hole is
+    # not always a migration: `gap_filled_by` separates a venue seam (RTY) from a market that
+    # genuinely stopped reporting (oats, Nikkei). See continuity.py.
+    "continuity", "migrations", "unexplained_gaps", "format_continuity",
+    "ContinuityError", "CONTINUITY_COLUMNS", "DEFAULT_TOLERANCE_DAYS",
 ]
