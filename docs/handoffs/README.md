@@ -31,7 +31,7 @@ with.
 | [2026-08-02-reflexivity.md](2026-08-02-reflexivity.md) | **COMPLETE.** §A.8 cascade amplification, shipped as `futures/reflexivity.py`. The horizon decision it was blocked on was dissolved rather than answered: `g` is a staircase, so no horizon is picked. Corrections in `2026-08-02 §B13-B15` |
 | [2026-08-02-validation-prereg.md](2026-08-02-validation-prereg.md) | **EXECUTED 2026-08-01, verdict `uninformative`.** §10 pre-registration, run in `npf` by a cold session. Outcome appended as §9, crowdmon-facing findings as `2026-08-02 §B17`. §7.8 deferred, re-check 2026-11-01. **The clean episodes are spent** |
 | [2026-08-02-coverage-reporting.md](2026-08-02-coverage-reporting.md) | **complete (PR #15), corrected same day (PR #17).** `futures/coverage.py`, keyed on `market_code`. `2026-08-02 §B18` found the ladder skipped the three terms `D` is built from, and that it is not monotonic because `phi` is price-free |
-| [2026-08-02-roll-congestion.md](2026-08-02-roll-congestion.md) | **claimed, not started.** Roll windows. Measured first: all three components of spec §379 are blocked, including OI migration, because the price frame's `Open Interest` is whole-market. What is buildable is roll-window volume inflation (1.57x median) and its effect on `pressure.T` |
+| [2026-08-02-roll-congestion.md](2026-08-02-roll-congestion.md) | **COMPLETE.** `futures/roll.py`. All three components of spec §379 are blocked, including OI migration: the price frame's `Open Interest` is whole-market. What shipped is roll-window volume and its effect on `pressure.T`, which is 5.1% and wrong-signed for five of sixteen markets. `2026-08-02 §B19` |
 
 ## A handoff can also be a claim
 

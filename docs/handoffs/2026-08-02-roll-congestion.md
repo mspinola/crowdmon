@@ -1,6 +1,6 @@
 # Handoff: roll windows, and why spec §379's roll congestion is not what gets built
 
-**Status:** claimed, not started
+**Status:** **COMPLETE**, shipped as `futures/roll.py`. Findings in `2026-08-02 §B19`
 **Date:** 2026-08-02
 **Claimed by:** the session that built `composite.py`, `trigger.py`, `reflexivity.py`,
 `extremity.py`, `seasonal.py`, `concentration.py` and `weight_sensitivity.py`
@@ -97,3 +97,41 @@ step 4 does not mark it satisfied.
 - **Must not infer rolls from price gaps.** `roll_dates` reads the Delivery Month column, which
   is what makes it series-invariant across all three adjustments (`§B16`). Inferring from gaps
   would reintroduce the dependency that invariance currently rules out.
+
+---
+
+## 5. Outcome, appended 2026-08-02
+
+Shipped as `futures/roll.py`, 16 tests. Findings in `2026-08-02 §B19`, reproducer
+`docs/analysis/reproduce.py` section 17.
+
+**§1 held in full.** All three §379 components are blocked, and the `Open Interest` finding
+reproduced independently in the other session across eight markets.
+
+**§2 was wrong twice, and the body above is left standing because this directory is
+append-only.** Both corrections came from the session that owns `pressure`, and both are
+right:
+
+| §2 said | measured |
+|---|---|
+| roll-window effect **1.57x**, quoted as the bias in `T` | ratio **1.239x**, and the bias in `T` is **5.1%** |
+| `T` "optimistic by construction for every market" | **pessimistic** for SI, NG, HO, RB and LE, five of sixteen |
+
+The first is an order-of-magnitude error of the most ordinary kind: the ratio is a fact about
+roll days, `T` is driven by a trailing mean, and a 24% lift on 22% of bars is a 5% lift on the
+average. **Quoting a conditional statistic as if it were the unconditional effect.**
+
+The second is worse than a sign error in one market, because **the ratio does not predict the
+sign**. SI has a roll-day ratio of 1.244 and an ADV inflation of 0.983: more volume on roll
+days by median, less by mean. So the two numbers cannot substitute for each other in either
+magnitude or direction, and `roll_window_stats` returns both for that reason.
+
+**§4's three prohibitions all held.** ADV is reported beside, never replaced; §379 stays in the
+blocked table with limit moves; rolls come from Delivery Month and never from price gaps.
+
+One addition §3 did not anticipate: `roll_adjusted_adv` **refuses** below a 25% survival floor
+and flags the monthly rollers rather than refusing them, because CL, NG, HO and RB put 52-53%
+of their bars inside a window and excluding those markets would remove exactly the ones a
+fuel-shock scenario is about.
+
+**Status: closed.**

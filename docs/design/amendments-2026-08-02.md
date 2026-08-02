@@ -763,3 +763,78 @@ mis-locate every failure of this shape.
 handoff guessed `058643` drops at the price join. It drops at `extremity_z`. The measurement
 disagreed with both, which is the fourth time in this file that a rung-level assumption has not
 survived being counted.
+
+---
+
+## B19. Spec §379's roll congestion is blocked in full, and the roll-day ratio is not the bias in `T`
+
+**Contradicts:** [`§B16`](#b16-roll-congestion-is-not-blocked-and-roll_dates-returns-empty-rather-than-raising-on-a-wrong-argument)
+above, written by this session, which concluded roll congestion "is not blocked" from
+`roll_dates` existing. Reproducer: `docs/analysis/reproduce.py` section 17.
+
+### All three components of §379 are blocked
+
+§379 defines roll congestion as "calendar spread volatility and bid-ask behaviour during roll
+windows, plus OI migration rate front to next".
+
+| component | needs | status |
+|---|---|---|
+| calendar spread volatility | two contract prices at once | blocked, no per-expiry source |
+| bid-ask behaviour | quote data | blocked, nothing carries quotes |
+| **OI migration front to next** | per-expiry open interest | **blocked, and this was not known** |
+
+The third looks available. `cotdata.get_prices` returns an `Open Interest` column reading
+exactly like the front-contract figure a migration rate needs. Measured against COT's
+whole-market total, 1,051 weeks per market: **mean ratio 1.000 for GC, SI, CL, ZC, NG, ZS, ZW
+and HG**, p5 no lower than 0.998. It is the same number COT reports.
+
+**Two columns on one frame both look per-contract and neither is.** `volume.py` documents that
+`front` is whole-market despite its name; `Open Interest` is not even named `front` and is
+also whole-market.
+
+B16 conflated roll *timing*, which is available, with roll *congestion*, which is not. That is
+the same error this session had warned the other about for PCA a few hours earlier: **the
+nearest reachable object is not the one the spec names.**
+
+### The buildable part, and the figure that must not be quoted
+
+Roll-window volume runs a median **1.239x** baseline across 16 markets. **That is a fact about
+roll days and it is not the bias in `T`.** `pressure.T = Q/(kappa.V)` uses a trailing mean, so
+the effect is diluted by how few days those are:
+
+| | median of 16 |
+|---|---|
+| roll-day volume ratio | 1.239x |
+| share of bars inside a window | 21.8% |
+| **ADV inflation** | **1.0506x** |
+| **`T` optimistic by** | **5.1%** |
+
+**An order of magnitude apart.** An earlier version of this finding quoted 1.57x as the effect
+on `T`. The other session, which owns `pressure`, caught it and independently measured 5.6%
+against the 5.06% here; the residual is window definition, 10 bars against 10 calendar days.
+
+### The two measures disagree in sign, so neither substitutes for the other
+
+`T` is **pessimistic**, not optimistic, for **SI, NG, HO, RB and LE**, five of sixteen. So
+"optimistic by construction for every market" is false, and it is false for the
+refined-products complex a fuel-shock scenario cares most about.
+
+Worse, the ratio does not predict even the sign. **SI has a roll-day ratio of 1.244 and an ADV
+inflation of 0.983**: more volume on roll days by median, less by mean, because the days
+outside the window carry the fatter tail. NG does the same.
+
+**Which markets diverge depends on the lookback.** An earlier draft named HO, which diverges
+over full history and does not over four years. `reproduce.py` now selects the divergent set
+from the data rather than naming any market.
+
+### A roll-excluded ADV is a different estimator
+
+CL, NG, HO and RB roll monthly, so **52-53% of their bars sit inside a 10-bar window**.
+Excluding them computes crude's ADV on half the sample. `roll.py` reports the excluded share
+beside every figure, admits the monthly rollers with a flag, and refuses only below a 25%
+survival floor.
+
+**Nothing changes `pressure`'s ADV.** Moving `T` moves `I`, moves `D`, and moves the §9
+verdict's inputs. On these numbers the case for changing it is weak: 5.1% median, wrong-signed
+for five of sixteen, and a half-sample estimator for the energy complex. Both sessions agree
+it is a human's call and not a module's.
