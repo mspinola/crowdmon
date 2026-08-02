@@ -1048,3 +1048,93 @@ were.
 The general rule worth carrying: **anything derived from an eigenvector must be invariant to
 its sign, or it is reporting `numpy` rather than the data.** The same applies to any future
 loading-similarity, clustering or alignment measure built on top of this panel.
+
+---
+
+## B25. §369's thesis holds, its example does not, and the cluster it actually finds is the yen carry
+
+**Amends:** module spec §369. Reproducer: `docs/analysis/reproduce.py` section 19.
+44 to 46 markets, `propadj` log returns, 2016 onward.
+
+### The section's own illustration is not in the data
+
+> "Long energy" and "short JPY" can be the same macro trade in a given regime.
+
+| pair | correlation |
+|---|---|
+| 6J vs CL | **-0.140** |
+| 6J vs HO | -0.144 |
+| 6J vs RB | -0.106 |
+| 6J vs NG | -0.044 |
+
+Essentially nothing, and the wrong sign for the phrasing.
+
+### What is there is the yen with the entire US rates complex
+
+| pair | correlation |
+|---|---|
+| **6J vs ZF** | **0.540** |
+| 6J vs ZN | 0.535 |
+| 6J vs ZT | 0.508 |
+| 6J vs ZB | 0.464 |
+| **6J vs NKD** | **-0.414** |
+
+All four positives exceed the average **within**-class pair (0.410). **At `k = 8` the
+clustering puts `{6J, ZB, ZF, ZN, ZT}` in a cluster of their own**, which is §369's thesis
+holding exactly and its example failing exactly: the macro trade sector taxonomy hides is carry
+funding against duration. That is the Aug 2024 yen carry unwind from the spec's own §443 replay
+list, arriving from the price side rather than the positioning side.
+
+The negative 6J/NKD pair is the same trade seen from the funding end and is the strongest
+inverse cross-class link in the panel.
+
+Crypto is the other genuine cross-class cluster: ETH against NQ 0.431, ES 0.425, RTY 0.413.
+
+### Sector taxonomy is mostly right, which §369 does not concede
+
+| | mean correlation |
+|---|---|
+| within an asset class (107 pairs) | **0.410** |
+| across asset classes (839 pairs) | **0.077** |
+
+5.3x. So labels are a good first approximation, clustering earns its keep on a minority of
+pairs, and the informative output is `cross_class_pairs` rather than the partition. §369 reads
+as though the taxonomy actively misled, and on this data it does not.
+
+### The correlation gap does NOT become partition agreement, and an earlier draft said it did
+
+`cluster_sweep`'s first docstring claimed high agreement with the taxonomy was the expected
+result, reasoning from 0.410 against 0.077. Measured:
+
+| k | agreement with asset class | largest cluster |
+|---|---|---|
+| 2 | **0.132** | 45 |
+| 4 | 0.350 | 39 |
+| 6 | 0.480 | 35 |
+| 8 | 0.533 | 33 |
+| 10 | **0.802** | 20 |
+
+**Agreement is lowest where the claim predicted it highest.** Average linkage on a correlation
+distance produces one large cluster plus singletons, so at small `k` the partition says "nearly
+everything together" against a taxonomy that says "mostly apart" and they disagree on almost
+every pair. A statement about pair averages does not translate into partition agreement at any
+particular `k`. Corrected, with a test asserting the direction rather than a level.
+
+### "In a given regime" overstates the instability
+
+The pairwise correlation structure correlates at **r = 0.857** between 2016-2020 and 2021-2026
+across 1,980 pairs; 6J/ZN moves only 0.577 to 0.516. Trailing windows remain right because
+detecting change is the point, but heavy membership churn indicates a window that is too short
+rather than a regime that turned.
+
+### Two implementation notes worth carrying
+
+**No `scipy`, no `sklearn`**, per the boundary allowlist, so the clustering is hand-written
+Lance-Williams in numpy. **Agglomerative rather than k-means for a governance reason**: k-means
+needs a random initialisation and `crucible/AGENTS.md` requires randomized procedures to take
+an explicit seed and reproduce. Hierarchical on a correlation distance is deterministic.
+
+Determinism needed more than "no RNG". Ties in the distance matrix are broken by position, so
+the market order is sorted before use and a test feeds shuffled columns and asserts identical
+labels. Separately, `np.fill_diagonal` on a derived DataFrame's `.values` **raises** under
+copy-on-write, so the distance matrix is built through numpy rather than by mutating a frame.

@@ -958,6 +958,68 @@ def macro_book_pca() -> None:
     print("TFF is narrower, so absorption is comparable to its own null and never across.")
 
 
+def correlation_clustering() -> None:
+    """2026-08-02 B25: §369's thesis holds, its example does not."""
+    import cotdata
+
+    from crowdmon.futures import (
+        cluster_sweep,
+        clusters_at,
+        correlation_distance,
+        cross_class_pairs,
+        return_panel,
+    )
+
+    rule("19. CORRELATION CLUSTERING: the yen carry, not energy (2026-08-02 B25)")
+
+    classes = {s.internal: s.asset_class for s in cotdata.all_symbols() if s.norgate}
+    returns = return_panel(list(classes), start="2016").dropna(axis=1, thresh=1000)
+    corr = returns.corr()
+    print(f"\n  markets: {returns.shape[1]}  days: {returns.shape[0]:,}")
+
+    print("\n  section 369's own illustration, JPY against energy:")
+    for symbol in ("CL", "HO", "RB", "NG"):
+        if symbol in corr.columns and "6J" in corr.columns:
+            print(f"    6J vs {symbol:<3} {corr.loc['6J', symbol]:+.3f}")
+    print("    Essentially nothing, and the wrong sign for the phrasing.")
+
+    print("\n  what is actually there, JPY against the US rates complex:")
+    for symbol in ("ZF", "ZN", "ZT", "ZB", "NKD"):
+        if symbol in corr.columns:
+            print(f"    6J vs {symbol:<3} {corr.loc['6J', symbol]:+.3f}")
+
+    within, across = [], []
+    cols = list(corr.columns)
+    for i in range(len(cols)):
+        for j in range(i + 1, len(cols)):
+            value = corr.iloc[i, j]
+            if not np.isfinite(value):
+                continue
+            same = classes.get(cols[i]) == classes.get(cols[j])
+            (within if same else across).append(value)
+    print(f"\n  mean correlation within an asset class: {np.mean(within):.3f} "
+          f"({len(within)} pairs)")
+    print(f"  mean correlation across asset classes : {np.mean(across):.3f} "
+          f"({len(across)} pairs)")
+    print("  Sector taxonomy is mostly right. Clustering earns its keep on the exceptions.")
+
+    distance = correlation_distance(returns)
+    print("\n  the partition, and how much of it the taxonomy already explains:")
+    print(cluster_sweep(distance, ks=(2, 4, 6, 8, 10),
+                        asset_class=classes).round(3).to_string(index=False))
+    print("\n  Agreement is LOWEST at small k, not highest: average linkage gives one large")
+    print("  cluster, so the partition says 'together' where the taxonomy says 'apart'.")
+
+    labels = clusters_at(distance, 8)
+    carry = sorted(labels[labels == labels.get("6J")].index) if "6J" in labels else []
+    print(f"\n  at k=8, the cluster containing 6J: {carry}")
+
+    print("\n  strongest cross-class pairs:")
+    print(cross_class_pairs(returns, classes, min_corr=0.40)
+          .head(6).round(3).to_string(index=False))
+    print("\n  NOT sliced by any named episode, deliberately.")
+
+
 if __name__ == "__main__":
     main()
     normalisation()
@@ -971,5 +1033,6 @@ if __name__ == "__main__":
     roll_dates_coverage()
     roll_windows()
     trend_alignment()
+    correlation_clustering()
     coverage_ladder_report()
     macro_book_pca()

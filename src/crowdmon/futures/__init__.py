@@ -56,6 +56,19 @@ from .alignment import (
     momentum_panel,
 )
 from .breadth import decompose_breadth
+from .clustering import (
+    DEFAULT_MIN_OBS,
+    DISTANCES,
+    LINKAGES,
+    ClusteringError,
+    agglomerate,
+    cluster_sweep,
+    clusters_at,
+    correlation_distance,
+    cross_class_pairs,
+    format_cluster_block,
+    return_panel,
+)
 from .commonality import (
     COMMONALITY_COLUMNS,
     DEFAULT_GAMMA,
@@ -259,6 +272,9 @@ __all__ = [
     "roll_calendar", "in_roll_window", "roll_window_stats", "roll_adjusted_adv",
     "exit_collision", "format_roll_block", "RollError", "ROLL_COLUMNS",
     "DEFAULT_WINDOW_BARS", "MIN_EXCLUDED_SHARE",
+    "return_panel", "correlation_distance", "agglomerate", "clusters_at",
+    "cross_class_pairs", "cluster_sweep", "format_cluster_block", "ClusteringError",
+    "DISTANCES", "LINKAGES", "DEFAULT_MIN_OBS",
     "blended_tsmom", "momentum_panel", "alignment_series", "max_attainable",
     "blend_sensitivity", "format_alignment_block", "AlignmentError",
     "ALIGNMENT_COLUMNS", "DEFAULT_MIN_MARKETS", "DEFAULT_METHOD",
