@@ -1255,3 +1255,87 @@ the second is the worse failure**, which is why the guard fails toward leaving c
 Turning this on changes which markets the PCA runs over and therefore every figure downstream,
 including B21's PC1 composition and B23's selection table. Default output is byte-identical
 and asserted so.
+
+---
+
+## B28. The cocoa template is a JOINT claim, and answering it with two margins understates the miss
+
+**Contradicts:** the headline of
+[`2026-07-28-first-rankings.md` §2](../analysis/2026-07-28-first-rankings.md), which answers
+the handoff's §6 question with per-category sign frequencies and concludes that "any rule
+that assumes producers are short and funds are long will be wrong about half the
+Disaggregated universe". The direction of that finding is right. **The magnitude is
+understated by a factor of about 1.5, and the most interesting case is invisible in it.**
+
+Reproducer: `docs/analysis/reproduce.py` section 21, report week 2026-07-28.
+
+> **The analysis document is not amended.** `docs/analysis/` is point-in-time and records
+> what was measured against a named week; editing it to match a later reading erases the
+> evidence that anything changed. The correction lives here, and §2 of that document stands
+> as issued.
+
+### The margins are correct and answer a different question
+
+Reproduced exactly, twice, independently of the committed table:
+
+| category | net long | net short | flat |
+|---|---|---|---|
+| managed_money | 120 (43.0%) | 117 (41.9%) | 42 (15.1%) |
+| producer_merchant | **141 (50.5%)** | 138 (49.5%) | 0 |
+| swap | 135 (48.4%) | 139 (49.8%) | 5 (1.8%) |
+| other_reportable | 121 (43.4%) | 147 (52.7%) | 11 (3.9%) |
+| nonreportable | 158 (56.6%) | 107 (38.4%) | 14 (5.0%) |
+
+**But the template is a statement about a pair.** Appendix §A.2's cocoa example is
+Producer/Merchant net short 110,000 *against* Managed Money net long 90,000: one instrument,
+two categories, opposed. A marginal frequency cannot address that, because two categories
+can each be short half the time while rarely being opposed to each other at all. That is not
+a hypothetical here. It is what the data does.
+
+### The joint distribution, which is the one the question asked for
+
+| shape | markets | of 279 | of the 237 with a live MM book |
+|---|---|---|---|
+| **template** (PM short, MM long) | 76 | 27.2% | **32.1%** |
+| inverted (PM long, MM short) | 67 | 24.0% | 28.3% |
+| **same side, both short** | 50 | 17.9% | 21.1% |
+| **same side, both long** | 44 | 15.8% | 18.6% |
+| MM exactly flat, no fund position | 42 | 15.1% | n/a |
+
+Two corrections fall out, and the second is the substantive one.
+
+**The template shape is a minority at under a third, not half.** A rule assuming
+Producer/Merchant short and Managed Money long is wrong in 203 of 279 markets (72.8%), or
+161 of 237 (67.9%) counting only markets where the fund holds anything. §2 says "about
+half". Measured as the conjunction it actually asserts, it is closer to seven in ten.
+
+**Hedger and fund sit on the SAME side in 94 markets, 39.7% of those with a live fund
+book.** This case does not appear anywhere in the marginal table, cannot be derived from it,
+and is not contemplated by the template at all. The template's implicit model is a two-sided
+market in which the fragile side is opposed by an immovable one. In two markets out of five
+that opposition does not exist, and `Q_sell` versus `Q_buy` is being set by Swap Dealer and
+Other Reportable rather than by the hedger-versus-fund axis the worked example is built
+around.
+
+### What this changes, and what it does not
+
+Nothing in the code. `fragility` never assumed the template shape, which is precisely why
+the directional split exists: `Q_sell` and `Q_buy` are computed by sign over every category,
+so a same-side market produces a correct reading with no special case. This amendment is
+about how a Phi is **read**, not how it is computed, and it strengthens rather than weakens
+§2's argument for keeping the two directions apart.
+
+What it does change is the standing advice on interpreting a headline Phi. `fragility.
+contributions` is already printed beside every Phi for the reason 2026-08-01 §A6 gives, that
+one category dominating changes what the number means. B28 adds a second reason: **check
+whether the two large categories are opposed before reading the market as having a fragile
+side and a stable one.** In 40% of this universe there is no stable counterparty in the
+template's sense, and the question of who absorbs a forced exit has a different answer.
+
+### Why the margins were reached for first
+
+Worth recording, because the mistake is cheap to repeat. The handoff's §6 asks whether real
+markets show "heavily producer-hedged short side, fragile levered long side", which reads as
+two independent clauses and invites two independent frequency counts. It is one clause about
+a joint configuration. Any future comparison against a worked example should measure the
+example's **shape**, meaning the contingency table, rather than its **components**.

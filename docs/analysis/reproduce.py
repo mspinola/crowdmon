@@ -25,6 +25,7 @@ Prints, in order:
  16. roll-date coverage, and the empty-index trap (2026-08-02 B16)
  17. the coverage ladder: which markets score nothing, and where (2026-08-02 B17)
  20. the macro-book PCA and what PC1 actually is, per report type (B21)
+ 21. the cocoa template measured as a joint shape rather than two margins (B28)
 """
 import numpy as np
 import pandas as pd
@@ -1020,6 +1021,67 @@ def correlation_clustering() -> None:
     print("\n  NOT sliced by any named episode, deliberately.")
 
 
+def template_shape() -> None:
+    """Amendment B28: the cocoa template is a JOINT claim, so measure the pair, not two margins.
+
+    The 2026-07-28 ranking document answers "does real data match the cocoa template" with
+    the marginal sign distribution per category. The template asserts Producer/Merchant
+    short AND Managed Money long at the same time, which the margins cannot address: two
+    categories can each be short half the time while rarely being opposed at all.
+    """
+    rule("21. THE COCOA TEMPLATE AS A JOINT SHAPE (2026-08-02 B28)")
+
+    cross = latest()
+    week = cross["report_date"].max().date()
+    net = (cross.groupby(["market_code", "category"])
+                .apply(lambda g: g["long_contracts"].sum() - g["short_contracts"].sum(),
+                       include_groups=False)
+                .unstack("category"))
+    print(f"\nreport week {week}, {len(net)} markets\n")
+
+    print("--- the MARGINS, as published in 2026-07-28-first-rankings.md §2 ---")
+    rows = []
+    for cat in ["managed_money", "producer_merchant", "swap",
+                "other_reportable", "nonreportable"]:
+        s = net[cat].dropna()
+        rows.append({"category": cat, "n": len(s),
+                     "net long": int((s > 0).sum()), "net short": int((s < 0).sum()),
+                     "flat": int((s == 0).sum()),
+                     "long %": f"{(s > 0).mean():.1%}", "short %": f"{(s < 0).mean():.1%}",
+                     "flat %": f"{(s == 0).mean():.1%}"})
+    print(report.to_markdown(pd.DataFrame(rows)))
+
+    pair = pd.concat([net["producer_merchant"].rename("pm"),
+                      net["managed_money"].rename("mm")], axis=1).dropna()
+    shapes = {
+        "template  (PM short, MM long)": (pair.pm < 0) & (pair.mm > 0),
+        "inverted  (PM long,  MM short)": (pair.pm > 0) & (pair.mm < 0),
+        "same side (both short)": (pair.pm < 0) & (pair.mm < 0),
+        "same side (both long)": (pair.pm > 0) & (pair.mm > 0),
+        "MM flat   (no fund position)": pair.mm == 0,
+    }
+    live = pair[pair.mm != 0]
+    print("\n--- the JOINT shape, which the margins cannot show ---")
+    out = []
+    for name, mask in shapes.items():
+        n = int(mask.sum())
+        of_live = "n/a" if name.startswith("MM flat") else f"{n / len(live):.1%}"
+        out.append({"shape": name, "markets": n,
+                    f"of {len(pair)}": f"{n / len(pair):.1%}",
+                    f"of {len(live)} with a live MM book": of_live})
+    print(report.to_markdown(pd.DataFrame(out)))
+
+    same = int(((pair.pm < 0) & (pair.mm < 0)).sum() + ((pair.pm > 0) & (pair.mm > 0)).sum())
+    tmpl = int(shapes["template  (PM short, MM long)"].sum())
+    print(f"\n  hedger and fund on the SAME side: {same} of {len(live)} "
+          f"= {same / len(live):.1%}")
+    print(f"  a rule assuming PM short AND MM long is wrong in "
+          f"{len(pair) - tmpl} of {len(pair)} = {(len(pair) - tmpl) / len(pair):.1%} "
+          f"of all markets,")
+    print(f"  and {len(live) - tmpl} of {len(live)} = {(len(live) - tmpl) / len(live):.1%} "
+          f"of those where the fund holds anything.")
+
+
 if __name__ == "__main__":
     main()
     normalisation()
@@ -1036,3 +1098,4 @@ if __name__ == "__main__":
     correlation_clustering()
     coverage_ladder_report()
     macro_book_pca()
+    template_shape()
