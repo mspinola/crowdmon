@@ -21,6 +21,9 @@ Prints, in order:
  12. the trigger guard: sign agreement against distance disagreement (2026-08-02 B9)
  13. vintage coverage, behind §4 of the validation pre-registration (2026-08-02 B10)
  14. which configured constants can move D, behind §5 (2026-08-02 B11)
+ 15. the A.8 cascade staircase (2026-08-02 B13-B15)
+ 16. roll-date coverage, and the empty-index trap (2026-08-02 B16)
+ 17. the coverage ladder: which markets score nothing, and where (2026-08-02 B17)
 """
 import numpy as np
 import pandas as pd
@@ -741,6 +744,60 @@ def roll_dates_coverage() -> None:
     print("  only while rolls are derived that way rather than inferred from price gaps.")
 
 
+def coverage_ladder_report() -> None:
+    """Which markets can be scored at all, and where the others drop out (B17).
+
+    The gap the §10 evaluator found: every other coverage helper answers one rung, and none
+    of them answers whether a market can appear in a cross-market result. Two of 27 score
+    nothing, ever, and they die at different rungs.
+    """
+    rule("17. THE COVERAGE LADDER (2026-08-02 B17)")
+    from reproduce_composite import build
+
+    from crowdmon.futures import (
+        ContractMaster,
+        add_extremity,
+        add_notional,
+        add_risk_units,
+        add_volume,
+        coverage_ladder,
+        coverage_summary,
+        format_coverage,
+    )
+
+    panel = from_current_store()
+    per_category = add_volume(add_extremity(add_risk_units(
+        add_notional(ContractMaster.load().annotate(panel)))))
+    per_market = build()
+
+    print("markets surviving each rung:")
+    print(coverage_summary(per_category, per_market).to_string())
+
+    ladder = coverage_ladder(per_category, per_market)
+    print("\nthe markets that score nothing, and the rung that bites:")
+    print(format_coverage(ladder, only_unscoreable=True))
+    print("\n058643 is starved of prices; 058644 has a COMPLETE exit duration in every one")
+    print("of its weeks and still scores nothing, because the percentile windows stack.")
+    print("A report saying only '0 scoreable weeks' sends a maintainer to prices for both,")
+    print("and for one of them there is nothing wrong with the prices.")
+
+    by_code = per_market.groupby("market_code")["damage_sell_pct"].apply(
+        lambda s: s.notna().sum())
+    by_pair = per_market.groupby(["market_code", "market_name"])["damage_sell_pct"].apply(
+        lambda s: s.notna().sum())
+    names = per_category.groupby("market_code")["market_name"].nunique()
+    print("\nwhy the key is market_code and not market_name:")
+    print(f"  codes carrying more than one name : {int((names > 1).sum())} of {len(names)}")
+    print(f"  zero-scoring, keyed on code       : {int((by_code == 0).sum())}")
+    print(f"  zero-scoring, keyed on code+name  : {int((by_pair == 0).sum())}")
+    for (code, name), v in by_pair[by_pair == 0].items():
+        if by_code[code] > 0:
+            print(f"    PHANTOM {code} {name[:46]:<46} code scores {by_code[code]}")
+    print("  the invented markets outnumber the real ones. And string normalisation is not")
+    print("  the alternative: heating oil carries NY HARBOR ULSD and NY HARBOR USLD, a")
+    print("  transposition, so one of the two is a typo in the CFTC source.")
+
+
 if __name__ == "__main__":
     main()
     normalisation()
@@ -752,3 +809,4 @@ if __name__ == "__main__":
     constant_invariance()
     reflexivity()
     roll_dates_coverage()
+    coverage_ladder_report()
