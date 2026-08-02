@@ -720,3 +720,46 @@ data produces that lean about a third of the time.** Nothing says `D` works, not
 does not, and the clean episodes are now spent. The plumbing came back clean: §2's full table
 reproduced on both `phi` readings and all three windows, and `add_composite` ran on TFF end to
 end on the first attempt with 21 of 24 markets scored.
+
+---
+
+## B18. Both lumber codes fail at the SAME rung, so naming the rung is not enough
+
+**Contradicts:** [`§B17`](#b17-what-the-frozen-validation-found-about-this-package-verified-rather-than-accepted)
+above, written by this session, which said the two codes "fail at different rungs, and that is
+what the fix has to report". They fail at the same one. Reproducer:
+`docs/analysis/reproduce_composite.py` pipeline, non-null counts per rung.
+
+Measured ladder, both codes:
+
+| rung | `058643` (880 wk) | `058644` (178 wk) |
+|---|---|---|
+| `fragility` (price-free) | **777** | 75 |
+| `adv` / `dtl_sell` | 24 | **178** |
+| `illiquidity_sell` = `pct(T)` | 0 | 75 |
+| `crowding_long` = `pct(z)` | **0** | **0** |
+| `damage_sell` | 0 | 0 |
+
+**Both terminate at `crowding_long`, and the root causes are different:**
+
+- `058643` has price coverage collapse to 24 weeks of 880, so `z` can never fill a
+  standardisation window. The *first zero* is two rungs after the rung that caused it.
+- `058644` has complete `dtl_sell` in all 178 weeks and dies on history length: 75 weeks of
+  `z` against the 104 required.
+
+So B17's framing was wrong in a way that would have weakened the fix. The truer statement is
+the stronger argument for what shipped in `coverage`: **a label naming the terminal rung is
+insufficient precisely because both markets carry the same label for unrelated reasons.**
+Printing the full ladder beside it is what distinguishes them, and the other session's
+`drops_at` docstring says so.
+
+**The ladder is not monotonic, which is the detail that makes it readable.** `058643` carries
+**777** weeks of `fragility` against **24** of `dtl_sell`. Fragility is price-free (§A.2 needs
+only columns the canonical schema already has), so a market can be richly covered at one rung
+and nearly absent at the next. A reader who assumes coverage decreases down the ladder will
+mis-locate every failure of this shape.
+
+**Neither session predicted this correctly.** B17 guessed two different rungs; the coverage
+handoff guessed `058643` drops at the price join. It drops at `extremity_z`. The measurement
+disagreed with both, which is the fourth time in this file that a rung-level assumption has not
+survived being counted.
