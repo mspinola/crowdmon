@@ -621,3 +621,102 @@ distance), so "check the series" is now the standing instinct and a session taki
 congestion would otherwise spend real effort re-deriving this. The safety is **conditional**:
 it holds while rolls are derived from Delivery Month, and would stop holding the day an
 implementation inferred them from price gaps instead.
+
+---
+
+## B17. What the frozen validation found about this package, verified rather than accepted
+
+**Source:** the §10 verdict, executed 2026-08-01 in `npf` by a session that wrote none of this
+package. Verdict `uninformative`, which §7.5 named in advance as the most likely outcome and
+recorded in advance as not a failure of the measure. Outcome appended at
+[`2026-08-02-validation-prereg.md` §9](../handoffs/2026-08-02-validation-prereg.md).
+
+Three of the four findings are about crowdmon rather than about the test, so they belong here
+where a builder will meet them.
+
+### The documented floor is right about `D` and wrong about anything read off `D`
+
+`2026-08-01 §A16` and the README say **the composite scores nothing before 2010-05-25**,
+because `C = pct(z)` stacks two three-year windows. That is correct **for `D` itself** and it
+is what the sentence says.
+
+It is not the number a consumer needs. §7.4 read `pct(D)`, which stacks a **third** rolling
+window, and that starts **2012-05-15**. Verified here rather than taken:
+
+    2010-05-25 + 103 weekly observations = 2012-05-15      (the 104th, min_periods=104)
+
+exactly the evaluator's date. **Two further years are lost by anything taking a percentile of
+`D`**, which is the natural thing to do with it and which the composite's own `phi_percentile`
+reading already does one level down.
+
+So the floor is not one date, it is a property of which quantity you read, and only the
+innermost one is documented. A reader planning coverage from the published figure over-counts
+by two years for the most likely use.
+
+### Lumber produces no `D` in any week, in either contract code, and nothing says so
+
+Module spec §10's own replay list names the 2021 ags/lumber episode. **The episode ran on five
+markets with no lumber in it**, because neither code can be scored:
+
+| code | why not |
+|---|---|
+| `058643` | notional in 37 of 880 weeks. No usable price series |
+| `058644` | complete data, but 75 weeks of `z` against the 104-week minimum |
+
+**The gap is in coverage reporting, not in the data.** `coverage_report` and
+`risk_coverage_report` answer "no price" and "no volatility" per market, and neither surfaces
+"scoreable weeks after every window is stacked", which is the question that decides whether a
+market can appear in a result at all. A market on the spec's own replay list fell out silently
+and was caught only because an evaluator counted units.
+
+Reproduced on the real panel: **2 of 27 codes score zero weeks, 7.4%, and they are exactly the
+two lumber codes.** The next lowest are oats at 555 weeks and the two wheats at 742, so there
+is no near-miss band. It is zero or it is hundreds.
+
+**The two fail at different rungs, and that is what the fix has to report.** `058643` dies at
+the price join, 24 usable weeks of 880. `058644` has a complete `dtl_sell` in **every one** of
+its 178 weeks and still scores nothing, dying at the extremity window with 75 weeks of `z`
+against the 104 required. So "scoreable weeks" is necessary and not sufficient: a maintainer
+looking at `058644` would see full exit-capacity coverage against no output and have nowhere
+to start. **The report must name the rung that dropped the market.**
+
+**Key it on `market_code`, never on `market_name`.** Grouping by `(code, name)` while checking
+the above manufactured four phantom unscoreable markets: cotton, cocoa, sugar and coffee each
+showed a 64-week block scoring zero, which is simply their pre-migration name. **11 of 27 codes
+carry more than one `market_name`**, and `033661` is literally
+`COTTON NO. 2 - NEW YORK BOARD OF TRADE` becoming `COTTON NO. 2 - ICE FUTURES U.S.`, while
+`022651` carries five spellings of heating oil. All four of those codes score 845 weeks under a
+code-level key. A name-keyed coverage report would invent unscoreable markets in the same panel
+where it is supposed to find the real ones, and this is the same venue-migration fact that
+finding 3 records for RTY.
+
+Worth fixing before roll congestion or PCA, since both will hit the same blind spot: a market
+that is present in every input and absent from every output.
+
+### RTY resolves to the retiring venue in Feb 2018
+
+`23977A` (ICE) against `239742` (CME). The CME code reported 18 weeks in the Feb 2018 window
+but has **zero scored weeks**, because it restarts in Aug 2017 and `pct(D)` needs roughly five
+years. So the unit was measured on the contract that was losing the listing, with a reference
+series of 163 weeks against 444 for its peers.
+
+The evaluator fixed the resolution rule before reading any value of `D`, using only scored-week
+count and open interest, which is the right order. **For this package the point is that
+`hist_codes` migrations are invisible downstream**: nothing in the panel says a market changed
+venue mid-history, and the shorter series simply looks like a younger market.
+
+### Not a crowdmon finding, recorded so it is not re-derived
+
+§7.5's `contradicted` branch is an OR while `supported` is an AND, so they are not complements
+and a run can improve its pooled statistic into a `contradicted` classification. It did not
+affect the verdict. It lives in the frozen §7 and must not be edited there; it is a note for
+whoever next writes a criterion of that shape.
+
+### The result itself
+
+Pooled statistic 0.5473 against a null mean of 0.4990, raw p 0.3121, 5 of 9 units above 0.50
+where 6 were needed. **`D` leans very slightly hot before the four clean episodes and random
+data produces that lean about a third of the time.** Nothing says `D` works, nothing says it
+does not, and the clean episodes are now spent. The plumbing came back clean: §2's full table
+reproduced on both `phi` readings and all three windows, and `add_composite` ran on TFF end to
+end on the first attempt with 21 of 24 markets scored.
