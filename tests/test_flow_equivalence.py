@@ -15,6 +15,15 @@ Why the dedup cannot go the obvious way: `tests/test_boundaries.py` forbids `cot
 importing `crowdmon` (a producer importing its consumer), so `cotdata` cannot delegate here.
 The check therefore lives on this side, which may import `cotdata` freely.
 
+**This file is deliberately TRANSITIONAL.** `cotdata` is removing its copy, and once that
+lands there is nothing left to compare, so every test here skips rather than fails. That is
+the intended end state, not a hole: the copy staying gone is asserted on the other side, by
+`cotdata/tests/test_vintage_flow.py::test_decompose_is_gone_and_stays_gone`. Until then, and
+against any older `cotdata` a consumer might have installed, these keep the two pinned.
+
+The skip must not be silent about which case it is in, because "0 selected" and "4 passed"
+look identical in a summary line and mean opposite things here.
+
 Offline: `vintage_flow.decompose` takes a DataFrame and touches no store.
 """
 import pandas as pd
@@ -25,6 +34,12 @@ from crowdmon.futures.flow import GAP, MIXED
 from crowdmon.futures.io import SERIES_KEY
 
 vintage_flow = pytest.importorskip("cotdata.vintage_flow")
+
+pytestmark = pytest.mark.skipif(
+    not hasattr(vintage_flow, "decompose"),
+    reason="cotdata.vintage_flow.decompose has been removed as a duplicate, so there is "
+           "nothing left to compare. This is the intended end state; the copy staying "
+           "gone is asserted in cotdata/tests/test_vintage_flow.py.")
 
 #: Gap labelling off. Any interval is admitted, which is `cotdata`'s behaviour: it emits
 #: `days_elapsed` and leaves the judgement to the caller rather than nulling the row.

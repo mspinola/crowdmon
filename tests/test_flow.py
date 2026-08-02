@@ -73,6 +73,38 @@ def test_short_covering_carries_its_fuel_and_nothing_else_does(make_panel):
     assert flows[flows["flow_state"] != SHORT_COVERING]["fuel_remaining"].isna().all()
 
 
+def test_open_interest_corroborates_or_contradicts_the_label(make_panel):
+    """Fresh positioning should CREATE contracts; exits should destroy them.
+
+    Where it does not, the label is describing a transfer of an existing position between
+    categories rather than new or closed risk, which is a materially different event:
+    nobody was forced, somebody changed hands.
+
+    Ported from `cotdata/tests/test_vintage_flow.py` when `vintage_flow.decompose` was
+    removed as a duplicate. `_corroborate` is live code here and this was its only test in
+    the workspace, so deleting the copy without moving the test would have dropped the
+    coverage silently. See `docs/design/amendments-2026-08-02.md` §B29.
+    """
+    legs = [(10_000, 5_000), (15_000, 5_050)]        # new longs
+    rising = make_panel({"managed_money": legs})
+    rising["open_interest"] = [100_000, 900_000]
+    falling = make_panel({"managed_money": legs})
+    falling["open_interest"] = [900_000, 100_000]
+
+    assert decompose(rising)["flow_state"].iloc[0] == NEW_LONGS
+    assert decompose(rising)["oi_corroborates"].iloc[0] is True
+    assert decompose(falling)["oi_corroborates"].iloc[0] is False
+
+
+def test_corroboration_is_null_where_the_label_is_not_an_open_or_a_close(make_panel):
+    """`mixed`, `quiet` and `gap` make no claim about contract creation, so neither does
+    this column. A False there would read as a contradiction that was never asserted."""
+    flows = decompose(make_panel({"managed_money": [
+        (10_000, 5_000), (15_000, 9_800), (15_000, 9_800)]}))
+    assert list(flows["flow_state"]) == [MIXED, QUIET]
+    assert flows["oi_corroborates"].isna().all()
+
+
 def test_first_observation_of_a_series_is_dropped_not_labelled(make_panel):
     """No predecessor means no weekly change. A row of nulls labelled `gap` would suggest
     a missing week where there is only a start."""
