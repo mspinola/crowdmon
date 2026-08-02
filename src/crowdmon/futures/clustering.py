@@ -54,8 +54,14 @@ in an order no geometry supports. Both are available and the choice is stated.
 trailing window ending 2008-09-01 this produces a full partition over 44 markets with no
 missing pair, so it **does** reach 2008, making it the third engine that can, after `alignment`
 (no warm-up at all) and the macro-book PCA. That check deliberately confirmed only that the
-machinery runs and never printed a membership, which is the line: establishing reach is not
-slicing the episode.
+machinery runs and never printed a membership.
+
+**That is the standing rule for all three engines, and it is a sharper test than "I did not
+look": establishing reach is not slicing the episode, and the distinction is whether any
+structure from the window entered your eyes or your notes.** It matters because "I only
+checked the plumbing" is exactly what someone tells themselves after reading an aggregate.
+Counting markets and missing pairs passes; printing a partition, a loading vector or a score
+for the window does not, however briefly it was looked at and whatever it was labelled.
 
 2008 is the last episode nobody in this package has looked at, and it is unspent precisely
 because `C = pct(z)` could never reach it, so no session ever had the option. It is spent the

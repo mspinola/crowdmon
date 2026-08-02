@@ -215,3 +215,16 @@ def test_the_module_carries_the_2008_prohibition_like_alignment_does():
     assert "2008" in doc
     assert "third engine" in doc
     assert "pre-registration" in doc
+
+
+def test_the_2008_rule_states_the_test_rather_than_only_the_prohibition():
+    """"I did not look" is not checkable and "I only checked the plumbing" is what someone
+    says after reading an aggregate. The rule both sessions now hold is sharper: whether any
+    structure from the window entered your eyes or your notes.
+
+    Pinned as text because it is a governance rule that lives nowhere executable, and the
+    cheap way to lose it is a docstring tidy-up.
+    """
+    doc = cl.__doc__
+    assert "eyes or your notes" in doc
+    assert "establishing reach is not slicing the episode" in doc
