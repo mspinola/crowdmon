@@ -1,6 +1,6 @@
 # Handoff: correlation clustering, spec §369
 
-**Status:** claimed, not started
+**Status:** **COMPLETE**, shipped as `futures/clustering.py`. Findings in `2026-08-02 §B21`
 **Date:** 2026-08-02
 **Claimed by:** the session that built `composite.py`, `trigger.py`, `reflexivity.py`,
 `roll.py`, `alignment.py`, `extremity.py`, `seasonal.py`, `concentration.py` and
@@ -110,3 +110,32 @@ question entirely.
 - **Must not look at 2008**, on the same terms as `alignment.py` and the macro-book PCA. This
   engine will also reach it, which makes three, and the episode is spent the first time any of
   them is sliced by a named window.
+
+---
+
+## Outcome, appended 2026-08-02
+
+Shipped as `futures/clustering.py`, 17 tests. Findings in `2026-08-02 §B21`, reproducer
+`docs/analysis/reproduce.py` section 19.
+
+**Every measurement in this handoff held**, and the clustering vindicated the finding that
+motivated it: **at `k = 8` the partition puts `{6J, ZB, ZF, ZN, ZT}` in a cluster of its own**,
+so the yen-with-rates link is not just a pair table, it survives as a group.
+
+**One claim in the first draft of the module was wrong.** `cluster_sweep`'s docstring said high
+agreement with the taxonomy was the expected result, reasoning from 0.410 against 0.077.
+Measured, agreement is **0.132 at k=2** rising to **0.802 at k=10**: lowest exactly where the
+claim predicted it highest. Average linkage produces one large cluster plus singletons, so at
+small `k` the partition disagrees with the taxonomy on nearly every pair. A pair-average gap
+does not become partition agreement. Corrected, with a test asserting the direction.
+
+**All four flagged decisions were taken as flagged.** `k` swept rather than fixed; average
+linkage stated with `single` and `complete` available; trailing rather than full-sample; and
+the distance defaulting to the true metric `sqrt(2(1-rho))` with `1-rho` offered and its
+triangle-inequality failure pinned by a test on a constructed correlation matrix rather than
+hoped for in a sample.
+
+**The prohibitions held.** Not wired into `D`, `propadj` refused for anything else, and
+**2008 has not been looked at**. This is the third engine that can reach it.
+
+**Status: closed.**
