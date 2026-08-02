@@ -137,6 +137,33 @@ def test_format_names_the_seam_and_the_absence_differently():
     assert "HISTORICAL" in text
 
 
+def test_a_nan_sentinel_still_reads_as_unfilled():
+    """Regression, and the nastiest failure this module can have.
+
+    Some pandas versions coerce the `None` sentinel to `NaN` in a column that also holds
+    strings. **`NaN` is truthy**, so a truthiness check prints "FILLED BY nan" and reports a
+    venue seam where the absence is real, which inverts the module's whole distinction. This
+    forces the NaN rather than hoping for a pandas version that produces it.
+    """
+    frame = continuity(_panel("SOLO", "YY", _weekly("2010-01-01", 8) + _weekly("2012-01-06", 8)))
+    frame.loc[:, "gap_filled_by"] = float("nan")
+    text = format_continuity(frame)
+    assert "UNFILLED" in text
+    assert "nan" not in text.lower(), f"a NaN sentinel must never print as a sibling: {text}"
+
+
+def test_the_sentinel_is_none_not_nan_in_a_mixed_frame():
+    """The normalisation that stops the above arising in the first place. A frame holding
+    both a filled and an unfilled gap is where the coercion happens."""
+    frame = pd.concat([_rty_shaped(),
+                       _panel("SOLO", "YY", _weekly("2010-01-01", 8) + _weekly("2012-01-06", 8))],
+                      ignore_index=True)
+    got = continuity(frame).set_index("market_code")
+    assert got.loc["CURRENT", "gap_filled_by"] == "HIST"
+    assert got.loc["SOLO", "gap_filled_by"] is None, (
+        f"expected a None sentinel, got {got.loc['SOLO', 'gap_filled_by']!r}")
+
+
 def test_empty_format_does_not_raise():
     empty = _panel("C", "S", _weekly("2020-01-07", 1)).iloc[:0]
     assert format_continuity(continuity(empty)) == "no rows"

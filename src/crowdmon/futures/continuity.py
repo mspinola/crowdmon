@@ -146,7 +146,16 @@ def continuity(annotated: pd.DataFrame, *,
             "longest_gap_days": longest_days, "longest_gap_ends": longest_ends,
             "gap_filled_by": filled_by, "codes_for_symbol": len(family),
         })
-    return pd.DataFrame(rows, columns=CONTINUITY_COLUMNS)
+    frame = pd.DataFrame(rows, columns=CONTINUITY_COLUMNS)
+    # Pin the sentinel to None rather than letting pandas choose. Constructing from dicts,
+    # some pandas versions coerce a `None` in a column that also holds strings to `NaN`, and
+    # **`NaN` is truthy**, so `if row["gap_filled_by"]` reads an UNFILLED gap as filled. That
+    # inverts the one distinction this module exists to draw. Caught by CI on four of five
+    # interpreters after passing locally on the fifth, which is the whole argument for not
+    # trusting a single-environment green.
+    filled = frame["gap_filled_by"]
+    frame["gap_filled_by"] = filled.astype(object).where(filled.notna(), None)
+    return frame
 
 
 def migrations(annotated: pd.DataFrame, *,
@@ -190,7 +199,12 @@ def format_continuity(frame: pd.DataFrame) -> str:
             line += (f"  gap {r['longest_gap_days']}d "
                      f"({r['longest_gap_days'] / 365.25:.1f}y) ending "
                      f"{r['longest_gap_ends'].date()}")
-            line += (f", FILLED BY {r['gap_filled_by']}" if r["gap_filled_by"]
+            # `pd.notna`, never truthiness: a NaN sentinel is truthy and would print
+            # "FILLED BY nan", reporting a seam where the absence is real. Defence in depth
+            # beside `continuity`'s own normalisation, because a caller can hand this a frame
+            # that has been round-tripped through a format that has no None.
+            filled = r["gap_filled_by"]
+            line += (f", FILLED BY {filled}" if pd.notna(filled) and str(filled).strip()
                      else ", UNFILLED")
         out.append(line)
     return "\n".join(out)
