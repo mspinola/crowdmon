@@ -27,6 +27,7 @@ Prints, in order:
  20. the macro-book PCA and what PC1 actually is, per report type (B21)
   B28. the cocoa template measured as a joint shape rather than two margins
   B29. the two flow decompositions, and the oats rationale that does not hold
+  B30. whether the lumber code split is what makes lumber unscoreable
 
 The leading ordinals above are the order the blocks were added and have drifted: 17 and 18
 each appear twice and there is no 19. Not renumbered here, because these numbers are quoted
@@ -1141,6 +1142,12 @@ def flow_equivalence() -> None:
     The 2026-08-01 handoff closed leaving the two flow-decomposition implementations as its
     one open decision, characterised as "slightly different questions". They are the same
     function; only the refusals differ.
+
+    **This block is historical once `cotdata` drops its copy**, which it did in cotdata#93,
+    the change this measurement argued for. It then has nothing to compare and says so
+    rather than raising: the figures B29 quotes were true of the code as it stood, and a
+    reproducer that crashes would read as a broken measurement rather than a completed one.
+    Run it against `cotdata<=0.2.0` to regenerate them.
     """
     from cotdata import vintage_flow as vf
 
@@ -1148,6 +1155,20 @@ def flow_equivalence() -> None:
     from crowdmon.futures.io import SERIES_KEY
 
     rule("THE TWO FLOW DECOMPOSITIONS (2026-08-02 B29)")
+    if not hasattr(vf, "decompose"):
+        print("\n  cotdata.vintage_flow.decompose is GONE, removed as a duplicate in")
+        print("  cotdata#93, which is the outcome this measurement argued for. There is")
+        print("  nothing left to compare, so the figures below are historical:")
+        print("\n    135,835 transitions, 27 markets, 2006-2026")
+        print("    at tolerance=1.0 with gaps off : 100.000000% label agreement, 0 mismatches")
+        print("    d_long / d_short / d_net       : identical on every row")
+        print("    at the default tolerance       : 38.07% agreement, every disagreement")
+        print("                                     mine=mixed or mine=gap, never opposite")
+        print("\n  Regenerate against cotdata<=0.2.0. The copy staying gone is asserted by")
+        print("  cotdata/tests/test_vintage_flow.py::test_decompose_is_gone_and_stays_gone,")
+        print("  and crowdmon/tests/test_flow_equivalence.py skips for this same reason.")
+        return
+
     panel = from_current_store(report_type="disaggregated")
     key = SERIES_KEY + ["report_date"]
     print(f"\npanel: {panel['market_code'].nunique()} markets, "
@@ -1203,6 +1224,87 @@ def flow_equivalence() -> None:
     print("  same reason it went missing. The gap rule survives on comparability, not size.")
 
 
+def lumber_is_one_instrument() -> None:
+    """Amendment B30: coverage keys on market_code, and lumber is one instrument in two.
+
+    `coverage` solved the phantom problem (one code carrying several NAMES) by keying on
+    `market_code`. The opposite failure is not handled and was not contemplated: one
+    INSTRUMENT carrying several codes. The two markets the ladder reports as scoring
+    nothing are the two halves of a single migrated contract, which `continuity` and
+    `macro_pca.merge_migrated_codes` both know about and `coverage` does not.
+
+    So the question is whether "2 of 27 score nothing" is a real finding or an artifact of
+    the split. Answered by running the WHOLE pipeline, both halves, off a merged panel.
+    """
+    from crowdmon.futures import (
+        ContractMaster,
+        add_composite,
+        add_extremity,
+        add_notional,
+        add_risk_units,
+        add_volume,
+        coverage_ladder,
+        format_coverage,
+        market_fragility,
+        rank_markets,
+    )
+
+    rule("THE LUMBER MERGE: does the split cause the zero? (2026-08-02 B30)")
+    old, new = "058643", "058644"
+    sumkey = ["market_code", "report_type", "combined", "category", "report_date"]
+
+    def merge_lumber(p):
+        p = p.copy()
+        p["market_code"] = p["market_code"].replace({old: new})
+        num = [c for c in ("long_contracts", "short_contracts", "spread_contracts",
+                           "trader_count_long", "trader_count_short") if c in p.columns]
+        agg = {c: "sum" for c in num}
+        # open_interest is the MARKET total repeated on every category row. Summing it is
+        # the error this package guards against everywhere else; take the max.
+        agg["open_interest"] = "max"
+        agg["market_name"] = "first"
+        return p.groupby(sumkey, as_index=False, dropna=False).agg(agg)
+
+    def pipeline(panel):
+        per_category = add_volume(add_extremity(add_risk_units(
+            add_notional(ContractMaster.load().annotate(panel)))))
+        vol = (per_category.groupby(["report_date", "market_code"])[["adv", "adv_stress"]]
+               .max().reset_index())
+        per_market = market_fragility(panel).merge(
+            vol, on=["report_date", "market_code"], how="left")
+        ranked = rank_markets(per_market, volume=per_market["adv"],
+                              stress_volume=per_market["adv_stress"])
+        return per_category, add_composite(ranked, per_category)
+
+    raw = from_current_store()
+    lum = raw[raw["market_code"].isin([old, new])]
+    print("\n--- the two codes are one instrument, sequential not concurrent ---")
+    for code, g in lum.groupby("market_code"):
+        print(f"  {code}  {g['report_date'].min().date()} to {g['report_date'].max().date()}"
+              f"  weeks={g['report_date'].nunique():5d}  {g['market_name'].iloc[0][:38]}")
+    a = set(lum[lum['market_code'] == old]["report_date"])
+    b = set(lum[lum['market_code'] == new]["report_date"])
+    print(f"  overlapping weeks: {len(a & b)} of {len(a | b)}, "
+          f"and both carry contract symbol LBR")
+
+    for label, panel in (("AS SHIPPED, codes separate", raw),
+                         ("MERGED end to end", merge_lumber(raw))):
+        per_cat, scored = pipeline(panel)
+        lad = coverage_ladder(per_cat, scored)
+        print(f"\n--- {label} ---")
+        print(format_coverage(lad[lad["market_code"].isin([old, new])]))
+        dead = int((lad["composite_percentile"] == 0).sum())
+        print(f"  {dead} of {lad['market_code'].nunique()} markets score nothing; "
+              f"lumber weeks with a non-null damage_sell: "
+              f"{int(scored[scored['market_code'] == new]['damage_sell'].notna().sum())}")
+
+    print("\n  Every rung rises and the verdict does not. price 37/178 -> 208,")
+    print("  extremity_z 0/75 -> 96, illiquidity 0/75 -> 92, and `crowding` is 0 either")
+    print("  way, because pct(z) stacks a second three-year window on top of the 96.")
+    print("  The zero is a property of the instrument, not of the split. The headline")
+    print("  moves from '2 of 27' to '1 of 26' purely by counting rows correctly.")
+
+
 if __name__ == "__main__":
     main()
     normalisation()
@@ -1221,3 +1323,4 @@ if __name__ == "__main__":
     macro_book_pca()
     template_shape()
     flow_equivalence()
+    lumber_is_one_instrument()
