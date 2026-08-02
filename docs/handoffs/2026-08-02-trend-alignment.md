@@ -1,6 +1,6 @@
 # Handoff: trend alignment, spec §368
 
-**Status:** claimed, not started
+**Status:** **COMPLETE**, shipped as `futures/alignment.py`. Findings in `2026-08-02 §B20`
 **Date:** 2026-08-02
 **Claimed by:** the session that built `composite.py`, `trigger.py`, `reflexivity.py`,
 `roll.py`, `extremity.py`, `seasonal.py`, `concentration.py` and `weight_sensitivity.py`
@@ -101,3 +101,33 @@ Recorded here because `gamma` and `kappa` arrived by being defaulted quietly.
   says why; this reuses that path rather than recomputing signs.
 - **Must not look at 2008.** See above. That is the whole value of the engine and it is spent
   the first time someone slices it.
+
+---
+
+## 5. Outcome, appended 2026-08-02
+
+Shipped as `futures/alignment.py`, 17 tests. Findings in `2026-08-02 §B20`, reproducer
+`docs/analysis/reproduce.py` section 18.
+
+**Both measurements in this handoff held.** The blend is ±1/3 for 68% of markets in the latest
+week, and the engine covers all 1,051 panel weeks from 2006-06-13 with no warm-up.
+
+**One thing the handoff did not anticipate, and it changes what to report.** The score
+**cannot reach 1**: the blend takes at most four values, so across a panel it is heavily tied
+and the correlation is bounded. Measured, the ceiling averages **0.931 and runs 0.340 to
+0.969**, which is wide enough that the raw figure is not comparable week to week. A 0.30
+against a 0.34 ceiling is an expressed book; the same 0.30 against a 0.97 ceiling is not.
+`alignment_series` returns `alignment_ceiling` and `alignment_vs_ceiling` for that reason, and
+`max_attainable` is public so the bound can be checked directly.
+
+**All four flagged decisions were taken as flagged**, not defaulted: levels rather than changes
+(§368 says positioning, §7 says changes, and the two cross-market engines differ deliberately);
+Spearman, pinned by a test showing it resists one outsized book where Pearson does not; equal
+blend weights as a stated prior with `blend_sensitivity` reporting the sweep; and the §A.10
+prohibition carried into the rendered output rather than only the docstring.
+
+**§4's prohibitions all held.** Not wired into `D`, momentum refuses anything but `propadj` by
+reusing `trigger.py`'s own refusal, and **2008 has not been looked at**. The distributions
+recorded here and in B20 are unconditional.
+
+**Status: closed.**

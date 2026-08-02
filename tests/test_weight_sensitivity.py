@@ -123,13 +123,40 @@ def test_spearman_is_pearson_on_ranks_and_needs_no_scipy():
 
 
 def test_no_module_in_the_package_imports_scipy():
-    """Guards the reason `_spearman` exists at all."""
+    """Guards the reason `_spearman` exists at all.
+
+    Parsed rather than grepped. The first version scanned for the substring and kept an
+    allowlist of one filename, so it failed the moment a second module explained in its
+    docstring why it does not use scipy. That is the behaviour the guard exists to encourage,
+    and a guard that punishes it is worse than no guard: the cheap way to make it pass is to
+    delete the explanation.
+    """
+    import ast
     import pathlib
 
     root = pathlib.Path(__file__).resolve().parent.parent / "src" / "crowdmon"
-    offenders = [p.name for p in root.rglob("*.py") if "scipy" in p.read_text()]
-    assert offenders == ["weight_sensitivity.py"], (
-        f"scipy referenced outside the docstring explaining its absence: {offenders}")
+    offenders = []
+    for path in root.rglob("*.py"):
+        for node in ast.walk(ast.parse(path.read_text())):
+            if isinstance(node, ast.Import):
+                names = [a.name for a in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                names = [node.module or ""]
+            else:
+                continue
+            if any(n.split(".")[0] == "scipy" for n in names):
+                offenders.append(path.name)
+    assert offenders == [], f"scipy is imported by: {offenders}"
+
+
+def test_the_scipy_guard_would_catch_a_real_import(tmp_path):
+    """The guard above asserts an empty list, which an always-empty check would also do."""
+    import ast
+
+    tree = ast.parse("from scipy.stats import spearmanr\n")
+    found = [n for n in ast.walk(tree)
+             if isinstance(n, ast.ImportFrom) and (n.module or "").split(".")[0] == "scipy"]
+    assert found, "the parse must detect a genuine scipy import"
 
 
 # ── The summary a caption needs ────────────────────────────────────────────

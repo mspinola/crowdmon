@@ -838,3 +838,81 @@ survival floor.
 verdict's inputs. On these numbers the case for changing it is weak: 5.1% median, wrong-signed
 for five of sixteen, and a half-sample estimator for the energy complex. Both sessions agree
 it is a human's call and not a module's.
+
+---
+
+## B20. The alignment score cannot reach 1, and the ceiling moves enough that the raw figure is not comparable across weeks
+
+**Amends:** module spec §368, which says to "correlate the cross-market positioning vector
+against a canonical time-series momentum vector" and gives no reading for the result.
+Reproducer: `docs/analysis/reproduce.py` section 18.
+
+### The blend is coarse by construction, and that bounds the correlation
+
+The canonical TSMOM blend is an equal-weight sign average over 20/60/250, so it takes at most
+**four** values, `{-1, -1/3, +1/3, +1}`. Across a 25-market panel it is therefore massively
+tied, and a rank correlation against a heavily tied vector cannot reach 1.
+
+Measured over all 1,051 panel weeks:
+
+| | mean | p5 | median | p95 | min | max |
+|---|---|---|---|---|---|---|
+| `alignment` | 0.433 | 0.100 | 0.446 | 0.732 | -0.257 | 0.879 |
+| **`alignment_ceiling`** | **0.931** | 0.852 | 0.945 | 0.966 | **0.340** | 0.969 |
+| `alignment_vs_ceiling` | 0.463 | 0.113 | 0.477 | 0.781 | -0.583 | 0.932 |
+
+**The ceiling is not a constant to memorise: it runs 0.340 to 0.969.** A week scoring 0.30
+against a ceiling of 0.34 is a book almost perfectly expressed; the same 0.30 against a ceiling
+of 0.97 is a book that is not. **The raw figure alone cannot tell those apart, and it is what
+§368 asks for.** `alignment_vs_ceiling` is the comparable number and `alignment_series` returns
+all three.
+
+### The momentum vector is weak for two markets in three
+
+Mean `momentum_strength` (mean `|blend|`) is **0.660** against a maximum of 1, and in the latest
+week **68% of markets have horizons disagreeing**. That is `2026-08-02 §B14` from the other
+direction: the blend is `sum(s)/3`, so the 69.7% mixed-direction figure and the ±1/3 share are
+one fact seen twice.
+
+Consequence: a low alignment score has two causes that look identical. The book may be
+uncommitted, or the momentum vector it is measured against may point nowhere. `momentum_strength`
+and `share_undecided` are returned so the reader can separate them.
+
+### No warm-up, which makes it the earliest engine here
+
+| engine | first scored | warm-up from the 2006-06-13 panel start |
+|---|---|---|
+| **trend alignment** | **2006-06-13** | **none** |
+| macro-book PCA (differenced) | 2006-06-20 | one week |
+| `damage_sell` | 2010-05-25 | 3.9 years |
+| `damage_sell_pct` | 2012-05-15 | 5.9 years |
+
+The score is cross-sectional within a week and stacks no rolling window at all. **So this and
+the macro-book PCA are the two engines that can reach 2008**, the last episode nobody in this
+package has looked at, clean only because `D` could never reach it. Neither module has been
+sliced by a named episode and the module docstring says not to. Any such test gets
+pre-registered and specified by a session that did not build it, as §7 was.
+
+### The blend weights matter modestly and are swept, never fitted
+
+| weights | mean alignment | rank correlation to equal |
+|---|---|---|
+| equal (1/3 each) | 0.4330 | 1.0000 |
+| fast (0.6/0.3/0.1) | 0.3777 | 0.9414 |
+| slow (0.1/0.3/0.6) | 0.4562 | 0.9475 |
+
+A 21% swing in the mean and a correlation above 0.94 either way. The weights move the level
+more than the ordering, which is the same shape `2026-08-01 §A22` found for the fragility
+weights. §368 gives no weights, so equal is a **stated prior**, reported by `blend_sensitivity`
+rather than assumed away.
+
+### A guard that punished the behaviour it existed to encourage
+
+`test_no_module_in_the_package_imports_scipy` scanned source files for the **substring**
+`scipy` and allowlisted one filename. `alignment.py` explains in its docstring why it computes
+Pearson-on-ranks instead of calling scipy, which is exactly what the guard wants modules to do,
+and the guard failed on it.
+
+The cheap way to make that pass is to delete the explanation. **Rewritten to parse imports with
+`ast`**, so it catches a real `import scipy` and ignores prose, with a second test asserting the
+parse would catch a genuine import rather than trivially returning an empty list.
