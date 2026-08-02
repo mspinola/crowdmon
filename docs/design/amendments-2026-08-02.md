@@ -916,3 +916,135 @@ and the guard failed on it.
 The cheap way to make that pass is to delete the explanation. **Rewritten to parse imports with
 `ast`**, so it catches a real `import scipy` and ignores prose, with a second test asserting the
 parse would catch a genuine import rather than trivially returning an empty list.
+## B21. PC1 is the grain complex on Disaggregated, and only the macro book on TFF
+
+**Contradicts** module spec §7's "PC1 approximates the aggregate systematic book", which is
+true of one panel and false of the other. Reproducer: `docs/analysis/reproduce.py` section 18.
+Measured while building `futures/macro_pca.py`.
+
+| panel | absorption | shuffled null | what PC1 actually is |
+|---|---|---|---|
+| Disaggregated | **0.143** | 0.054 | ZS +0.35, ZC +0.30, ZL +0.30, KE +0.27, ZM +0.26, SI +0.25 |
+| TFF | **0.128** | 0.077 | YM +0.37, 6A +0.36, ES +0.36, NQ +0.35, 6S +0.29, **DX -0.26** |
+
+Both are 947 weeks from 2008-06-10, on 24 and 16 markets.
+
+TFF's first component is risk appetite in textbook form: long the equity indices, long the
+commodity currency, **short the dollar**. That is the aggregate systematic book §7 describes.
+Disaggregated's is the grain trade, and five of its top six are the soy/corn/wheat complex.
+
+**This is the same shape as [2026-08-01 §A14](amendments-2026-08-01.md)**, where 76% of the
+Disaggregated universe turned out to be ICE Energy and Nodal power so a "cross-market" result
+over it was mostly about ERCOT and PJM. A cross-market statistic named for something broader
+than its universe supports describes the universe, not the name. **The report type is not a
+parameter to this engine, it is the subject.**
+
+**And absorption is comparable to its own null, never across panels.** TFF's null is 0.077
+against Disaggregated's 0.054 purely because a variance share is floored at `1/n` and TFF is
+narrower. Read raw, TFF looks less crowded; against its null the gap is smaller but the
+ranking claim was never available.
+
+---
+
+## B22. The z-scored panel costs the entire 2008 window and buys nothing
+
+**Corrects a claim this module shipped with**, and the correction is the module's whole point.
+
+`macro_pca` first defaulted to §7's literal "matrix of z-scored positioning", differencing
+`net_risk_usd_z`. The differenced panel started 2008-06-10, and that was reported as reaching
+the 2008 unwind where `D` cannot.
+
+**The panel is not the claim.** `rolling_absorption` stacks `min_periods` on top of it, so the
+point-in-time series, the only form anyone would use, began **2010-06-01, one week after `D`'s
+2010-05-25 floor.** The descriptive whole-panel figure reached 2008; the usable one did not.
+
+| input | panel starts | **rolling starts** |
+|---|---|---|
+| `net_contracts` | 2006-06-20 | **2008-06-10** |
+| `net_risk_usd_z` | 2008-06-10 | **2010-06-01** |
+
+**And the z-scoring buys nothing**, because `absorption_ratio` standardises columns inside
+every window, so a pre-standardised panel is redundant work. Over the 844 overlapping weeks:
+
+| | |
+|---|---|
+| correlation of the two rolling series | **0.9607** |
+| mean absolute difference | **0.0086** |
+| means | 0.153 against 0.152 |
+| weeks the raw panel sees and the z-scored one does not | **103**, 2008-06-10 to 2010-05-25 |
+
+So the default is `net_contracts` and `RISK_PANEL_INPUT` keeps the §7-literal form one
+argument away. §5.2's warning that raw contracts load on market size does not apply: a
+correlation matrix is scale-free, and §5.2 is about comparing levels across markets, which
+this does not do.
+
+**The general shape, which is the third time today:** a warm-up window inherited from an
+upstream module silently became the binding constraint on a downstream one. Same as `D`'s two
+stacked three-year windows (`2026-08-01 §A16`) and `058644`'s 75 weeks of `z` against a 104
+minimum (`§B17`).
+
+---
+
+## B23. High cell coverage, an empty rectangle, and a delisting that costs two years
+
+**Adds** the measurements behind `macro_pca.select_markets`.
+
+| | |
+|---|---|
+| Disaggregated panel | 1051 weeks x 27 markets |
+| cells present | **95.8%** |
+| weeks complete across every market | **5** |
+
+The holes are spread across markets rather than concentrated in weeks, so 95.8% coverage
+yields **five usable rows in twenty years** and a naive listwise PCA is empty in every sense
+that matters. *(An earlier draft of this section said zero, measured on a narrower z-scored
+panel. The other session measured 5 independently and was right; the assertion is now written
+as a rate rather than a pinned number.)*
+
+| markets kept | complete weeks | span ends |
+|---|---|---|
+| 27 | 5 | n/a |
+| 25 | 889 | 2026-06-02 |
+| **24** | **1050** | 2026-07-28 |
+| 22 | 1050 | same |
+
+**Dropping the right markets buys the whole panel; stopping one short costs two years**,
+because a delisted market truncates everything to its own last week. Selection is derived from
+the coverage counts, and ties break toward more markets so the rule never drops one it did not
+have to.
+
+**2008 is the last unspent episode in this package**, and it is unspent precisely because
+`C = pct(z)` could never reach it, so no session has ever had the option of looking. That
+makes it more valuable than the ones §2 of the pre-registration already declared, not less.
+**No episode in this module's history has been examined by its author**, deliberately, and
+whoever specifies a 2008 test should be a session that did not build the PCA, for the same
+reason neither builder could specify §7.
+
+---
+
+## B24. An eigenvector's sign is not identified, and a signed cosine reports the flip as news
+
+**Records a defect this module shipped with for one run**, caught by measuring rather than by
+a test, and the reason `loading_rotation` uses `1 - |cos|` rather than `1 - cos`.
+
+PC1 and -PC1 describe the same axis and the same book, so a sign convention is a presentation
+choice and nothing more. `_pin_sign` pins the loadings to sum positive, and **that sum passes
+through zero on real data whether or not anything about the book changes.**
+
+Measured on the 24-market panel, 843 rolling readings:
+
+| | signed cosine | `1 - abs(cos)` |
+|---|---|---|
+| readings above 1.0 | **8** | **0** |
+| median | 0.0004 | 0.0004 |
+| p95 | 0.0093 | 0.0079 |
+| max | **1.9984** | 0.0916 |
+
+The eight were 2018-05-08, 2018-06-05, 2019-10-29 and five consecutive weeks across
+2020-06-30 to 2020-09-01, each reading ~1.99 against a median of 0.0004, **200x the p95 and
+every one an artifact**. Under the absolute value they read ~0.002, which is what they always
+were.
+
+The general rule worth carrying: **anything derived from an eigenvector must be invariant to
+its sign, or it is reporting `numpy` rather than the data.** The same applies to any future
+loading-similarity, clustering or alignment measure built on top of this panel.
