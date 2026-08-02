@@ -93,6 +93,9 @@ def test_the_two_dead_markets_die_at_different_rungs(panels):
     assert late["composite_percentile"] == 0
     assert early["drops_at"] != late["drops_at"], (
         f"both report {early['drops_at']!r}; the whole point is that they differ")
+    # Both TERMINATE at `crowding` for unrelated reasons (`2026-08-02 §B18`), which is why
+    # the label alone is insufficient and the ladder is printed beside it.
+    assert early["crowding"] == 0 and late["crowding"] == 0
 
 
 def test_keying_on_the_name_invents_markets_that_do_not_exist(panels):
@@ -138,22 +141,33 @@ def test_many_codes_carry_more_than_one_name(panels):
 
 
 def test_the_ladder_is_monotone_and_bounded_by_the_week_count(panels):
-    """Every rung is a filter on the one before it, so counts can only fall."""
+    """Coverage falls down the price-dependent rungs and **rises** at the price-free ones.
+
+    `2026-08-02 §B18`: `058643` has 880 weeks of `phi` against 24 of `dtl_sell`, a 36x rise
+    mid-ladder, because fragility needs no price. Asserting a flat monotonic fall would be
+    asserting something false, so this pins the shape rather than the assumption.
+    """
     from crowdmon.futures import LADDER, coverage_ladder
 
     per_category, per_market = panels
     ladder = coverage_ladder(per_category, per_market)
     rungs = [r for r, _, _ in LADDER if r in ladder.columns]
 
+    from crowdmon.futures.coverage import PRICE_FREE
+
+    rose = 0
     for _, row in ladder.iterrows():
-        assert row[rungs[0]] <= row["weeks"] + 0
+        assert row[rungs[0]] <= row["weeks"]
         for a, b in zip(rungs, rungs[1:]):
-            # Grain changes between the category rungs and the market rungs, so allow the
-            # boundary to rise; within a grain the ladder must not.
-            if a == "extremity_z" and b == "exit_duration":
+            if b in PRICE_FREE or a in PRICE_FREE or (
+                    a == "extremity_z" and b == "holder_fragility"):
+                rose += int(row[b] > row[a])
                 continue
             assert row[b] <= row[a], (
                 f"{row['market_code']}: {b}={row[b]} exceeds {a}={row[a]}")
+    assert rose > 0, (
+        "no price-free rung exceeded the one before it anywhere in the panel; the claim "
+        "that the ladder is NOT monotonic rests on this happening")
 
 
 def test_most_of_the_panel_survives_the_whole_ladder(panels):

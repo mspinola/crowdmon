@@ -62,10 +62,14 @@ MARKET_KEY = ["market_code"]
 #: and the composite.
 #:
 #: **A list rather than something derived**, because the columns live at two different grains
-#: and no single frame knows the whole chain. That is itself part of why the gap survived. The
-#: staleness that a hand-written list invites is caught by
-#: `tests/test_coverage.py::test_the_ladder_covers_every_column_the_composite_consumes`, which
-#: fails when a rung is added upstream and not added here.
+#: and no single frame knows the whole chain. That is itself part of why the gap survived.
+#:
+#: **This list shipped incomplete and was corrected in the same day** (`2026-08-02 §B18`). It
+#: went straight from `extremity_z` to the composite, skipping the three terms `D` is actually
+#: built from, so `058644` was reported as dropping at `composite` when it drops one rung
+#: earlier at `crowding`. The guard test that was supposed to catch exactly this checked only
+#: the columns `add_composite` *emits*, not the ones it *computes*, and so had the same blind
+#: spot as the ladder it guarded. It now checks both.
 LADDER: tuple[tuple[str, str, str], ...] = (
     ("contract_spec", "symbol", "category"),
     ("price", "price", "category"),
@@ -74,10 +78,28 @@ LADDER: tuple[tuple[str, str, str], ...] = (
     ("risk_units", "net_risk_usd", "category"),
     ("volume", "adv", "category"),
     ("extremity_z", "net_risk_usd_z", "category"),
+    # Price-free, and the reason the ladder is NOT monotonic. See PRICE_FREE below.
+    ("holder_fragility", "phi", "market"),
     ("exit_duration", "dtl_{side}", "market"),
+    # The three terms `D` is the product of. Omitting these was the defect in the first cut.
+    ("fragility_pct", "phi_pct", "market"),
+    ("illiquidity", "illiquidity_{side}", "market"),
+    ("crowding", "crowding_{crowd}", "market"),
     ("composite", "damage_{side}", "market"),
     ("composite_percentile", "damage_{side}_pct", "market"),
 )
+
+#: Rungs that need no price, no multiplier and no volatility.
+#:
+#: **The ladder is not a chain of filters and coverage does not only fall down it.** `phi` is
+#: computed from columns the canonical schema already carries, so a market starved of prices
+#: can have far more weeks of `holder_fragility` than of anything downstream of a price:
+#: `058643` has **880** weeks of `phi` against **24** of `dtl_sell`, a rise of 36x in the
+#: middle of the ladder.
+#:
+#: Anyone assuming monotonicity will mis-locate every failure of this shape, which is why this
+#: set exists and why `coverage_ladder` reports the branch rather than implying a single chain.
+PRICE_FREE: frozenset[str] = frozenset({"holder_fragility", "fragility_pct"})
 
 #: The rung a market must reach to appear in a cross-market result at all.
 TERMINAL_RUNG = "composite_percentile"
@@ -133,6 +155,12 @@ def coverage_ladder(per_category: pd.DataFrame,
 
     `weeks` is the market's total distinct report weeks in `per_category`, which is the
     denominator every other column should be read against.
+
+    **`drops_at` names the first zero, not the root cause, and the two differ.** `058643`
+    reports `illiquidity` while the cause is a price series covering 24 of its 880 weeks,
+    two rungs earlier: a market can limp through a rung on thin coverage and only reach zero
+    once a window is stacked on it. That is why the full ladder is meant to be printed beside
+    the label, which `format_coverage` does, and why `PRICE_FREE` matters when reading it.
     """
     if side not in ("sell", "buy"):
         raise CoverageError(f"side must be 'sell' or 'buy', got {side!r}")
@@ -148,12 +176,19 @@ def coverage_ladder(per_category: pd.DataFrame,
     total = per_category.groupby("market_code")["report_date"].nunique().rename("weeks")
     out = total.to_frame()
 
+    # `D_sell` is driven by LONG crowding and `D_buy` by short: the forced side is whoever
+    # holds the position, not whoever is buying. `composite.py` names the columns that way.
+    crowd = "long" if side == "sell" else "short"
+
     reached: list[str] = []
     for rung, column, grain in LADDER:
         frame = frames.get(grain)
         if frame is None or frame.empty:
             continue
-        counts = _weeks_with(frame, column.format(side=side))
+        wanted = column.format(side=side, crowd=crowd)
+        if wanted not in frame.columns:
+            continue
+        counts = _weeks_with(frame, wanted)
         out[rung] = counts.reindex(out.index).fillna(0).astype("int64")
         reached.append(rung)
 
@@ -213,7 +248,11 @@ def format_coverage(ladder: pd.DataFrame, *, only_unscoreable: bool = False) -> 
     lines = []
     for _, row in rows.iterrows():
         head = f"{row['market_code']}  {str(row['market_name'])[:44]:<44}"
-        counts = "  ".join(f"{r}={int(row[r])}" for r in rungs)
+        # A `*` marks a price-free rung, because those can and do exceed the rungs before
+        # them and a reader scanning for a monotonic fall will otherwise mis-locate the fault.
+        counts = "  ".join(f"{r}{'*' if r in PRICE_FREE else ''}={int(row[r])}"
+                           for r in rungs)
         tail = f"  DROPS AT {row['drops_at']}" if row["drops_at"] else ""
         lines.append(f"{head} weeks={int(row['weeks']):>4}  {counts}{tail}")
+    lines.append("* price-free: coverage can RISE here. The ladder is not a chain of filters.")
     return "\n".join(lines)

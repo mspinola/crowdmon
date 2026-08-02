@@ -780,6 +780,12 @@ def coverage_ladder_report() -> None:
     print("of its weeks and still scores nothing, because the percentile windows stack.")
     print("A report saying only '0 scoreable weeks' sends a maintainer to prices for both,")
     print("and for one of them there is nothing wrong with the prices.")
+    print("\nTwo things B18 corrected in the first cut of this ladder:")
+    print("  - both markets TERMINATE at `crowding`, for unrelated reasons, so the label")
+    print("    alone is insufficient and the full ladder has to be printed beside it")
+    print("  - the ladder is NOT monotonic. `holder_fragility` is price-free, so 058643")
+    print("    carries 880 weeks of it against 24 of `dtl_sell`, a 36x rise mid-ladder.")
+    print("    Price-free rungs are starred above.")
 
     by_code = per_market.groupby("market_code")["damage_sell_pct"].apply(
         lambda s: s.notna().sum())
