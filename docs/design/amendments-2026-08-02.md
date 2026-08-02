@@ -1255,3 +1255,220 @@ the second is the worse failure**, which is why the guard fails toward leaving c
 Turning this on changes which markets the PCA runs over and therefore every figure downstream,
 including B21's PC1 composition and B23's selection table. Default output is byte-identical
 and asserted so.
+
+---
+
+## B28. The cocoa template is a JOINT claim, and answering it with two margins understates the miss
+
+**Contradicts:** the headline of
+[`2026-07-28-first-rankings.md` §2](../analysis/2026-07-28-first-rankings.md), which answers
+the handoff's §6 question with per-category sign frequencies and concludes that "any rule
+that assumes producers are short and funds are long will be wrong about half the
+Disaggregated universe". The direction of that finding is right. **The magnitude is
+understated by between 1.4x and 1.5x depending on the denominator, and the most interesting
+case is invisible in it.**
+
+Reproducer: `docs/analysis/reproduce.py`, the `template_shape` block, report week 2026-07-28.
+
+> **The analysis document is not amended.** `docs/analysis/` is point-in-time and records
+> what was measured against a named week; editing it to match a later reading erases the
+> evidence that anything changed. The correction lives here, and §2 of that document stands
+> as issued.
+
+### The margins are correct and answer a different question
+
+Reproduced exactly, twice, independently of the committed table:
+
+| category | net long | net short | flat |
+|---|---|---|---|
+| managed_money | 120 (43.0%) | 117 (41.9%) | 42 (15.1%) |
+| producer_merchant | **141 (50.5%)** | 138 (49.5%) | 0 |
+| swap | 135 (48.4%) | 139 (49.8%) | 5 (1.8%) |
+| other_reportable | 121 (43.4%) | 147 (52.7%) | 11 (3.9%) |
+| nonreportable | 158 (56.6%) | 107 (38.4%) | 14 (5.0%) |
+
+**But the template is a statement about a pair.** Appendix §A.2's cocoa example is
+Producer/Merchant net short 110,000 *against* Managed Money net long 90,000: one instrument,
+two categories, opposed. A marginal frequency cannot address that, because two categories
+can each be short half the time while rarely being opposed to each other at all. That is not
+a hypothetical here. It is what the data does.
+
+### The joint distribution, which is the one the question asked for
+
+| shape | markets | of 279 | of the 237 with a directional MM net |
+|---|---|---|---|
+| **template** (PM short, MM long) | 76 | 27.2% | **32.1%** |
+| inverted (PM long, MM short) | 67 | 24.0% | 28.3% |
+| **same side, both short** | 50 | 17.9% | 21.1% |
+| **same side, both long** | 44 | 15.8% | 18.6% |
+| MM net flat | 42 | 15.1% | n/a |
+
+**"MM net flat" is not "no fund position", and the distinction is this package's own
+thesis.** Of the 42, forty are genuinely empty, but `064DZS` and `064DZT` (both Nodal PJM.DOM
+day-ahead power) each carry Managed Money long 750 against short 750: a 1,500-lot gross book
+that nets to zero. A net is not a holding, which is exactly why Phi uses gross over `2·OI`.
+They are excluded from the second denominator because they have no *directional* net to
+compare against the hedger, not because the fund is absent.
+
+Two corrections fall out, and the second is the substantive one.
+
+**The template shape is a minority at under a third, not half.** A rule assuming
+Producer/Merchant short and Managed Money long is wrong in 203 of 279 markets (72.8%), or
+161 of 237 (67.9%) counting only markets with a directional MM net. §2 says "about
+half". Measured as the conjunction it actually asserts, it is closer to seven in ten.
+
+**Hedger and fund sit on the SAME side in 94 markets: 33.7% of all 279, or 39.7% of the 237
+with a directional MM net.** This case does not appear anywhere in the marginal table, cannot
+be derived from it, and is not contemplated by the template at all. The template's implicit
+model is a two-sided market in which the fragile side is opposed by an immovable one. In a
+third of this universe that opposition does not exist.
+
+**Both denominators are quoted deliberately.** 33.7% is the one comparable to §2's own
+figures, which are all over 279. Quoting only 39.7% would be the same convenient-denominator
+move this section is correcting, two paragraphs after making the charge.
+
+Where the Q axis lands when the opposition is gone, counting the single largest contributor
+per market:
+
+| shape | side | managed_money | producer_merchant | swap | other_reportable | nonreportable |
+|---|---|---|---|---|---|---|
+| template, 76 | `Q_sell` | **51** | 0 | 14 | 7 | 4 |
+| template, 76 | `Q_buy` | 0 | **43** | 17 | 16 | 0 |
+| same side, 94 | `Q_sell` | 26 | 13 | **35** | 17 | 3 |
+| same side, 94 | `Q_buy` | **32** | 12 | 27 | 21 | 2 |
+
+On template markets the axis is clean: Managed Money tops `Q_sell` in 51 of 76 and
+Producer/Merchant tops `Q_buy` in 43 of 76, and neither ever tops the other side. On
+same-side markets it genuinely shifts, **but to a plurality rather than a takeover**: Swap
+Dealer plus Other Reportable top `Q_sell` in 52 of 94 (55%) and `Q_buy` in 48 of 94 (51%),
+and Managed Money is still the single largest `Q_buy` contributor in 32 of 94. The useful
+statement is that the hedger-versus-fund axis stops being reliable, not that some other pair
+replaces it.
+
+### What this changes, and what it does not
+
+Nothing in the code. `fragility` never assumed the template shape, which is precisely why
+the directional split exists: `Q_sell` and `Q_buy` are computed by sign over every category,
+so a same-side market produces a correct reading with no special case. This amendment is
+about how a Phi is **read**, not how it is computed, and it strengthens rather than weakens
+§2's argument for keeping the two directions apart.
+
+What it does change is the standing advice on interpreting a headline Phi. `fragility.
+contributions` is already printed beside every Phi for the reason 2026-08-01 §A6 gives, that
+one category dominating changes what the number means. B28 adds a second reason: **check
+whether the two large categories are opposed before reading the market as having a fragile
+side and a stable one.** In a third of this universe (94 of 279) there is no stable
+counterparty in the template's sense, and the question of who absorbs a forced exit has a
+different answer.
+
+### Why the margins were reached for first
+
+Worth recording, because the mistake is cheap to repeat. The handoff's §6 asks whether real
+markets show "heavily producer-hedged short side, fragile levered long side", which reads as
+two independent clauses and invites two independent frequency counts. It is one clause about
+a joint configuration. Any future comparison against a worked example should measure the
+example's **shape**, meaning the contingency table, rather than its **components**.
+
+---
+
+## B29. The two flow decompositions are one function, and the reason given for the gap rule is wrong
+
+**Contradicts** two things at once: the standing characterisation of the duplication left
+open by [`2026-08-01-flow-decomposition.md`](../handoffs/2026-08-01-flow-decomposition.md)
+§9, repeated in `flow.py`'s module docstring, that the two implementations "answer slightly
+different questions"; and the justification for the gap rule given in
+[`2026-07-28-first-rankings.md` §7.2](../analysis/2026-07-28-first-rankings.md) and in
+`test_flow.py`'s oats docstring.
+
+Reproducer: `docs/analysis/reproduce.py`, the `flow_equivalence` block. Pinned offline in
+[`tests/test_flow_equivalence.py`](../../tests/test_flow_equivalence.py).
+
+### They are the same function
+
+`cotdata.vintage_flow.decompose` is **`crowdmon.futures.flow.decompose` evaluated at
+`tolerance=1.0` with the gap rule off.** Not a similar approach, not a defensible
+alternative: the same function at the corner of its own parameter space. On the liquid
+panel, 27 markets and 135,835 transitions from 2006 to 2026:
+
+| | result |
+|---|---|
+| row sets | identical, 135,835 both, 0 left-only, 0 right-only |
+| label agreement | **100.000000%**, zero mismatches |
+| `d_long`, `d_short`, `d_net` | identical on every row |
+
+This is not luck. Both take the dominant leg as `argmax(|ΔLong|, |ΔShort|)`, both break exact
+ties to the long leg, both treat a doubly-unmoved week as `quiet` unconditionally rather than
+through a threshold. Setting `tolerance=1.0` makes `smaller <= tolerance * larger` true
+everywhere, so nothing is ever `mixed`, and that is precisely `cotdata`'s classifier.
+
+### At the default tolerance they disagree on 62% of weeks, in exactly two ways
+
+| this module | `long_liquidation` | `new_longs` | `new_shorts` | `quiet` | `short_covering` |
+|---|---|---|---|---|---|
+| `gap` | 664 | 857 | 808 | 13 | 623 |
+| `long_liquidation` | **13,427** | 0 | 0 | 0 | 0 |
+| `mixed` | 19,463 | 20,938 | 20,822 | 0 | 19,937 |
+| `new_longs` | 0 | **14,422** | 0 | 0 | 0 |
+| `new_shorts` | 0 | 0 | **12,560** | 0 | 0 |
+| `quiet` | 0 | 0 | 0 | **313** | 0 |
+| `short_covering` | 0 | 0 | 0 | 0 | **10,988** |
+
+Read the off-diagonal. Every disagreement sits in the `mixed` row or the `gap` row, and
+**where this module commits to a direction the agreement is 100.000000% on 51,710 rows**.
+The two never name opposite directions for the same week, and cannot, because the tolerance
+only gates whether the smaller leg disqualifies a label. A pure state can become `mixed`; it
+can never become a different pure state.
+
+**So the difference is entirely in what each REFUSES.** That one is parameter-free and always
+commits. This one can say "two-sided" and can say "that was not a week". Both refusals are
+real capabilities and neither is a different opinion about the data.
+
+### The gap rule is right, and the reason recorded for it is not
+
+§7.2 and the oats test both say that without the gap rule the 294-day oats interval "would
+enter every ranking as the largest weekly flow in the sample". **Measured, it would not, and
+not by a wide margin:**
+
+| | contracts |
+|---|---|
+| max abs `d_net` on the 294-day oats interval | **868** |
+| oats' own max on an ordinary (<= 8 day) week | 3,024 |
+| panel-wide max on any interval over 14 days | 2,552 |
+| panel-wide max on an ordinary week | **180,597** |
+
+The five rows on that interval rank **153rd, 367th, 1487th, 1714th and 3205th** of oats' own
+4,555 transitions. It is not the largest flow in the panel, in the market, or in the year.
+
+**The mechanism defeats the fear, and it is obvious in hindsight.** A market drops out of the
+Disaggregated report *because it has fallen below the reporting threshold*. It is therefore
+tiny while it is away and tiny when it returns, so its re-entry delta is small for the same
+reason it went missing at all. The feared artifact requires a large market to vanish for
+months, which is not a thing that happens.
+
+**The rule survives on comparability, not on magnitude.** A 294-day difference is not a
+weekly flow at any size, and a number that is not a week must not sit in a column of weeks
+where something will eventually sum it, average it, or z-score it. That argument was always
+the better one and it is the one that should have been written down. Nothing about the
+implementation changes; `gap_days_tolerance` stays at its strict default.
+
+### What is done, and what is left
+
+The dedup **cannot go the natural direction**: `tests/test_boundaries.py` forbids `cotdata`
+from importing `crowdmon`, so `cotdata` cannot delegate to the general implementation, and
+inverting that would make a producer depend on its consumer. The check therefore lives here,
+on the side that may import `cotdata` freely.
+
+`tests/test_flow_equivalence.py` asserts the equivalence, the two-kinds-of-disagreement
+property and the never-opposite-directions property, on the committed fixtures and offline.
+**The duplication is now managed rather than merely known about**: two copies of one
+algorithm in two repos drift, and drift is invisible when each side has its own passing
+tests, so these assertions fail the moment either classifier changes.
+
+What remains is a decision in a **different repo** and is deliberately not taken here.
+`cotdata.vintage_flow.decompose` has exactly one consumer, `cotdata`'s own
+`vintage_cli.py:293` (`cotdata-vintage flow`); nothing in `crowdmon` calls it, and the
+`vintage_flow` import in `cot_adapter.py` is for `zero_sum_check`, a different function that
+is genuinely `cotdata`'s. Removing it is a public-symbol removal in a PyPI package and a
+change to a shared working tree that other sessions have checked out, which is not something
+to do as a side effect of a `crowdmon` amendment. Recorded as an open decision, with the
+measurement it needs now attached to it.

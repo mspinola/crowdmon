@@ -1,6 +1,6 @@
 # Handoff: crowdmon workspace bootstrap + first real analysis
 
-**Status:** complete (branch `claude/crowdmon-bootstrap-analysis-7b0e79`, PR pending)
+**Status:** complete. Landed 2026-08-01 as [`0917eb1`](https://github.com/mspinola/crowdmon/commit/0917eb1) **with no PR number**, directly on `main`: this work predates the repo's PR workflow, and PR #1 is the very next commit. Closed out 2026-08-02, see [§10](#10-close-out).
 **Date:** 2026-08-01
 **Lives at:** `docs/handoffs/2026-08-01-flow-decomposition.md` (this file bootstraps the repo it belongs in — commit it as part of the initial commit)
 **Target:** Claude Code session
@@ -285,3 +285,80 @@ updating. The old name survives in `cotdata`'s design docs where it is historica
 - Flow decomposition now exists twice: `cotdata.vintage_flow.decompose` (parameter-free,
   dominant-leg, no `mixed` state) and `crowdmon.futures.flow` (tolerance-based, this build).
   Real duplication, worth resolving.
+
+---
+
+## 10. Close-out
+
+Appended 2026-08-02. §0 to §8 remain the work order as issued; §9 remains the outcome as
+written on the day. This section records only what has changed since, so a reader who starts
+at the top is not left holding a stale open item.
+
+### The status line was never resolvable as written
+
+The header asked for `complete (PR #NN)`. **There is no NN.** `0917eb1` was committed
+straight to `main`, and PR #1 (`de01b18`, risk units) is the next commit on the first-parent
+chain, so this handoff executed in the window before the repo had a PR workflow at all. The
+header now records the commit instead. A future session looking for a merged PR to read will
+not find one, and that is a fact about the repo's history rather than a missing link.
+
+### §9's four failed premises: three stand, one is now resolved
+
+Premises 1 to 3 (the shutdown left report dates intact, Managed Money dominates Phi in 29%
+of markets not typically, and the strict 7-day gap rule discards 2,850 holiday-shift weeks)
+stand as written, and their detail is in
+[`amendments-2026-08-01.md`](../design/amendments-2026-08-01.md).
+
+**Premise 4 is closed.** §9 recorded that `crowdmon_plain_language_summary.md` did not exist
+in this repo or in `cotdata`, that the handoff's own formulas were used instead, and that
+"if that document surfaces, the Phi definition and the cocoa comparison need re-checking
+against it". It surfaced the same day, in `85b3e86`. Both re-checks have now happened:
+
+| what §9 asked for | outcome |
+|---|---|
+| re-check the **Phi definition** | The appendix agrees with the handoff. §A.2's arithmetic is no longer merely read but **executed**, in [`tests/test_appendix.py`](../../tests/test_appendix.py): `Q_sell`, `Q_buy`, Phi, the weights table, and the `gross == 2·OI` identity all reproduce exactly, so the implementation is pinned to the spec rather than believed to match it |
+| re-check the **cocoa comparison** | Done twice. The same-day note appended to [`2026-07-28-first-rankings.md` §2](../analysis/2026-07-28-first-rankings.md) confirmed the one-line characterisation used in §9 was accurate (Producer/Merchant net short 110,000 against Managed Money net long 90,000) and that the comparison stood. **A second, harder re-check on 2026-08-02 did not stand**, see below |
+
+### §6's cocoa question has a sharper answer than §9 gave
+
+§9's headline was "the structure differs, in about half the universe", supported by
+Producer/Merchant being net long in 141 of 279 markets (50.5%). That figure is correct and
+reproduces exactly. **The reasoning from it was not.** The template is a joint claim about
+two categories at once, and a marginal frequency cannot address it. Measured as the
+conjunction it actually asserts:
+
+- the template shape holds in **76 of 279 markets (27.2%)**, under a third rather than half
+- a rule assuming producers short and funds long is wrong in **203 of 279 (72.8%)**
+- **hedger and fund sit on the SAME side in 94 markets (33.7%)**, a case the template does
+  not contemplate and the margins cannot show
+
+Full detail, including the four defects a fresh-context review found in the first draft of
+that correction, is [`amendments-2026-08-02.md` §B28](../design/amendments-2026-08-02.md).
+Nothing in `src/` changed: `fragility` computes `Q_sell` and `Q_buy` by sign over every
+category and never assumed the template shape.
+
+### §9's two open decisions: one resolved, one still open
+
+- **Design docs.** Resolved. Both specs are canonical in this repo's `docs/design/`, and
+  `cotdata`'s copy of the module spec is now a 52-line pointer here, so the duplicate-living-
+  document hazard §9 flagged is closed rather than merely tolerated.
+- **Flow decomposition exists twice.** **Measured and pinned 2026-08-02; one decision left,
+  and it belongs to `cotdata`.** The characterisation above ("slightly different questions")
+  was too generous to itself. `cotdata.vintage_flow.decompose` is
+  `crowdmon.futures.flow.decompose` at `tolerance=1.0` with the gap rule off: 135,835
+  transitions, **100.000000% label agreement, zero mismatches, deltas identical on every
+  row.** One function, not two. At the default tolerance they disagree on 62% of weeks, all
+  of it this module declining to commit (`mixed`) or refusing the interval (`gap`), and where
+  both commit they agree on 100.000000% of 51,710 rows. The difference is entirely in what
+  each refuses.
+
+  [`tests/test_flow_equivalence.py`](../../tests/test_flow_equivalence.py) now pins that, so
+  the duplication is **managed rather than merely known about**: it fails if either
+  classifier drifts. The dedup cannot go the natural direction, because
+  `tests/test_boundaries.py` forbids `cotdata` from importing `crowdmon`.
+
+  **What is left is a `cotdata` decision, not a `crowdmon` one.** Its `decompose` has exactly
+  one consumer, `cotdata`'s own `vintage_cli.py:293`; nothing here calls it. Removing it is a
+  public-symbol removal in a PyPI package and an edit to a shared working tree, so it is not
+  taken as a side effect of this close-out. Detail and figures in
+  [`amendments-2026-08-02.md` §B29](../design/amendments-2026-08-02.md).

@@ -25,11 +25,18 @@ Prints, in order:
  16. roll-date coverage, and the empty-index trap (2026-08-02 B16)
  17. the coverage ladder: which markets score nothing, and where (2026-08-02 B17)
  20. the macro-book PCA and what PC1 actually is, per report type (B21)
+  B28. the cocoa template measured as a joint shape rather than two margins
+  B29. the two flow decompositions, and the oats rationale that does not hold
+
+The leading ordinals above are the order the blocks were added and have drifted: 17 and 18
+each appear twice and there is no 19. Not renumbered here, because these numbers are quoted
+by the analysis documents. New blocks are labelled by their amendment ID instead.
 """
 import numpy as np
 import pandas as pd
 
 from crowdmon.futures import (
+    contributions,
     decompose,
     decompose_breadth,
     fragility_frame,
@@ -1020,6 +1027,182 @@ def correlation_clustering() -> None:
     print("\n  NOT sliced by any named episode, deliberately.")
 
 
+def template_shape() -> None:
+    """Amendment B28: the cocoa template is a JOINT claim, so measure the pair, not two margins.
+
+    The 2026-07-28 ranking document answers "does real data match the cocoa template" with
+    the marginal sign distribution per category. The template asserts Producer/Merchant
+    short AND Managed Money long at the same time, which the margins cannot address: two
+    categories can each be short half the time while rarely being opposed at all.
+    """
+    rule("THE COCOA TEMPLATE AS A JOINT SHAPE (2026-08-02 B28)")
+
+    cross = latest()
+    week = cross["report_date"].max().date()
+    # `latest()` does not filter `combined`, and `combined` is part of fragility.MARKET_KEY.
+    # Today the vintage store holds futures-only alone, but if futures-and-options rows ever
+    # land, grouping without it would sum two different series into one bogus net and every
+    # figure below would move with nothing raising. Fail loudly instead.
+    if cross["combined"].nunique() != 1 or cross["report_type"].nunique() != 1:
+        raise ValueError(
+            f"section mixes series: combined={sorted(cross['combined'].unique())}, "
+            f"report_type={sorted(cross['report_type'].unique())}. Filter before grouping.")
+    net = (cross.groupby(["market_code", "category"])
+                .apply(lambda g: g["long_contracts"].sum() - g["short_contracts"].sum(),
+                       include_groups=False)
+                .unstack("category"))
+    print(f"\nreport week {week}, {len(net)} markets\n")
+
+    print("--- the MARGINS, as published in 2026-07-28-first-rankings.md §2 ---")
+    rows = []
+    for cat in ["managed_money", "producer_merchant", "swap",
+                "other_reportable", "nonreportable"]:
+        s = net[cat].dropna()
+        rows.append({"category": cat, "n": len(s),
+                     "net long": int((s > 0).sum()), "net short": int((s < 0).sum()),
+                     "flat": int((s == 0).sum()),
+                     "long %": f"{(s > 0).mean():.1%}", "short %": f"{(s < 0).mean():.1%}",
+                     "flat %": f"{(s == 0).mean():.1%}"})
+    print(report.to_markdown(pd.DataFrame(rows)))
+
+    pair = pd.concat([net["producer_merchant"].rename("pm"),
+                      net["managed_money"].rename("mm")], axis=1).dropna()
+    shapes = {
+        "template  (PM short, MM long)": (pair.pm < 0) & (pair.mm > 0),
+        "inverted  (PM long,  MM short)": (pair.pm > 0) & (pair.mm < 0),
+        "same side (both short)": (pair.pm < 0) & (pair.mm < 0),
+        "same side (both long)": (pair.pm > 0) & (pair.mm > 0),
+        "MM net flat (no DIRECTIONAL fund net)": pair.mm == 0,
+    }
+    live = pair[pair.mm != 0]
+    print("\n--- the JOINT shape, which the margins cannot show ---")
+    out = []
+    for name, mask in shapes.items():
+        n = int(mask.sum())
+        of_live = "n/a" if name.startswith("MM net flat") else f"{n / len(live):.1%}"
+        out.append({"shape": name, "markets": n,
+                    f"of {len(pair)}": f"{n / len(pair):.1%}",
+                    f"of {len(live)} with a directional MM net": of_live})
+    print(report.to_markdown(pd.DataFrame(out)))
+
+    same_mask = ((pair.pm < 0) & (pair.mm < 0)) | ((pair.pm > 0) & (pair.mm > 0))
+    same = int(same_mask.sum())
+    tmpl = int(shapes["template  (PM short, MM long)"].sum())
+    print(f"\n  hedger and fund on the SAME side: {same} of {len(pair)} "
+          f"= {same / len(pair):.1%} of all markets, "
+          f"{same / len(live):.1%} of the {len(live)} with a directional MM net")
+    print(f"  a rule assuming PM short AND MM long is wrong in "
+          f"{len(pair) - tmpl} of {len(pair)} = {(len(pair) - tmpl) / len(pair):.1%} "
+          f"of all markets,")
+    print(f"  and {len(live) - tmpl} of {len(live)} = {(len(live) - tmpl) / len(live):.1%} "
+          f"of those with a directional MM net.")
+
+    # "MM net flat" is NOT "no fund position". Nets are not a holding, which is the whole
+    # reason Phi uses gross over 2*OI. Print the counterexamples rather than assert the label.
+    gross = (cross.groupby(["market_code", "category"])
+                  .apply(lambda g: g["long_contracts"].sum() + g["short_contracts"].sum(),
+                         include_groups=False)
+                  .unstack("category"))
+    flat = pair.index[pair.mm == 0]
+    held = gross.loc[flat, "managed_money"]
+    held = held[held > 0]
+    print(f"\n  of the {len(flat)} MM net-flat markets, {len(held)} hold a real GROSS book:")
+    for code in held.index:
+        row = cross[(cross["market_code"] == code)
+                    & (cross["category"] == "managed_money")]
+        print(f"    {code}  {row['market_name'].iloc[0]:<42s} "
+              f"long {int(row['long_contracts'].sum()):,} / "
+              f"short {int(row['short_contracts'].sum()):,} = gross {int(held[code]):,}")
+
+    # B28 claims the Q axis SHIFTS on same-side markets. Print it rather than assert it.
+    print("\n--- which category tops the Q contribution, same-side against template ---")
+    contrib = contributions(cross)
+    tally = []
+    for label, idx in [("same side", pair.index[same_mask]),
+                       ("template", pair.index[shapes["template  (PM short, MM long)"]])]:
+        for side in ["sell", "buy"]:
+            s = contrib[contrib["market_code"].isin(idx) & (contrib["q_side"] == side)]
+            top = s.loc[s.groupby("market_code")["q_contribution"].idxmax()]
+            counts = top["category"].value_counts()
+            tally.append({"shape": label, "side": f"Q_{side}", "markets": len(top),
+                          **{c: int(counts.get(c, 0)) for c in
+                             ["managed_money", "producer_merchant", "swap",
+                              "other_reportable", "nonreportable"]}})
+    print(report.to_markdown(pd.DataFrame(tally)))
+    print("\n  On template markets the axis is clean: MM tops Q_sell in 51/76, PM tops")
+    print("  Q_buy in 43/76. On same-side markets it is a plurality, not a takeover:")
+    print("  swap+other_reportable top Q_sell in 52/94 (55%) and Q_buy in 48/94 (51%),")
+    print("  and MM is still the single largest Q_buy contributor in 32/94.")
+
+
+def flow_equivalence() -> None:
+    """Amendment B29: cotdata's decompose is this one at tolerance=1.0, and the oats rationale.
+
+    The 2026-08-01 handoff closed leaving the two flow-decomposition implementations as its
+    one open decision, characterised as "slightly different questions". They are the same
+    function; only the refusals differ.
+    """
+    from cotdata import vintage_flow as vf
+
+    from crowdmon.futures import flow as cflow
+    from crowdmon.futures.io import SERIES_KEY
+
+    rule("THE TWO FLOW DECOMPOSITIONS (2026-08-02 B29)")
+    panel = from_current_store(report_type="disaggregated")
+    key = SERIES_KEY + ["report_date"]
+    print(f"\npanel: {panel['market_code'].nunique()} markets, "
+          f"{panel['report_date'].min().date()} to {panel['report_date'].max().date()}")
+
+    def join(**kw):
+        mine, theirs = cflow.decompose(panel, **kw), vf.decompose(panel)
+        return mine[key + ["flow_state", "days_elapsed", "d_net"]].merge(
+            theirs[vf.SERIES_KEY + ["report_date", "state", "d_net"]],
+            on=key, how="outer", suffixes=("_mine", "_theirs"), indicator=True)
+
+    equal = join(tolerance=1.0, gap_days_tolerance=100_000)
+    agree = (equal["flow_state"] == equal["state"]).mean()
+    print("\n--- at tolerance=1.0 with gaps off: THE SAME FUNCTION ---")
+    print(f"  rows {len(equal):,}, merge {equal['_merge'].value_counts().to_dict()}")
+    print(f"  label agreement {agree:.6%}, mismatches "
+          f"{int((equal['flow_state'] != equal['state']).sum())}")
+    for col in ("d_net",):
+        ident = (equal[f"{col}_mine"].fillna(-1e9) == equal[f"{col}_theirs"].fillna(-1e9)).mean()
+        print(f"  {col} identical on {ident:.6%}")
+
+    default = join()
+    print("\n--- at the DEFAULT tolerance: two kinds of disagreement, no third ---")
+    print(f"  label agreement {(default['flow_state'] == default['state']).mean():.2%}")
+    print(report.to_markdown(
+        pd.crosstab(default["flow_state"], default["state"]).reset_index()))
+    disagree = default[default["flow_state"] != default["state"]]
+    print(f"\n  every disagreement is mine=mixed or mine=gap: "
+          f"{sorted(set(disagree['flow_state']))}")
+    committed = default[~default["flow_state"].isin(["mixed", "gap"])]
+    print(f"  where I commit to a direction, agreement is "
+          f"{(committed['flow_state'] == committed['state']).mean():.6%} "
+          f"of {len(committed):,} rows")
+
+    print("\n--- the oats rationale, which does NOT hold up ---")
+    oats = vf.decompose(panel[panel["market_code"] == "004603"]).copy()
+    oats["abs_net"] = oats["d_net"].abs()
+    long_gap = oats[oats["days_elapsed"] > 200]
+    ranks = sorted(oats["abs_net"].rank(ascending=False, method="min")[long_gap.index])
+    print(f"  oats transitions: {len(oats):,}")
+    print(f"  rows on the 294-day interval: {len(long_gap)}, "
+          f"max |d_net| {long_gap['d_net'].abs().max():,.0f}")
+    print(f"  their ranks within oats by |d_net|: {[int(r) for r in ranks]}")
+    print(f"  oats max |d_net| on a normal (<=8d) interval: "
+          f"{oats[oats['days_elapsed'] <= 8]['d_net'].abs().max():,.0f}")
+    allgap = default[default["flow_state"] == "gap"]
+    print(f"  panel-wide, max |d_net| cotdata reports on a >14d interval: "
+          f"{allgap[allgap['days_elapsed'] > 14]['d_net_theirs'].abs().max():,.0f}")
+    print(f"  panel-wide, max |d_net| on an ordinary week:              "
+          f"{default[default['flow_state'] != 'gap']['d_net_theirs'].abs().max():,.0f}")
+    print("\n  So the 294-day diff is not the largest flow in the panel, or even in oats.")
+    print("  A market drops out BECAUSE it is thin, so its re-entry delta is small for the")
+    print("  same reason it went missing. The gap rule survives on comparability, not size.")
+
+
 if __name__ == "__main__":
     main()
     normalisation()
@@ -1036,3 +1219,5 @@ if __name__ == "__main__":
     correlation_clustering()
     coverage_ladder_report()
     macro_book_pca()
+    template_shape()
+    flow_equivalence()
