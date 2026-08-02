@@ -669,6 +669,27 @@ markets with no lumber in it**, because neither code can be scored:
 market can appear in a result at all. A market on the spec's own replay list fell out silently
 and was caught only because an evaluator counted units.
 
+Reproduced on the real panel: **2 of 27 codes score zero weeks, 7.4%, and they are exactly the
+two lumber codes.** The next lowest are oats at 555 weeks and the two wheats at 742, so there
+is no near-miss band. It is zero or it is hundreds.
+
+**The two fail at different rungs, and that is what the fix has to report.** `058643` dies at
+the price join, 24 usable weeks of 880. `058644` has a complete `dtl_sell` in **every one** of
+its 178 weeks and still scores nothing, dying at the extremity window with 75 weeks of `z`
+against the 104 required. So "scoreable weeks" is necessary and not sufficient: a maintainer
+looking at `058644` would see full exit-capacity coverage against no output and have nowhere
+to start. **The report must name the rung that dropped the market.**
+
+**Key it on `market_code`, never on `market_name`.** Grouping by `(code, name)` while checking
+the above manufactured four phantom unscoreable markets: cotton, cocoa, sugar and coffee each
+showed a 64-week block scoring zero, which is simply their pre-migration name. **11 of 27 codes
+carry more than one `market_name`**, and `033661` is literally
+`COTTON NO. 2 - NEW YORK BOARD OF TRADE` becoming `COTTON NO. 2 - ICE FUTURES U.S.`, while
+`022651` carries five spellings of heating oil. All four of those codes score 845 weeks under a
+code-level key. A name-keyed coverage report would invent unscoreable markets in the same panel
+where it is supposed to find the real ones, and this is the same venue-migration fact that
+finding 3 records for RTY.
+
 Worth fixing before roll congestion or PCA, since both will hit the same blind spot: a market
 that is present in every input and absent from every output.
 
