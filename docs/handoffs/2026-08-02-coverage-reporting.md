@@ -1,6 +1,6 @@
 # Handoff: coverage reporting, which rung dropped a market and why
 
-**Status:** complete (PR #15)
+**Status:** complete (PR #15), corrected same day (PR #17)
 **Date:** 2026-08-02
 **Claimed by:** the session that built `commonality.py`, `impact.py`, `volume.py`,
 `riskunits.py` and wrote §4, §5 and §7 of the validation pre-registration
@@ -158,3 +158,35 @@ inside a code scoring 742 weeks. Pinned by `test_a_market_that_changed_name_appe
 the shape of A.8's pooling-trap test.
 
 Reproducer: `docs/analysis/reproduce.py` section 17.
+
+
+---
+
+## Correction, 2026-08-02, same day
+
+`2026-08-02 §B18`, filed by the other session against `§B17` which it also wrote, found two
+defects in what shipped in #15. Both verified here before fixing.
+
+**1. `LADDER` skipped the three terms `D` is built from.** It went straight from `extremity_z`
+to `damage_{side}`, omitting `phi_pct`, `illiquidity_{side}` and `crowding_{long,short}`. So
+`058644` was reported as dropping at `composite` when it drops one rung earlier at `crowding`.
+
+**The guard test had the same blind spot as the ladder it guarded**, which is why it passed:
+it checked the columns `add_composite` *emits* and not the ones it *computes*. It now checks
+both, and that is the more useful half.
+
+**2. The ladder is not monotonic, and the live test asserted that it was.** `holder_fragility`
+is price-free, so a market starved of prices can carry far more weeks of it than of anything
+downstream of one: `058643` has **880** weeks of `phi` against **24** of `dtl_sell`, a 36x
+rise in the middle of the ladder. `PRICE_FREE` now declares those rungs, `format_coverage`
+stars them, and the live test pins that a rise **occurs** rather than asserting it cannot.
+
+Corrected output:
+
+    058643  weeks=880  extremity_z=0   holder_fragility*=880  illiquidity=0   DROPS AT extremity_z
+    058644  weeks=178  extremity_z=75  holder_fragility*=178  illiquidity=75  DROPS AT crowding
+
+**Both terminate at `crowding`, for unrelated reasons.** That is the strongest argument for
+this module's design rather than against it: a label naming one rung is insufficient precisely
+because two markets can share it and mean different things, which is why the full ladder is
+printed beside it.
