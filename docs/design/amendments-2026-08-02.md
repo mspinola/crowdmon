@@ -916,3 +916,95 @@ and the guard failed on it.
 The cheap way to make that pass is to delete the explanation. **Rewritten to parse imports with
 `ast`**, so it catches a real `import scipy` and ignores prose, with a second test asserting the
 parse would catch a genuine import rather than trivially returning an empty list.
+## B21. PC1 is the grain complex on Disaggregated, and only the macro book on TFF
+
+**Contradicts** module spec §7's "PC1 approximates the aggregate systematic book", which is
+true of one panel and false of the other. Reproducer: `docs/analysis/reproduce.py` section 18.
+Measured while building `futures/macro_pca.py`.
+
+| panel | absorption | shuffled null | what PC1 actually is |
+|---|---|---|---|
+| Disaggregated | **0.143** | 0.054 | ZS +0.35, ZC +0.30, ZL +0.30, KE +0.27, ZM +0.26, SI +0.25 |
+| TFF | **0.128** | 0.077 | YM +0.37, 6A +0.36, ES +0.36, NQ +0.35, 6S +0.29, **DX -0.26** |
+
+Both are 947 weeks from 2008-06-10, on 24 and 16 markets.
+
+TFF's first component is risk appetite in textbook form: long the equity indices, long the
+commodity currency, **short the dollar**. That is the aggregate systematic book §7 describes.
+Disaggregated's is the grain trade, and five of its top six are the soy/corn/wheat complex.
+
+**This is the same shape as [2026-08-01 §A14](amendments-2026-08-01.md)**, where 76% of the
+Disaggregated universe turned out to be ICE Energy and Nodal power so a "cross-market" result
+over it was mostly about ERCOT and PJM. A cross-market statistic named for something broader
+than its universe supports describes the universe, not the name. **The report type is not a
+parameter to this engine, it is the subject.**
+
+**And absorption is comparable to its own null, never across panels.** TFF's null is 0.077
+against Disaggregated's 0.054 purely because a variance share is floored at `1/n` and TFF is
+narrower. Read raw, TFF looks less crowded; against its null the gap is smaller but the
+ranking claim was never available.
+
+---
+
+## B22. 95.7% cell coverage, zero complete weeks, and a delisting that costs two years
+
+**Adds** the measurements behind `macro_pca.select_markets`. Nothing here contradicts a doc;
+it establishes why the selection step exists at all.
+
+| | |
+|---|---|
+| Disaggregated panel | 948 weeks x 26 markets |
+| cells present | **95.5%** |
+| **weeks with no missing market** | **0** |
+
+The holes are spread across markets rather than concentrated in weeks, so a coverage figure
+that reads as nearly complete yields an empty rectangle and a naive listwise PCA returns
+nothing at all.
+
+| markets kept | complete weeks | span ends |
+|---|---|---|
+| 26 | **0** | n/a |
+| 25 | 746 | **2023-12-26** |
+| **24** | **947** | 2026-07-28 |
+| 22 | 947 | same |
+
+**Dropping two markets buys the whole panel; dropping one fewer costs two and a half years**,
+because the 25th delists and truncates everything to it. Selection is derived from the
+coverage counts rather than hand-picked, and ties break toward more markets so the rule never
+drops one it did not have to.
+
+**The panel starts 2008-06-10 and `D` starts 2010-05-25.** `C = pct(z)` stacks two three-year
+windows ([2026-08-01 §A16](amendments-2026-08-01.md)); this needs one. So the absorption ratio
+reaches the 2008 crisis, and it is the only engine in the package whose history covers a
+genuine systemic unwind. **No episode in it has been examined by its author**, deliberately:
+pointing this at 2008 is exactly the after-the-fact window-picking the §10 pre-registration
+exists to prevent, and it belongs in a pre-registration written by someone else.
+
+---
+
+## B23. An eigenvector's sign is not identified, and a signed cosine reports the flip as news
+
+**Records a defect this module shipped with for one run**, caught by measuring rather than by
+a test, and the reason `loading_rotation` uses `1 - |cos|` rather than `1 - cos`.
+
+PC1 and -PC1 describe the same axis and the same book, so a sign convention is a presentation
+choice and nothing more. `_pin_sign` pins the loadings to sum positive, and **that sum passes
+through zero on real data whether or not anything about the book changes.**
+
+Measured on the 24-market panel, 843 rolling readings:
+
+| | signed cosine | `1 - abs(cos)` |
+|---|---|---|
+| readings above 1.0 | **8** | **0** |
+| median | 0.0004 | 0.0004 |
+| p95 | 0.0093 | 0.0079 |
+| max | **1.9984** | 0.0916 |
+
+The eight were 2018-05-08, 2018-06-05, 2019-10-29 and five consecutive weeks across
+2020-06-30 to 2020-09-01, each reading ~1.99 against a median of 0.0004, **200x the p95 and
+every one an artifact**. Under the absolute value they read ~0.002, which is what they always
+were.
+
+The general rule worth carrying: **anything derived from an eigenvector must be invariant to
+its sign, or it is reporting `numpy` rather than the data.** The same applies to any future
+loading-similarity, clustering or alignment measure built on top of this panel.

@@ -1,6 +1,6 @@
 # Handoff: macro-book PCA, the futures absorption ratio
 
-**Status:** claimed, not started
+**Status:** complete (PR #20)
 **Date:** 2026-08-02
 **Claimed by:** the session that built `commonality.py`, `impact.py`, `volume.py`,
 `riskunits.py` and `coverage.py`
@@ -104,3 +104,45 @@ This is how `kappa` and `gamma` arrived. None of these gets a silent default.
 
 `commonality.py` for panel construction and the own-market exclusion argument, `coverage.py`
 for the market selection, `weight_sensitivity.sweep` for the parameter sweep shape.
+
+
+---
+
+## Outcome, 2026-08-02
+
+Shipped as `futures/macro_pca.py`: `positioning_panel`, `select_markets`, `absorption_ratio`,
+`rolling_absorption`, `loading_rotation`, `shuffled_null`, `window_sensitivity`,
+`format_absorption`. 28 tests, 21 offline and 7 live. Amendments `B21`-`B23`.
+
+**All four flagged decisions were taken as proposed**, with one correction found by measuring.
+
+| decision | taken |
+|---|---|
+| which markets | derived from coverage counts, ties break toward more markets |
+| trailing or full sample | trailing. `absorption_ratio` over a whole panel is marked descriptive-only and a test pins that truncating the future does not move a reading |
+| correlation or covariance | correlation, columns standardised inside each window |
+| PC1 sign | pinned to sum positive **for presentation**, and rotation made sign-invariant instead. See below |
+
+### The one thing that had to change
+
+`loading_rotation` shipped as `1 - cos` and was wrong. An eigenvector's sign is not
+identified, so the positive-sum pin flips whenever that sum crosses zero, and **8 of 843
+readings came back at ~1.99 against a median of 0.0004**. `1 - |cos|` is bounded in `[0, 1]`
+and those weeks read ~0.002, which is what they always were. `B23`.
+
+The handoff predicted this in the abstract ("without a pin, loading rotation will report a
+flip that is an artifact of `numpy`"). It got the remedy wrong: a pin is not enough, because
+the pin itself is what flips. The measure has to not care.
+
+### The finding that changes what the module is for
+
+**PC1 is the grain complex on Disaggregated and risk appetite on TFF** (`B21`). §7's
+"PC1 approximates the aggregate systematic book" is true of one panel and false of the other.
+So the report type is the subject of this engine rather than a parameter to it.
+
+### Not done, deliberately
+
+The panel reaches **2008-06-10** against `D`'s 2010-05-25, so this is the only engine here
+whose history covers a genuine systemic unwind. **No episode in it has been examined.**
+Pointing it at 2008 is the after-the-fact window-picking §7 of the pre-registration exists to
+prevent, and by now this session is the wrong one to specify that test.

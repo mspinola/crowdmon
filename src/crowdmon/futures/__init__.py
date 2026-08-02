@@ -130,6 +130,23 @@ from .io import (
     oi_identity,
     oi_identity_summary,
 )
+from .macro_pca import (
+    BOOK_CATEGORY,
+    MACRO_PCA_COLUMNS,
+    PANEL_INPUT,
+    MacroPcaError,
+    absorption_ratio,
+    format_absorption,
+    loading_rotation,
+    positioning_panel,
+    rolling_absorption,
+    select_markets,
+    shuffled_null,
+    window_sensitivity,
+)
+from .macro_pca import (
+    DEFAULT_WINDOW as PCA_DEFAULT_WINDOW,
+)
 from .notional import (
     DEFAULT_MAX_STALENESS_DAYS,
     NOTIONAL_ADJUSTMENT,
@@ -279,4 +296,11 @@ __all__ = [
     # unscoreable markets that do not exist. See coverage.py.
     "coverage_ladder", "unscoreable", "coverage_summary", "format_coverage",
     "CoverageError", "LADDER", "TERMINAL_RUNG",
+    # §7's macro-book PCA: PC1's share of variance in positioning CHANGES, the futures
+    # absorption ratio. NOT a PCA over commonality's illiquidity panel, which is the nearer
+    # object and a different quantity. Reaches 2008; `D` starts 2010-05-25.
+    "positioning_panel", "select_markets", "absorption_ratio", "rolling_absorption",
+    "loading_rotation", "shuffled_null", "window_sensitivity", "format_absorption",
+    "MacroPcaError", "MACRO_PCA_COLUMNS", "PANEL_INPUT", "BOOK_CATEGORY",
+    "PCA_DEFAULT_WINDOW",
 ]

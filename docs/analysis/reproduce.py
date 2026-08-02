@@ -24,6 +24,7 @@ Prints, in order:
  15. the A.8 cascade staircase (2026-08-02 B13-B15)
  16. roll-date coverage, and the empty-index trap (2026-08-02 B16)
  17. the coverage ladder: which markets score nothing, and where (2026-08-02 B17)
+ 20. the macro-book PCA and what PC1 actually is, per report type (B21)
 """
 import numpy as np
 import pandas as pd
@@ -808,7 +809,7 @@ def roll_windows() -> None:
     """2026-08-02 B19: the roll-window volume effect, and how much of it reaches `T`."""
     from crowdmon.futures import roll as rl
 
-    rule("17. ROLL WINDOWS: the roll-day ratio is not the bias in T (2026-08-02 B19)")
+    rule("17. ROLL WINDOWS: the roll-day ratio is not the bias in T (2026-08-02 B21)")
 
     syms = "GC SI CL NG HO RB ZC ZS ZW HG KC CT LE ZN 6E ES".split()
     rows = []
@@ -895,6 +896,66 @@ def trend_alignment() -> None:
     print("\n  Level moves more than ordering, the same shape 2026-08-01 §A22 found for the")
     print("  fragility weights.")
     print("\n  NOT sliced by any named episode, deliberately. See the module docstring.")
+def macro_book_pca() -> None:
+    """§7's absorption ratio, and the finding that PC1 is not the same object on both panels.
+
+    Disaggregated PC1 is the grain complex; TFF PC1 is risk appetite. §7 says PC1
+    approximates the aggregate systematic book, which is true of one panel and false of the
+    other.
+    """
+    rule("18. THE MACRO-BOOK PCA (2026-08-02 B21)")
+    from crowdmon.futures import (
+        ContractMaster,
+        absorption_ratio,
+        add_extremity,
+        add_notional,
+        add_risk_units,
+        positioning_panel,
+        rolling_absorption,
+        select_markets,
+        shuffled_null,
+        window_sensitivity,
+    )
+
+    for report_type in ("disaggregated", "tff"):
+        raw = from_current_store(report_type=report_type)
+        per_category = add_extremity(add_risk_units(
+            add_notional(ContractMaster.load().annotate(raw))))
+        panel = positioning_panel(per_category)
+        cols = select_markets(panel)
+        complete = panel[cols].dropna()
+        print(f"\n--- {report_type} ---")
+        print(f"  raw panel        {panel.shape[0]} weeks x {panel.shape[1]} markets, "
+              f"{panel.notna().mean().mean():.1%} of cells present")
+        print(f"  complete weeks   {panel.dropna().shape[0]} at full width, "
+              f"{len(complete)} on the {len(cols)} selected")
+        if len(cols) < 8:
+            print("  too narrow for a PCA")
+            continue
+        result = absorption_ratio(panel[cols])
+        null = shuffled_null(panel[cols], draws=60)
+        print(f"  absorption       {result['absorption']:.3f}   "
+              f"shuffled null {null.mean():.3f} (p95 {null.quantile(0.95):.3f})")
+        symbols = per_category.drop_duplicates("market_code").set_index("market_code")["symbol"]
+        top = result["loadings"].abs().sort_values(ascending=False).head(6).index
+        print("  PC1              " + ", ".join(
+            f"{symbols.get(c)} {result['loadings'][c]:+.2f}" for c in top))
+
+        if report_type == "disaggregated":
+            roll = rolling_absorption(panel, markets=cols)
+            print(f"  rolling          {len(roll)} readings, "
+                  f"{roll.report_date.min().date()} to {roll.report_date.max().date()}")
+            print(f"  rotation         median {roll.rotation.median():.5f}  "
+                  f"p95 {roll.rotation.quantile(0.95):.5f}  max {roll.rotation.max():.5f}")
+            print("  (a value near 2 would mean the sign convention leaked back in; "
+                  "1 - |cos| is bounded in [0, 1])")
+            print("\n  window sensitivity:")
+            print(window_sensitivity(panel, markets=cols).to_string(index=False))
+
+    print("\nPC1 is the GRAIN COMPLEX on Disaggregated and RISK APPETITE on TFF, so §7's")
+    print("'aggregate systematic book' is true of one panel and false of the other. And the")
+    print("nulls differ (0.077 vs 0.054) only because a variance share is floored at 1/n and")
+    print("TFF is narrower, so absorption is comparable to its own null and never across.")
 
 
 if __name__ == "__main__":
@@ -911,3 +972,4 @@ if __name__ == "__main__":
     roll_windows()
     trend_alignment()
     coverage_ladder_report()
+    macro_book_pca()
