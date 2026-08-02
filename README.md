@@ -101,6 +101,23 @@ never be traded**: §A.10 is explicit that it estimates the shape of a condition
 distribution and not its location. `tests/test_boundaries.py` is what stops that eroding by
 drift rather than by decision.
 
+**The floor is not one date. It is a property of which quantity you read, and the number
+§A.10 tells you to report has a later one.** `damage_sell_pct` is `pct(D)`, which stacks a
+**third** rolling window on the two above, so it scores nothing before **2012-05-15**:
+`2010-05-25` plus 103 weekly observations, the 104th being `min_periods`. Measured on both
+report types, and identical on each.
+
+| you read | first scored week | warm-up from the 2006-06-13 panel start |
+|---|---|---|
+| `damage_sell` / `damage_buy`, the raw product | 2010-05-25 | 3.9 years |
+| **`damage_sell_pct` / `damage_buy_pct`**, what §A.10 says to report | **2012-05-15** | **5.9 years** |
+
+Two further years go to the percentile, and they go to the reading this package recommends,
+so anyone planning coverage from the 2010 figure over-counts by two years for the most likely
+use. Found by the §10 evaluator counting units rather than by any output the package emits
+(`docs/design/amendments-2026-08-02.md` §B17); `futures/coverage.py` is the report that now
+answers "scoreable after every window is stacked" directly, per market.
+
 **Exit capacity is a real duration now.** `T = Q / (κ·V)` was blocked on a volume source that
 turned out to have been in the store the whole time, under a `cotdata` parameter named
 `front` that reads like front-month and is whole-market. `futures/volume.py` supplies both a
