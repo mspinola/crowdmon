@@ -804,6 +804,54 @@ def coverage_ladder_report() -> None:
     print("  transposition, so one of the two is a typo in the CFTC source.")
 
 
+def roll_windows() -> None:
+    """2026-08-02 B19: the roll-window volume effect, and how much of it reaches `T`."""
+    from crowdmon.futures import roll as rl
+
+    rule("17. ROLL WINDOWS: the roll-day ratio is not the bias in T (2026-08-02 B19)")
+
+    syms = "GC SI CL NG HO RB ZC ZS ZW HG KC CT LE ZN 6E ES".split()
+    rows = []
+    for symbol in syms:
+        try:
+            rows.append(rl.roll_window_stats(symbol, lookback_bars=252 * 4))
+        except Exception:
+            continue
+    frame = pd.DataFrame(rows)
+
+    print("\n" + frame[["symbol", "share_in_window", "roll_day_ratio",
+                         "adv_inflation", "t_bias"]].round(4).to_string(index=False))
+    print(f"\n  median roll-day ratio : {frame['roll_day_ratio'].median():.3f}")
+    print(f"  median ADV inflation  : {frame['adv_inflation'].median():.4f}")
+    print(f"  median T bias         : {frame['t_bias'].median():+.2%}")
+    print("\n  The ratio is a fact about roll DAYS. `T` is driven by a trailing MEAN, so the")
+    print("  effect is diluted by how few days those are. Quoting the ratio as the bias in")
+    print("  `T` overstates it by an order of magnitude.")
+
+    pess = frame.loc[frame["adv_inflation"] < 1.0, "symbol"].tolist()
+    print(f"\n  markets where T is PESSIMISTIC, not optimistic: {pess}")
+    print("  So \"optimistic by construction for every market\" is false.")
+
+    # Pick the divergence case from the data rather than naming a market: which one it is
+    # depends on the lookback, and hardcoding HO gave an example that showed no divergence
+    # over four years even though it does over full history.
+    split = frame[(frame["roll_day_ratio"] > 1.0) & (frame["adv_inflation"] < 1.0)]
+    if not split.empty:
+        r = split.iloc[0]
+        print(f"\n  {r['symbol']}: roll-day ratio {r['roll_day_ratio']:.3f} "
+              f"(MORE volume on roll days, by median)")
+        print(f"      ADV inflation    {r['adv_inflation']:.3f} "
+              f"(and yet excluding them RAISES the mean)")
+        print("      The ratio is a median and the ADV is a mean. One does not predict the")
+        print("      other, even in sign, so neither can stand in for the other.")
+        print(f"      All such markets here: {split['symbol'].tolist()}")
+
+    dense = frame.loc[frame["share_in_window"] > 0.4, "symbol"].tolist()
+    print(f"\n  monthly rollers, >40% of bars inside a window: {dense}")
+    print("  A roll-excluded ADV there uses about half the sample: a different estimator")
+    print("  rather than a cleaner one, which is why the share is always reported beside it.")
+
+
 if __name__ == "__main__":
     main()
     normalisation()
@@ -815,4 +863,5 @@ if __name__ == "__main__":
     constant_invariance()
     reflexivity()
     roll_dates_coverage()
+    roll_windows()
     coverage_ladder_report()

@@ -153,6 +153,18 @@ from .riskunits import (
     sigma_series,
 )
 from .riskunits import coverage_report as risk_coverage_report
+from .roll import (
+    DEFAULT_WINDOW_BARS,
+    MIN_EXCLUDED_SHARE,
+    ROLL_COLUMNS,
+    RollError,
+    exit_collision,
+    format_roll_block,
+    in_roll_window,
+    roll_adjusted_adv,
+    roll_calendar,
+    roll_window_stats,
+)
 from .seasonal import (
     DEFAULT_MIN_YEARS,
     SeasonalError,
@@ -214,6 +226,9 @@ __all__ = [
     "staircase", "bracket", "headline", "implied_gross_pool", "effective_lambda",
     "format_cascade_block", "ReflexivityError", "STAIRCASE_COLUMNS",
     "DEFAULT_TREND_FRACTION", "LG_CEILING",
+    "roll_calendar", "in_roll_window", "roll_window_stats", "roll_adjusted_adv",
+    "exit_collision", "format_roll_block", "RollError", "ROLL_COLUMNS",
+    "DEFAULT_WINDOW_BARS", "MIN_EXCLUDED_SHARE",
     "seasonal_profile", "deseasonalise", "seasonality_report", "week_of_year",
     "SeasonalError", "DEFAULT_MIN_YEARS",
     "plausible_variants", "reference_variants", "sweep", "summarise",
