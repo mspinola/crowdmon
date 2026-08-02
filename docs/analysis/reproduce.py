@@ -959,7 +959,7 @@ def macro_book_pca() -> None:
 
 
 def correlation_clustering() -> None:
-    """2026-08-02 B21: §369's thesis holds, its example does not."""
+    """2026-08-02 B25: §369's thesis holds, its example does not."""
     import cotdata
 
     from crowdmon.futures import (
@@ -970,7 +970,7 @@ def correlation_clustering() -> None:
         return_panel,
     )
 
-    rule("19. CORRELATION CLUSTERING: the yen carry, not energy (2026-08-02 B21)")
+    rule("19. CORRELATION CLUSTERING: the yen carry, not energy (2026-08-02 B25)")
 
     classes = {s.internal: s.asset_class for s in cotdata.all_symbols() if s.norgate}
     returns = return_panel(list(classes), start="2016").dropna(axis=1, thresh=1000)

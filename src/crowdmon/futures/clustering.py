@@ -48,10 +48,24 @@ inequality and `d = 1 - rho` does not, and average linkage on a non-metric dista
 in an order no geometry supports. Both are available and the choice is stated.
 
 **Not wired into `D`.** §A.9 has no term for it, as with §A.6's commonality, §A.8's cascade and
-§368's alignment. **And do not slice this by a named episode**: this is the third engine that
-can reach 2008, after `alignment` and the macro-book PCA, and 2008 is the last episode nobody
-in this package has looked at. It is spent the first time any of the three is pointed at it
-outside a pre-registration.
+§368's alignment.
+
+**And do not slice this by a named episode.** Verified rather than assumed: on a 500-bar
+trailing window ending 2008-09-01 this produces a full partition over 44 markets with no
+missing pair, so it **does** reach 2008, making it the third engine that can, after `alignment`
+(no warm-up at all) and the macro-book PCA. That check deliberately confirmed only that the
+machinery runs and never printed a membership, which is the line: establishing reach is not
+slicing the episode.
+
+2008 is the last episode nobody in this package has looked at, and it is unspent precisely
+because `C = pct(z)` could never reach it, so no session ever had the option. It is spent the
+first time any of the three is pointed at it outside a pre-registration.
+
+That reach is easier to lose than to gain. The macro-book PCA nearly did: its panel reached
+2008-06-10 while its **usable rolling series** started 2010-06-01, one week *after* `D`'s floor,
+because a pre-standardised input stacked `add_extremity`'s trailing window underneath
+(`2026-08-02 §B22`). A descriptive span is not the same thing as the series anyone would
+actually read.
 """
 from __future__ import annotations
 

@@ -1051,7 +1051,7 @@ loading-similarity, clustering or alignment measure built on top of this panel.
 
 ---
 
-## B21. §369's thesis holds, its example does not, and the cluster it actually finds is the yen carry
+## B25. §369's thesis holds, its example does not, and the cluster it actually finds is the yen carry
 
 **Amends:** module spec §369. Reproducer: `docs/analysis/reproduce.py` section 19.
 44 to 46 markets, `propadj` log returns, 2016 onward.

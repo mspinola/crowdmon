@@ -34,7 +34,7 @@ with.
 | [2026-08-02-coverage-reporting.md](2026-08-02-coverage-reporting.md) | **complete (PR #15), corrected same day (PR #17).** `futures/coverage.py`, keyed on `market_code`. `2026-08-02 §B18` found the ladder skipped the three terms `D` is built from, and that it is not monotonic because `phi` is price-free |
 | [2026-08-02-roll-congestion.md](2026-08-02-roll-congestion.md) | **COMPLETE.** `futures/roll.py`. All three components of spec §379 are blocked, including OI migration: the price frame's `Open Interest` is whole-market. What shipped is roll-window volume and its effect on `pressure.T`, which is 5.1% and wrong-signed for five of sixteen markets. `2026-08-02 §B19` |
 | [2026-08-02-trend-alignment.md](2026-08-02-trend-alignment.md) | **COMPLETE.** Spec §368, shipped as `futures/alignment.py`. The score **cannot reach 1**: the blend is heavily tied, so the ceiling averages 0.931 and runs 0.340 to 0.969, and the raw figure is not comparable across weeks. No warm-up, so it is the earliest-starting engine here. `2026-08-02 §B20`
-| [2026-08-02-correlation-clustering.md](2026-08-02-correlation-clustering.md) | **COMPLETE.** Spec §369, shipped as `futures/clustering.py`. Its own JPY-energy example is **not in the data**; the real cluster is `{6J, ZB, ZF, ZN, ZT}`, the yen carry, which the partition finds on its own at k=8. `2026-08-02 §B21`
+| [2026-08-02-correlation-clustering.md](2026-08-02-correlation-clustering.md) | **COMPLETE.** Spec §369, shipped as `futures/clustering.py`. Its own JPY-energy example is **not in the data**; the real cluster is `{6J, ZB, ZF, ZN, ZT}`, the yen carry, which the partition finds on its own at k=8. `2026-08-02 §B25`
 
 ## A handoff can also be a claim
 

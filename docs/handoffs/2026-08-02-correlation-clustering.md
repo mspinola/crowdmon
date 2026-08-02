@@ -1,6 +1,6 @@
 # Handoff: correlation clustering, spec §369
 
-**Status:** **COMPLETE**, shipped as `futures/clustering.py`. Findings in `2026-08-02 §B21`
+**Status:** **COMPLETE**, shipped as `futures/clustering.py`. Findings in `2026-08-02 §B25`
 **Date:** 2026-08-02
 **Claimed by:** the session that built `composite.py`, `trigger.py`, `reflexivity.py`,
 `roll.py`, `alignment.py`, `extremity.py`, `seasonal.py`, `concentration.py` and
@@ -115,7 +115,7 @@ question entirely.
 
 ## Outcome, appended 2026-08-02
 
-Shipped as `futures/clustering.py`, 17 tests. Findings in `2026-08-02 §B21`, reproducer
+Shipped as `futures/clustering.py`, 17 tests. Findings in `2026-08-02 §B25`, reproducer
 `docs/analysis/reproduce.py` section 19.
 
 **Every measurement in this handoff held**, and the clustering vindicated the finding that
