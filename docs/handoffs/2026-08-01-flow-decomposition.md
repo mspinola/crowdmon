@@ -342,10 +342,23 @@ category and never assumed the template shape.
 - **Design docs.** Resolved. Both specs are canonical in this repo's `docs/design/`, and
   `cotdata`'s copy of the module spec is now a 52-line pointer here, so the duplicate-living-
   document hazard §9 flagged is closed rather than merely tolerated.
-- **Flow decomposition exists twice.** **Still open, unclaimed.**
-  `cotdata/src/cotdata/vintage_flow.py:69` `decompose` (parameter-free, dominant-leg, no
-  `mixed` state) and `crowdmon.futures.flow.decompose` (tolerance-based) both exist today.
-  They answer slightly different questions and the difference is that this one can decline to
-  name a direction, so neither is wrong; the duplication is a maintenance liability rather
-  than a correctness bug. **It needs a decision, not more measurement**, and it is the only
-  thing this handoff leaves behind.
+- **Flow decomposition exists twice.** **Measured and pinned 2026-08-02; one decision left,
+  and it belongs to `cotdata`.** The characterisation above ("slightly different questions")
+  was too generous to itself. `cotdata.vintage_flow.decompose` is
+  `crowdmon.futures.flow.decompose` at `tolerance=1.0` with the gap rule off: 135,835
+  transitions, **100.000000% label agreement, zero mismatches, deltas identical on every
+  row.** One function, not two. At the default tolerance they disagree on 62% of weeks, all
+  of it this module declining to commit (`mixed`) or refusing the interval (`gap`), and where
+  both commit they agree on 100.000000% of 51,710 rows. The difference is entirely in what
+  each refuses.
+
+  [`tests/test_flow_equivalence.py`](../../tests/test_flow_equivalence.py) now pins that, so
+  the duplication is **managed rather than merely known about**: it fails if either
+  classifier drifts. The dedup cannot go the natural direction, because
+  `tests/test_boundaries.py` forbids `cotdata` from importing `crowdmon`.
+
+  **What is left is a `cotdata` decision, not a `crowdmon` one.** Its `decompose` has exactly
+  one consumer, `cotdata`'s own `vintage_cli.py:293`; nothing here calls it. Removing it is a
+  public-symbol removal in a PyPI package and an edit to a shared working tree, so it is not
+  taken as a side effect of this close-out. Detail and figures in
+  [`amendments-2026-08-02.md` §B29](../design/amendments-2026-08-02.md).

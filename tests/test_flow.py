@@ -113,8 +113,20 @@ def test_oats_long_absences_are_all_gaps(history_panel):
     """The thin-market case, which is what the gap rule is actually for.
 
     Oats falls below the reporting threshold, drops out of the report, and comes back. The
-    longest interval in the committed fixture is 294 days. Without the rule, that single
-    diff would enter every ranking as the largest weekly flow in the sample.
+    longest interval in the committed fixture is 294 days.
+
+    **The rule is right and the reason once given for it was not.** This docstring used to
+    say that without the rule that single diff "would enter every ranking as the largest
+    weekly flow in the sample". Measured, it would not: the five rows on the 294-day
+    interval carry a maximum |d_net| of 868 contracts and rank 153rd, 367th, 1487th, 1714th
+    and 3205th of oats' own 4,555 transitions, against an ordinary-week maximum of 3,024 in
+    the same market. It is not the largest flow in the panel, or in oats. The mechanism
+    defeats the fear: a market drops out of the report *because it is thin*, so its
+    re-entry delta is small for the same reason it went missing.
+
+    The rule survives on comparability, not magnitude. A 294-day difference is not a weekly
+    flow at any size, and a number that is not a week must not sit in a column of weeks.
+    See `docs/design/amendments-2026-08-02.md` §B29.
     """
     oats = history_panel[history_panel["market_code"] == "004603"]
     flows = decompose(oats)

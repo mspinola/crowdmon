@@ -1368,3 +1368,107 @@ markets show "heavily producer-hedged short side, fragile levered long side", wh
 two independent clauses and invites two independent frequency counts. It is one clause about
 a joint configuration. Any future comparison against a worked example should measure the
 example's **shape**, meaning the contingency table, rather than its **components**.
+
+---
+
+## B29. The two flow decompositions are one function, and the reason given for the gap rule is wrong
+
+**Contradicts** two things at once: the standing characterisation of the duplication left
+open by [`2026-08-01-flow-decomposition.md`](../handoffs/2026-08-01-flow-decomposition.md)
+§9, repeated in `flow.py`'s module docstring, that the two implementations "answer slightly
+different questions"; and the justification for the gap rule given in
+[`2026-07-28-first-rankings.md` §7.2](../analysis/2026-07-28-first-rankings.md) and in
+`test_flow.py`'s oats docstring.
+
+Reproducer: `docs/analysis/reproduce.py`, the `flow_equivalence` block. Pinned offline in
+[`tests/test_flow_equivalence.py`](../../tests/test_flow_equivalence.py).
+
+### They are the same function
+
+`cotdata.vintage_flow.decompose` is **`crowdmon.futures.flow.decompose` evaluated at
+`tolerance=1.0` with the gap rule off.** Not a similar approach, not a defensible
+alternative: the same function at the corner of its own parameter space. On the liquid
+panel, 27 markets and 135,835 transitions from 2006 to 2026:
+
+| | result |
+|---|---|
+| row sets | identical, 135,835 both, 0 left-only, 0 right-only |
+| label agreement | **100.000000%**, zero mismatches |
+| `d_long`, `d_short`, `d_net` | identical on every row |
+
+This is not luck. Both take the dominant leg as `argmax(|ΔLong|, |ΔShort|)`, both break exact
+ties to the long leg, both treat a doubly-unmoved week as `quiet` unconditionally rather than
+through a threshold. Setting `tolerance=1.0` makes `smaller <= tolerance * larger` true
+everywhere, so nothing is ever `mixed`, and that is precisely `cotdata`'s classifier.
+
+### At the default tolerance they disagree on 62% of weeks, in exactly two ways
+
+| this module | `long_liquidation` | `new_longs` | `new_shorts` | `quiet` | `short_covering` |
+|---|---|---|---|---|---|
+| `gap` | 664 | 857 | 808 | 13 | 623 |
+| `long_liquidation` | **13,427** | 0 | 0 | 0 | 0 |
+| `mixed` | 19,463 | 20,938 | 20,822 | 0 | 19,937 |
+| `new_longs` | 0 | **14,422** | 0 | 0 | 0 |
+| `new_shorts` | 0 | 0 | **12,560** | 0 | 0 |
+| `quiet` | 0 | 0 | 0 | **313** | 0 |
+| `short_covering` | 0 | 0 | 0 | 0 | **10,988** |
+
+Read the off-diagonal. Every disagreement sits in the `mixed` row or the `gap` row, and
+**where this module commits to a direction the agreement is 100.000000% on 51,710 rows**.
+The two never name opposite directions for the same week, and cannot, because the tolerance
+only gates whether the smaller leg disqualifies a label. A pure state can become `mixed`; it
+can never become a different pure state.
+
+**So the difference is entirely in what each REFUSES.** That one is parameter-free and always
+commits. This one can say "two-sided" and can say "that was not a week". Both refusals are
+real capabilities and neither is a different opinion about the data.
+
+### The gap rule is right, and the reason recorded for it is not
+
+§7.2 and the oats test both say that without the gap rule the 294-day oats interval "would
+enter every ranking as the largest weekly flow in the sample". **Measured, it would not, and
+not by a wide margin:**
+
+| | contracts |
+|---|---|
+| max abs `d_net` on the 294-day oats interval | **868** |
+| oats' own max on an ordinary (<= 8 day) week | 3,024 |
+| panel-wide max on any interval over 14 days | 2,552 |
+| panel-wide max on an ordinary week | **180,597** |
+
+The five rows on that interval rank **153rd, 367th, 1487th, 1714th and 3205th** of oats' own
+4,555 transitions. It is not the largest flow in the panel, in the market, or in the year.
+
+**The mechanism defeats the fear, and it is obvious in hindsight.** A market drops out of the
+Disaggregated report *because it has fallen below the reporting threshold*. It is therefore
+tiny while it is away and tiny when it returns, so its re-entry delta is small for the same
+reason it went missing at all. The feared artifact requires a large market to vanish for
+months, which is not a thing that happens.
+
+**The rule survives on comparability, not on magnitude.** A 294-day difference is not a
+weekly flow at any size, and a number that is not a week must not sit in a column of weeks
+where something will eventually sum it, average it, or z-score it. That argument was always
+the better one and it is the one that should have been written down. Nothing about the
+implementation changes; `gap_days_tolerance` stays at its strict default.
+
+### What is done, and what is left
+
+The dedup **cannot go the natural direction**: `tests/test_boundaries.py` forbids `cotdata`
+from importing `crowdmon`, so `cotdata` cannot delegate to the general implementation, and
+inverting that would make a producer depend on its consumer. The check therefore lives here,
+on the side that may import `cotdata` freely.
+
+`tests/test_flow_equivalence.py` asserts the equivalence, the two-kinds-of-disagreement
+property and the never-opposite-directions property, on the committed fixtures and offline.
+**The duplication is now managed rather than merely known about**: two copies of one
+algorithm in two repos drift, and drift is invisible when each side has its own passing
+tests, so these assertions fail the moment either classifier changes.
+
+What remains is a decision in a **different repo** and is deliberately not taken here.
+`cotdata.vintage_flow.decompose` has exactly one consumer, `cotdata`'s own
+`vintage_cli.py:293` (`cotdata-vintage flow`); nothing in `crowdmon` calls it, and the
+`vintage_flow` import in `cot_adapter.py` is for `zero_sum_check`, a different function that
+is genuinely `cotdata`'s. Removing it is a public-symbol removal in a PyPI package and a
+change to a shared working tree that other sessions have checked out, which is not something
+to do as a side effect of a `crowdmon` amendment. Recorded as an open decision, with the
+measurement it needs now attached to it.

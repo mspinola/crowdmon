@@ -19,11 +19,19 @@ names the state; above it, the week is `mixed`. `tolerance_sensitivity` reports 
 that number is deciding, because a classification that reshuffles between 0.15 and 0.40 is
 a statement about the tolerance rather than about the market.
 
-`cotdata.vintage_flow.decompose` resolves the same ambiguity a different way — dominant
-leg with no tolerance, so nothing is ever `mixed`. Both are defensible and they answer
-slightly different questions: that one is parameter-free and always commits to a
-direction, this one admits that some weeks are genuinely two-sided and refuses to call
-them. The measured disagreement between the two is reported in the analysis writeup.
+**`cotdata.vintage_flow.decompose` is this function at `tolerance=1.0` with the gap rule
+off**, not a rival implementation. Measured on 135,835 real transitions the two agree on
+100.000000% of labels under that parameterisation, with `d_long`, `d_short` and `d_net`
+identical on every row. At the default tolerance they disagree on 62% of weeks, and every
+one of those disagreements is of exactly two kinds: this module declining to commit
+(`mixed`) where that one names the dominant leg, or refusing the interval (`gap`) where
+that one differences across it anyway. Neither ever names the opposite direction.
+
+The two therefore differ in what they REFUSE, which is the whole of it: that one is
+parameter-free and always commits, this one can say "two-sided" and can say "that was not
+a week". `tests/test_flow_equivalence.py` pins the relationship so it cannot drift
+silently, since the dedup cannot go the other way (`cotdata` may not import `crowdmon`).
+See `docs/design/amendments-2026-08-02.md` §B29.
 """
 from __future__ import annotations
 

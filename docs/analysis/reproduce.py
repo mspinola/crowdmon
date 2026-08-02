@@ -26,6 +26,7 @@ Prints, in order:
  17. the coverage ladder: which markets score nothing, and where (2026-08-02 B17)
  20. the macro-book PCA and what PC1 actually is, per report type (B21)
   B28. the cocoa template measured as a joint shape rather than two margins
+  B29. the two flow decompositions, and the oats rationale that does not hold
 
 The leading ordinals above are the order the blocks were added and have drifted: 17 and 18
 each appear twice and there is no 19. Not renumbered here, because these numbers are quoted
@@ -1134,6 +1135,74 @@ def template_shape() -> None:
     print("  and MM is still the single largest Q_buy contributor in 32/94.")
 
 
+def flow_equivalence() -> None:
+    """Amendment B29: cotdata's decompose is this one at tolerance=1.0, and the oats rationale.
+
+    The 2026-08-01 handoff closed leaving the two flow-decomposition implementations as its
+    one open decision, characterised as "slightly different questions". They are the same
+    function; only the refusals differ.
+    """
+    from cotdata import vintage_flow as vf
+
+    from crowdmon.futures import flow as cflow
+    from crowdmon.futures.io import SERIES_KEY
+
+    rule("THE TWO FLOW DECOMPOSITIONS (2026-08-02 B29)")
+    panel = from_current_store(report_type="disaggregated")
+    key = SERIES_KEY + ["report_date"]
+    print(f"\npanel: {panel['market_code'].nunique()} markets, "
+          f"{panel['report_date'].min().date()} to {panel['report_date'].max().date()}")
+
+    def join(**kw):
+        mine, theirs = cflow.decompose(panel, **kw), vf.decompose(panel)
+        return mine[key + ["flow_state", "days_elapsed", "d_net"]].merge(
+            theirs[vf.SERIES_KEY + ["report_date", "state", "d_net"]],
+            on=key, how="outer", suffixes=("_mine", "_theirs"), indicator=True)
+
+    equal = join(tolerance=1.0, gap_days_tolerance=100_000)
+    agree = (equal["flow_state"] == equal["state"]).mean()
+    print("\n--- at tolerance=1.0 with gaps off: THE SAME FUNCTION ---")
+    print(f"  rows {len(equal):,}, merge {equal['_merge'].value_counts().to_dict()}")
+    print(f"  label agreement {agree:.6%}, mismatches "
+          f"{int((equal['flow_state'] != equal['state']).sum())}")
+    for col in ("d_net",):
+        ident = (equal[f"{col}_mine"].fillna(-1e9) == equal[f"{col}_theirs"].fillna(-1e9)).mean()
+        print(f"  {col} identical on {ident:.6%}")
+
+    default = join()
+    print("\n--- at the DEFAULT tolerance: two kinds of disagreement, no third ---")
+    print(f"  label agreement {(default['flow_state'] == default['state']).mean():.2%}")
+    print(report.to_markdown(
+        pd.crosstab(default["flow_state"], default["state"]).reset_index()))
+    disagree = default[default["flow_state"] != default["state"]]
+    print(f"\n  every disagreement is mine=mixed or mine=gap: "
+          f"{sorted(set(disagree['flow_state']))}")
+    committed = default[~default["flow_state"].isin(["mixed", "gap"])]
+    print(f"  where I commit to a direction, agreement is "
+          f"{(committed['flow_state'] == committed['state']).mean():.6%} "
+          f"of {len(committed):,} rows")
+
+    print("\n--- the oats rationale, which does NOT hold up ---")
+    oats = vf.decompose(panel[panel["market_code"] == "004603"]).copy()
+    oats["abs_net"] = oats["d_net"].abs()
+    long_gap = oats[oats["days_elapsed"] > 200]
+    ranks = sorted(oats["abs_net"].rank(ascending=False, method="min")[long_gap.index])
+    print(f"  oats transitions: {len(oats):,}")
+    print(f"  rows on the 294-day interval: {len(long_gap)}, "
+          f"max |d_net| {long_gap['d_net'].abs().max():,.0f}")
+    print(f"  their ranks within oats by |d_net|: {[int(r) for r in ranks]}")
+    print(f"  oats max |d_net| on a normal (<=8d) interval: "
+          f"{oats[oats['days_elapsed'] <= 8]['d_net'].abs().max():,.0f}")
+    allgap = default[default["flow_state"] == "gap"]
+    print(f"  panel-wide, max |d_net| cotdata reports on a >14d interval: "
+          f"{allgap[allgap['days_elapsed'] > 14]['d_net_theirs'].abs().max():,.0f}")
+    print(f"  panel-wide, max |d_net| on an ordinary week:              "
+          f"{default[default['flow_state'] != 'gap']['d_net_theirs'].abs().max():,.0f}")
+    print("\n  So the 294-day diff is not the largest flow in the panel, or even in oats.")
+    print("  A market drops out BECAUSE it is thin, so its re-entry delta is small for the")
+    print("  same reason it went missing. The gap rule survives on comparability, not size.")
+
+
 if __name__ == "__main__":
     main()
     normalisation()
@@ -1151,3 +1220,4 @@ if __name__ == "__main__":
     coverage_ladder_report()
     macro_book_pca()
     template_shape()
+    flow_equivalence()
