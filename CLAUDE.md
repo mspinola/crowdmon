@@ -161,11 +161,18 @@ src/crowdmon/
     seasonal.py             §5.4. Measured at <=1.4% of variance; adjustment defaults OFF
     trigger.py              §9.3 / A.7. F*=F_{t-k}, from an OBSERVED pool not a fitted AUM
     extremity.py            §6.1 / A.4 vol-scaled positioning vs 3y of own history
-    volume.py               A.5 denominator. `front` is whole-market, `reconstructed` is not
+    volume.py               A.5 denominator: whole-market ADV + stress V. Refuses anything
+                            but "front", because `reconstructed` is not whole-market
+    pressure.py             A.5 exit capacity. T = Q/(kappa V) is a real duration now
     composite.py            A.9 D = C x I x Phi. The whole system in one number
     reflexivity.py          A.8 cascade. g is a STAIRCASE, and up/down never merge
-    volume.py               whole-market ADV + A.5 stress V. Refuses anything but "front"
-    pressure.py             A.5 exit capacity. T = Q/(kappa V) is a real duration now
+    macro_pca.py            §7 cross-market. PC1 is the SUBJECT, and differs by report type
+    clustering.py           §369 correlation clusters, not sector labels. Finds the yen carry
+    alignment.py            §368 positioning against blended 20/60/250d TSMOM. Cannot reach 1
+    roll.py                 roll-window volume, NOT §379: all three of its parts are blocked
+    coverage.py             which markets can be scored at all, and at which rung they die
+    continuity.py           a market code is not an instrument. Migrations, keyed on the code
+    report.py               the COT-specific half of the report layer. Knows categories
 ```
 
 `riskunits.py` sits **here beside `notional.py`, not in `core/`**: it needs `propadj` where
