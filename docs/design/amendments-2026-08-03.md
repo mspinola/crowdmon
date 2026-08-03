@@ -1039,7 +1039,26 @@ Reproducer: [`../analysis/reproduce.py`](../analysis/reproduce.py)`::positioning
 
 ---
 
-## C17. The ag and dairy backlog is mostly not worth speccing, and the dairy block fails the gate
+## C17. CRITERION 1 CORRECTED. The ag and dairy backlog is mostly not worth speccing, and the dairy block fails the gate
+
+> **The flat 0.05 cut in criterion 1 below is wrong, and every verdict it reaches is right.**
+> Corrected by `§C18`, which benchmarks the levered-holder bar against the candidate's own
+> **complex** median rather than the pooled 0.1371 this section used. The pooled figure is a
+> bar for the median complex and for no other: covered **energy** sits at **0.0435**, so the
+> flat cut excludes Nat Gas (0.0369) and WTI (0.0399), the two largest markets in the universe
+> and both already covered. Applied to the energy backlog it condemned four of the five codes
+> already committed to a producer run, which is how it was caught.
+>
+> **Nothing below changes.** This section's candidates are grains (complex median 0.0982) and
+> dairy (0.1021), both near the pooled figure, so the flat cut happened to be roughly right
+> here. Re-run under §C18 the ten land identically; only Malaysian palm oil's *reason* moves,
+> from "under 0.05" to "0.49x of grains". Rough rice is **4.41x** of grains and the dairy
+> block runs 0.11x to 0.34x of dairy, so the headline hardens rather than softens.
+>
+> **Kept unedited, and kept running, for the same reason `§C15` is**: how a bar was wrong is
+> the useful part, and this one was wrong in a way that agreed with the right answer on the
+> data it was applied to. `backlog_priority_within_complex` is the corrected test and covers
+> all 34 backlog codes; `ag_dairy_backlog_priority` still reproduces the numbers quoted here.
 
 **Answers** a request to prioritise the ag and dairy codes in the §C14 backlog. The honest
 answer is that **six of the ten should not be specced at all**, and the largest by open
