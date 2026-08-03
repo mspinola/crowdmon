@@ -136,7 +136,13 @@ from .extremity import (
     latest_extremes,
 )
 from .flow import FLOW_STATES, decompose, state_distribution, tolerance_sensitivity
-from .fragility import contributions, fragility_frame, market_fragility
+from .fragility import (
+    SHAPE_KEYS,
+    contributions,
+    fragility_frame,
+    market_fragility,
+    shape_labels,
+)
 from .impact import (
     DEFAULT_AMIHUD_WINDOW,
     IMPACT_COLUMNS,
@@ -302,6 +308,7 @@ __all__ = [
     "EXTREMITY_COLUMNS",
     "decompose", "state_distribution", "tolerance_sensitivity", "FLOW_STATES",
     "market_fragility", "fragility_frame", "contributions",
+    "shape_labels", "SHAPE_KEYS",
     "decompose_breadth",
     "exit_pressure", "rank_markets", "top_by",
     # exit COST, distinct from exit duration. A.9's composite term is pct(T_eff), which is

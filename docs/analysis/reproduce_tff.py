@@ -30,6 +30,7 @@ from crowdmon.futures import (
     oi_identity,
     oi_identity_summary,
     rank_markets,
+    shape_labels,
 )
 
 #: The three "Consolidated" equity index markets. Each is an AGGREGATE of its own
@@ -209,23 +210,25 @@ def main() -> None:
     print("  Phi near its ceiling, Q/OI near the floor. Different questions.")
 
 
-def _tff_shape_labels(stable: pd.Series, fragile: pd.Series) -> pd.Series:
-    """Six mutually exclusive outcomes of a (stable, fragile) category pair.
+#: Display names for `fragility.SHAPE_KEYS` on the TFF pair, as B32 quotes them.
+TFF_SHAPE_LABELS = {
+    "fragile_long": "cocoa direction (stable short, fragile long)",
+    "fragile_short": "MIRROR (stable long, fragile short)",
+    "both_short": "same side (both short)",
+    "both_long": "same side (both long)",
+    "fragile_flat": "fragile flat",
+    "no_stable_side": "no stable side",
+}
 
-    Same construction as `reproduce.template_shape_stratified`, and explicit rather than
-    fall-through for the same reason: a market with no position at all in one leg is a
-    distinct outcome, not a variety of "the other leg is flat".
+
+def _tff_shape_labels(stable: pd.Series, fragile: pd.Series) -> pd.Series:
+    """Six mutually exclusive outcomes of a (stable, fragile) category pair, named as B32 does.
+
+    The classification is `crowdmon.futures.shape_labels`. It used to be written out here
+    and again in `reproduce.py`, one construction in two files with different label
+    strings, which is exactly the drift B29 caught between the two flow decompositions.
     """
-    out = pd.Series(pd.NA, index=stable.index, dtype=object)
-    out = out.mask((stable < 0) & (fragile > 0), "cocoa direction (stable short, fragile long)")
-    out = out.mask((stable > 0) & (fragile < 0), "MIRROR (stable long, fragile short)")
-    out = out.mask((stable < 0) & (fragile < 0), "same side (both short)")
-    out = out.mask((stable > 0) & (fragile > 0), "same side (both long)")
-    out = out.mask((stable != 0) & (fragile == 0), "fragile flat")
-    out = out.mask(stable == 0, "no stable side")
-    if out.isna().any():
-        raise ValueError(f"{int(out.isna().sum())} market-weeks fell through every mask.")
-    return out
+    return shape_labels(stable, fragile, labels=TFF_SHAPE_LABELS)
 
 
 def template_shape_tff() -> None:
@@ -322,8 +325,17 @@ def template_shape_tff() -> None:
           f"breaches of {c_tff:.3f}: {int((sell_over_buy > c_tff + 1e-9).sum())}")
     print(f"    Q_buy/Q_sell: max {buy_over_sell.max():.4f}, "
           f"breaches of {c_tff:.3f}: {int((buy_over_sell > c_tff + 1e-9).sum())}")
+    agnostic = pd.concat([sell_over_buy, buy_over_sell], axis=1).max(axis=1)
     print(f"    median Q_sell/Q_buy {sell_over_buy.median():.3f} "
           f"(Disaggregated median is 0.993)")
+    print(f"    median max/min     {agnostic.median():.3f} "
+          f"(Disaggregated median is 3.024), as a fraction of the "
+          f"{c_tff:.3f} ceiling: {agnostic.median() / c_tff:.1%}")
+    print("    Both are printed because B34 measured that the SIGNED median is direction")
+    print("    cancelling rather than symmetry: what a median near 1 says is that which")
+    print("    side is larger is a coin flip, not that the two sides are close in size.")
+    print("    On TFF the signed median is 0.582 rather than 1, which is the whole point")
+    print("    of this section: the lean is systematic and it points the other way.")
     print(f"\n  §A.2's cocoa asymmetry is 9.05x. On TFF the arithmetic maximum is "
           f"{c_tff:.2f}x,")
     print("  so no TFF market can reach it in any state of the world. The example is not")

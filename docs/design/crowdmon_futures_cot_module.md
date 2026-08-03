@@ -313,6 +313,98 @@ Assign a constraint weight per category:
 
 Weights are configured, documented as judgement, and subjected to sensitivity analysis rather than presented as estimates.
 
+**The table above is the CONCEPTUAL one. `src/crowdmon/core/config.py` holds the live
+values**, and where the two differ the code is what runs: `managed_money: 1.0`, `swap: 0.4`,
+`other_reportable: 0.5`, `nonreportable: 0.6`, `producer_merchant: 0.1` on Disaggregated, and
+`leveraged: 1.0`, `dealer: 0.4`, `asset_manager: 0.3` on TFF. Quote `config.py` when the
+number matters.
+
+#### Weights are STATIC, and the spread across weight tables is a reported band
+
+**Decision, taken 2026-08-03 and recorded so it is not reopened.** The weights do not become
+regime-conditional. The evidence that raised the question is real: measured against Managed
+Money at 1.0, the swap book sits at **0.305 on routine turnover and 0.067 in the worst 5% of
+weeks** (`docs/analysis/2026-08-03-index-share.md` §5), so a single `swap: 0.4` is incoherent
+**between regimes rather than between markets**, which is the opposite of the per-market
+direction that work set out to explore.
+
+A regime-switching table was rejected anyway, on cost rather than on the evidence. It needs a
+stress classifier that is point-in-time and free of lookahead, and every misclassification
+would propagate into `Q_sell`, `Q_buy`, `Phi` and the composite at once. The alternative is
+cheaper and more honest: **report the output under several weight tables and treat the spread
+as an uncertainty band rather than as noise.**
+
+The band is `w_SD ∈ {0.067, 0.2, 0.4, 0.7}`. Three are round numbers chosen for spacing and
+should be labelled as such; **0.067 is measured** and is therefore the empirically motivated
+lower bound rather than a fourth round number. Three findings from running it
+(`2026-08-03 §C6-C8`, reproducer
+`docs/analysis/reproduce_template_stability.py::c6_the_reported_band` onward):
+
+- **The band is not on one scale.** At 0.067 the swap weight drops below `producer_merchant`
+  at 0.1 and becomes the table's minimum, so the ceiling above rises from 10.0 to 14.925.
+  Scale a ratio by its own ceiling before comparing across the band.
+- **`w_SD = 0.4` overstates fragile capital, and worst where it is least deserved.** `Phi` at
+  0.4 exceeds `Phi` at 0.067 on 99.31% of market-weeks and never falls below it, by a median
+  +19.6%. Per market the inflation runs +0.9% (rough rice) to +50.8% (Henry Hub), and **gold
+  at +27.8% is affected 2.30x as much as cocoa at +12.1%**, because on gold the swap dealer
+  is the immovable physical-hedging side while on cocoa it holds the largest net long.
+- **Most of that never reaches the composite**, which consumes `pct(Phi)` rather than `Phi`:
+  the median percentile shift is 0.0588. But 9.79% of market-weeks shift more than 0.25, and
+  on **98 of 264 markets** the two weight tables order that market's own weeks differently.
+  Publish the band beside a `D` percentile on power and gas basis; on a classic outright it
+  is a footnote.
+
+**What `swap` should actually BE is a separate, open question and is the human's**, filed as
+`docs/handoffs/2026-08-03-swap-dealer-weight-decision.md`. This decision closes that
+handoff's option (c) and leaves (a), (b) and (d) open. No weight value changed here.
+
+#### The weight table sets the range of every asymmetry metric before any data arrives
+
+Since `Σ_c P_c = 0`, the gross net-long total `G` equals the gross net-short total. Therefore
+`Q_sell ≤ max(w)·G` and `Q_buy ≥ min(w)·G`, so **any ratio of the two directions is bounded**:
+
+```
+Q_sell / Q_buy   ≤   max(w) / min(w)
+```
+
+and the direction-agnostic form `max(Q_sell, Q_buy) / min(Q_sell, Q_buy)` carries the same
+bound. The current ceilings are **10.0 on Disaggregated** (1.0 / 0.1) and **3.333 on TFF**
+(1.0 / 0.3), verified at zero breaches across 21,756 Disaggregated and 6,033 TFF
+market-weeks.
+
+Three consequences, none of which were visible when this section was written:
+
+- The ceiling is a property of `core/config.py`, not of any market. An observed ratio must be
+  quoted **alongside the ceiling** or as a fraction of it, or it reads as a free measurement
+  when it is partly a statement about the config.
+- Changing the weight spread **rescales every asymmetry figure**, so a cross-version
+  comparison requires the weight-table version to be recorded beside the result. Changing the
+  *level* of the weights uniformly does not, because it cancels in the ratio.
+- The two report types **cannot be compared**, for the same reason §2.3 of the TFF analysis
+  gives for Φ itself: the ceilings differ by a factor of three, so the appendix's 9.05×
+  example is arithmetically unreachable on TFF rather than merely unusual there.
+
+Measured: see amendments 2026-08-02 §B31 (the bound and its verification), §B32 (per report
+type) and §B34 (the direction-agnostic form, and why the *signed* median of 0.993 is
+direction cancelling rather than symmetry).
+
+#### `PM == 0` is inexpressible, not false
+
+When labelling a market by the hedger-versus-fund shape, a market with **no
+Producer/Merchant position at all** is a sixth outcome and must be labelled explicitly. It is
+not "the fund is flat", and it is not "the template does not hold": there is no hedger side
+for the template to be a statement about.
+
+It is 73 of 21,756 Disaggregated market-weeks, concentrated in the retail-sized contracts
+(MICRO GOLD in 58 weeks of 80, MICRO SILVER 5, Coinbase GOLD-1oz 4), and on TFF it is a third
+of the report by market count, because `asset_manager` is absent from crypto in 72.7% of
+market-weeks.
+
+**Label by explicit mask, never by fall-through.** A first implementation defaulted unmatched
+rows to "fund net flat" and duly reported MICRO GOLD as a fund-flat market, when Managed Money
+is net long there in 84% of weeks and it is the *hedger* that is missing. Recorded here so it
+is not re-introduced; asserted in `tests/test_fragility.py`.
+
 ### 6.4 Flow decomposition
 
 Weekly change in net position decomposes into four states, which have different implications:
@@ -457,6 +549,7 @@ Plus mechanical tests: release-date indexing (no lookahead), vintage replay repr
 5. **Intra-week dynamics.** Tuesday snapshot with Friday release. A fast unwind lasts days, so COT confirms after the fact — hence the daily OI nowcast, which is a partial fix and not a complete one.
 6. **Non-US venues.** Positioning in LME, SGX, and Asian exchanges is not covered by CFTC reporting.
 7. **Direction.** Positioning extremes persist for quarters. Every output is a statement about tail shape and forced-flow risk, not about next week's return.
+8. **Whether a swap book is index flow or levered flow, outside 13 agricultural markets.** The CFTC Supplemental (Commodity Index Trader) report is the only public source that separates index positioning, and it covers **13 agricultural markets and no metals**. Gold, silver and copper are outside it and always will be. That is not a gap waiting on ingestion: cotdata#96 landed the report in full and the coverage is the report's own. It matters because **gold is the case that motivated half the Swap Dealer weight question**, the market where the swap dealer sits on the *immovable* physical-hedging side with Producer/Merchant at a tenth of the swap book (`2026-08-03 §C7`: gold is 2.30x more distorted by `w_SD` than cocoa). Anything established for ag transfers to metals only with an argument that is not in this data. Two further constraints on any cross-report attempt, both measured rather than assumed: Supplemental **Index Traders does not nest inside** Disaggregated **Swap Dealer** (Legacy taxonomy, not Disaggregated, so the two cannot be differenced), and the Supplemental is **futures-and-options combined** where the other three reports are futures-only, so a share computed across them needs a denominator from the same report. See `cotdata/docs/analysis/2026-08-03-cit-supplemental-measurements.md`.
 
 ---
 

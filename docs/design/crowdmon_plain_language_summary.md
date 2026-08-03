@@ -55,7 +55,7 @@ The volatility rule adds a second trigger that catches people out. Because these
 
 ## A worked example
 
-*Hypothetical, but built from realistic market structure.*
+*Hypothetical, and deliberately extreme. §A.2 in the appendix works a real market (live cattle, report week 2026-07-28) through the same arithmetic; this one is here because an extreme case is easier to follow. Cocoa itself does not currently show this configuration.*
 
 Suppose cocoa has been rising for eight months on genuine supply problems in West Africa. Real story, real shortage.
 
@@ -101,8 +101,12 @@ Crowding on its own is harmless. It becomes dangerous when the crowd is large re
 # Appendix — The same argument, formally
 
 > Every formula below is implemented, and the worked examples are executed rather than read
-> ([`tests/test_appendix.py`](../../tests/test_appendix.py)). Implementation notes and
-> measured amendments live in [`amendments-2026-08-01.md`](amendments-2026-08-01.md) and
+> ([`tests/test_appendix.py`](../../tests/test_appendix.py)). The thread through §A.2, §A.5,
+> §A.7 and §A.9 is one **real** market at a stated report week, recomputed from the store by
+> that test and by `docs/analysis/reproduce.py` (`appendix_a2_worked_example`); the
+> constructed figures kept beside it are labelled as constructed everywhere they appear.
+> Implementation notes and measured amendments live in
+> [`amendments-2026-08-01.md`](amendments-2026-08-01.md) and
 > [`amendments-2026-08-02.md`](amendments-2026-08-02.md); anyone building from this appendix
 > should read those alongside it.
 
@@ -161,9 +165,43 @@ $$\Phi = \frac{\sum_c w_c \,(L_c + S_c)}{2 \cdot OI} \;\in [0,1]$$
 
 which reads as the average fragility of a randomly chosen position-side. The farmer and the leveraged fund can hold identical contract counts and enter this sum ten times apart.
 
-### Worked example — cocoa
+### Worked example: live cattle, report week 2026-07-28
 
-Take $OI = 200{,}000$ contracts, with the positioning described in the main text:
+Real CFTC values, Disaggregated, released 2026-07-31. $OI = 298{,}449$ contracts:
+
+| Category | Long | Short | Net $P_c$ | Gross $L_c+S_c$ | $w_c$ |
+|---|---|---|---|---|---|
+| Producer / Merchant | 41,461 | 140,446 | **−98,985** | 181,907 | 0.1 |
+| Swap Dealer | 68,622 | 7,026 | +61,596 | 75,648 | 0.4 |
+| Managed Money | 84,907 | 17,882 | **+67,025** | 102,789 | 1.0 |
+| Other Reportable | 13,899 | 36,601 | −22,702 | 50,500 | 0.5 |
+| Non-Reportable | 25,614 | 32,548 | −6,934 | 58,162 | 0.6 |
+
+**Forced selling** (net-long categories):
+
+$$Q_{\text{sell}} = 1.0(67{,}025) + 0.4(61{,}596) = 91{,}663.4$$
+
+**Forced buying** (net-short categories):
+
+$$Q_{\text{buy}} = 0.5(22{,}702) + 0.1(98{,}985) + 0.6(6{,}934) = 25{,}409.9$$
+
+**Fragility share:**
+
+$$\Phi = \frac{1.0(102{,}789) + 0.6(58{,}162) + 0.4(75{,}648) + 0.5(50{,}500) + 0.1(181{,}907)}{2 \times 298{,}449} = \frac{211{,}386.1}{596{,}898} = 0.354$$
+
+**Reading the result.** The asymmetry is the entire point: 91,663 contracts of forced selling face 25,410 of forced buying, a ratio of 3.61. The short side is cattle feeders and packers hedging physical animals, who can stand for delivery and will not cover in a panic. The long side is a levered fund book, plus a swap book that is constrained but not forced. Same open interest, different behaviour depending on which way the market breaks.
+
+None of this is visible in the headline net figure. "Managed Money net long 67,025" says nothing about who is on the other side or whether they can be forced to move.
+
+**Two things this real example shows that a constructed one would not.**
+
+*The weight decides, not the size.* Producer/Merchant carries by far the largest net on the short side at −98,985, and contributes **less to $Q_{\text{buy}}$ than Other Reportable does** (9,898.5 against 11,351.0), whose net is a quarter of the size at −22,702. That inversion is the whole content of the weighting: a big position that cannot be forced out is not exit pressure.
+
+*The fragile side is not one category.* $Q_{\text{sell}}$ is Managed Money plus a Swap Dealer book 74% as large in gross terms, which enters at $w = 0.4$ and so contributes 24,638 of the 91,663. Managed Money carries 48.6% of the $\Phi$ numerator here, the largest single share but not a takeover. Measured across the full Disaggregated universe, Managed Money is the top $\Phi$ contributor in only 29% of markets, so a single category dominating is **not** typical and $\Phi$ should be read beside its contributions rather than alone. This is why $\Phi$ deserves sensitivity analysis across plausible weightings rather than being quoted to two decimals (A.11).
+
+### The constructed extreme, retained
+
+The following table is **hypothetical and near-maximal**, built to make the asymmetry as visible as possible. It was previously presented here as though it were typical, which it is not. It is kept because an extreme case is a useful thing to see, and it is the example the main text's cocoa narrative refers to.
 
 | Category | Long | Short | Net $P_c$ | Gross $L_c+S_c$ | $w_c$ |
 |---|---|---|---|---|---|
@@ -174,23 +212,31 @@ Take $OI = 200{,}000$ contracts, with the positioning described in the main text
 | Non-Reportable | 10,000 | 5,000 | +5,000 | 15,000 | 0.6 |
 | **Total** | 200,000 | 200,000 | 0 | 400,000 | |
 
-**Forced selling** (net-long categories):
-
 $$Q_{\text{sell}} = 0.4(10{,}000) + 1.0(90{,}000) + 0.5(5{,}000) + 0.6(5{,}000) = 99{,}500$$
 
-**Forced buying** (net-short categories):
+$$Q_{\text{buy}} = 0.1(110{,}000) = 11{,}000 \qquad\qquad \Phi = \frac{175.5}{400} = 0.44$$
 
-$$Q_{\text{buy}} = 0.1(110{,}000) = 11{,}000$$
+**Where it sits.** $Q_{\text{sell}}/Q_{\text{buy}} = 9.045$. That ratio is bounded above by $\max(w)/\min(w) = 10.0$, a property of the weight table rather than of any market, so the example stands at **90.5% of the mechanical ceiling**. It is attainable: 54 of 21,756 measured market-weeks reach it, across 14 markets, mostly power and gas basis but including eight outright market-weeks in copper, coffee, RBOB, canola and spring wheat. It is the 99.75th percentile of the classic outrights. The live cattle example above, at 3.61, is the 70th percentile: above the middle, and nowhere near the bound.
 
-**Fragility share:**
+### How common is this shape?
 
-$$\Phi = \frac{0.1(190) + 0.4(50) + 1.0(110) + 0.5(35) + 0.6(15)}{400} = \frac{175.5}{400} = 0.44$$
+Measured over 82 vintage weeks, 346 markets, 21,756 market-weeks (amendments B28, B31, B32, B33, B34):
 
-**Reading the result.** The asymmetry is the entire point: roughly 99,500 contracts of forced selling face only 11,000 of forced buying. The short side is producers hedging physical harvest — they cannot be squeezed and will not cover in a panic. The long side is levered funds that can be made to sell. Same open interest, radically different behaviour depending on which way the market breaks.
+| stratum | template (hedger short, fund long) | inverted | same side | no directional pair | market-weeks |
+|---|---|---|---|---|---|
+| classic outright | 44.7% | 25.0% | 26.5% | 3.7% | 3,214 |
+| power/gas/carbon venue | 26.8% | 25.6% | 32.7% | 14.8% | 16,365 |
 
-None of this is visible in the headline net figure. "Managed Money net long 90,000" says nothing about who is on the other side or whether they can be forced to move.
+"No directional pair" is a market where one of the two categories is flat or absent, so the shape is inexpressible rather than false.
 
-Note also that Managed Money contributes 110,000 of the 175,500 fragility numerator — a single category dominates, which is typical, and is why $\Phi$ deserves sensitivity analysis across plausible weightings rather than being quoted to two decimals.
+Four things a reader should carry away, none of which invalidate the construction above:
+
+- **It is a commodity claim.** On the financial (TFF) report the mirror configuration, a stable long side facing a fragile short one, is 77.3% of open interest and this shape is 3.8%. The forced flow there is buying.
+- **The hedged short side is the robust half; the fund side is not.** Among classic outrights Producer/Merchant is net short in 69.2% of market-weeks and Managed Money net long in 50.0%.
+- **That 50.0% is a coin flip in sign, not in size.** Managed Money holds 64.9% of its contracts on the long side, and its median position is 13.9% of open interest when long against 7.2% when short. The fund is present and large in both directions; it is not absent.
+- **Direction is incidental to the mechanism.** Measured without a direction, $\max(Q)/\min(Q)$ has a median of 3.02 across all market-weeks and under 5% of them are genuinely balanced. The signed median of 0.993 reported in B31 is direction cancelling, not symmetry.
+
+The shape is also a property of particular markets rather than of a given week: metals 66.5% of market-weeks, softs 52.4%, grains 38.2%, and every crude oil and natural gas code in the store at zero.
 
 ## A.3 "Concentrating rather than broadening" — the breadth–depth decomposition
 
@@ -234,13 +280,17 @@ and surfaced as a percentile of its own history, since raw levels are not compar
 
 $$T = \frac{Q}{\kappa V}$$
 
-*Cocoa, continued.* Carrying $Q_{\text{sell}} = 99{,}500$ from A.2, with $V = 25{,}000$ contracts/day and $\kappa = 0.2$:
+*Live cattle, continued.* Carrying $Q_{\text{sell}} = 91{,}663.4$ from A.2, with a measured $V = 75{,}328.6$ contracts/day and $\kappa = 0.2$:
 
-$$T = \frac{99{,}500}{0.2 \times 25{,}000} = \frac{99{,}500}{5{,}000} \approx 20 \text{ days}$$
+$$T_{\text{sell}} = \frac{91{,}663.4}{0.2 \times 75{,}328.6} = \frac{91{,}663.4}{15{,}065.7} = 6.08 \text{ days}$$
 
-Twenty trading days — a month — of forced selling in a market that has already thinned. Note this uses calm-market volume; the stress-conditioned figure below is worse.
+$$T_{\text{buy}} = \frac{25{,}409.9}{15{,}065.7} = 1.69 \text{ days}$$
 
-Using the *unweighted* Managed Money net of 90,000 instead would give 18 days, which is close here only because that category dominates $Q$. Where fragility is spread more evenly the two diverge substantially, and the weighted figure is the meaningful one.
+Six days against under two. That gap, not either number alone, is what the directional split exists to show: a break downwards has more than three times the exit to clear than a break upwards.
+
+Using the *unweighted* Managed Money net of 67,025 instead would give 4.45 days, against 6.08 weighted. The two diverge here because the swap book adds 27% of $Q_{\text{sell}}$, which is the general case; they coincide only where a single category dominates $Q$, and the weighted figure is the meaningful one either way.
+
+*The constructed extreme, continued.* Carrying $Q_{\text{sell}} = 99{,}500$ with an assumed $V = 25{,}000$ gives $T = 99{,}500 / 5{,}000 \approx 20$ days: a month of forced selling in a market that has already thinned. That is 3.3 times the live cattle reading, on a $Q/OI$ of 0.50 against 0.31 into a market a third the size. This is the shape the measure exists to flag. Note both use calm-market volume; the stress conditioning below revises it, and not always downwards.
 
 **Cost of forcing the exit.** The square-root impact law:
 
@@ -258,6 +308,8 @@ $$\Lambda = \left\langle \frac{|r_t|}{\text{dollar volume}_t} \right\rangle$$
 **Stress conditioning.** Calm-market $V$ overstates capacity, so the denominator is taken over the worst decile of market days:
 
 $$V_{\text{stress}} = \text{median}\big(V_t : t \in D_{10}\big), \qquad D_{10} = \text{worst 10\% of market days}$$
+
+**It does not always cut the other way.** Live cattle's worst decile trades *more* than its average day (87,874 against 75,329), so $T_{\text{sell}}$ falls to 5.22 days under stress conditioning rather than rising. That is a real property of markets where the bad days are the busy days: measured, **9 of 25 markets trade more under stress**, and it is why $V_{\text{stress}}$ is reported beside $V$ rather than substituted for it. Treating the stress figure as automatically the conservative one is wrong on more than a third of the tradeable universe.
 
 **The volume-spike trap.** During a selloff $V_t$ rises sharply, so a naively computed $T_t = Q/(\kappa V_t)$ *falls* — the monitor reports improving liquidity precisely as liquidity is being consumed. The denominator must therefore be frozen to a calm-regime baseline during flagged stress windows, with realised $V_t$ surfaced separately as a diagnostic rather than allowed into the ratio.
 
@@ -291,21 +343,29 @@ $$Q^{*} = A \cdot \frac{\sigma_{\text{target}}}{\sigma} \cdot \Delta s$$
 
 and the cost of that flow follows from A.5.
 
-*Cocoa, continued.* Suppose the 60-day signal flips at a price 9% below spot, and the model puts systematic supply on that flip at $Q^{*} = 35{,}000$ contracts. With $V = 25{,}000$ and $\kappa = 0.2$:
+*Live cattle, continued.* Spot is 231.75 on 2026-07-31 and the pool is **observed rather than modelled**: the Managed Money net of 67,025 contracts, taken from the COT itself. There is no $A$ to estimate, which removes the largest free parameter in the block and the governance hazard that comes with a calibrated replication model.
 
-$$T^{*} = \frac{35{,}000}{5{,}000} = 7 \text{ days}$$
+| lookback | flips at | from spot | signal now |
+|---|---|---|---|
+| 20d | 239.23 | +3.2% | short, flips up |
+| 60d | 244.69 | +5.6% | short, flips up |
+| 250d | 219.04 | **−5.5%** | long, flips down |
 
-Seven days of normal volume, arriving at once — and that is only the trend-flip tranche, not the full $Q_{\text{sell}} = 99{,}500$. With daily volatility of, say, 2.5% and $Y = 0.75$:
+**The horizons disagree, and that is information rather than noise.** The short-dated signals are already short and would be forced to *buy* on a rally; only the 250-day pool is long, and it turns into a forced seller 5.5% below spot. "The trend book in live cattle" is not one pool with one trigger.
 
-$$\mathcal{I} = 0.75 \times 0.025 \times \sqrt{\frac{35{,}000}{25{,}000}} \approx 2.2\%$$
+Taking the 250-day flip, with $V = 75{,}328.6$, $\kappa = 0.2$, $\sigma = 0.88\%$ daily and $Y = 0.75$:
 
-So the mechanical selling alone costs roughly 220 bp on top of whatever caused the initial 9% move. The forced flow is a material fraction of the total decline, which is the formal statement of "the move won't stop at 9%."
+$$T^{*} = \frac{67{,}025}{15{,}065.7} = 4.4 \text{ days} \qquad \mathcal{I} = 0.75 \times 0.0088 \times \sqrt{\frac{67{,}025}{75{,}328.6}} = 62\text{ bp}$$
 
-**Volatility trigger, same market.** If realised volatility doubles from 2.5% to 5% — plausible during a 9% break — vol targeting forces:
+if the pool merely closes. If it reverses to fully short, $\Delta s = 2$, the flow doubles to 134,050 contracts, 8.9 days, and 88 bp. Both figures are quoted because the factor of two is real and which one applies depends on whether the book goes flat or goes short.
 
-$$\frac{\Delta q}{q} = 1 - \frac{0.025}{0.05} = 50\%$$
+**Volatility trigger, same market.** Realised volatility is 14.0% annualised. A five-point shock to 19.0% forces:
 
-a further reduction of roughly 45,000 contracts from the Managed Money book, *independent of price direction*. Both triggers fire in the same episode, and they compound.
+$$\frac{\Delta q}{q} = 1 - \frac{0.140}{0.190} = 26\%$$
+
+a reduction of roughly 17,700 contracts from the Managed Money book, *independent of price direction*. Both triggers can fire in the same episode, and they compound.
+
+*The constructed extreme, continued.* At the other end of the range: suppose a 60-day signal flips 9% below spot with $Q^{*} = 35{,}000$ against $V = 25{,}000$. Then $T^{*} = 7$ days, and at 2.5% daily volatility $\mathcal{I} = 0.75 \times 0.025 \times \sqrt{35{,}000/25{,}000} \approx 2.2\%$. The mechanical selling alone costs roughly 220 bp on top of whatever caused the initial move, which is the formal statement of "the move won't stop at 9%." A doubling of volatility from 2.5% to 5% would force a further 50%, around 45,000 contracts. The live cattle figures above are the same arithmetic on a market that is not in that state.
 
 **The volatility trigger.** Because $q \propto 1/\sigma$:
 
@@ -347,7 +407,15 @@ $$C = \text{pct}\big(z_t\big), \qquad I = \text{pct}\big(T_{\text{eff}}\big), \q
 
 Multiplicative, not additive: if any single term is near zero, damage is near zero. A large position in a liquid market held by unconstrained hedgers is safe. A modest position in a thin market held entirely by levered vol-targeters is not.
 
-*Cocoa, continued.* Positioning at a five-year extreme puts $C$ near the top of its range; $T \approx 20$ days against a thinning market puts $I$ high; $\Phi = 0.44$ with Managed Money dominating. All three terms elevated simultaneously — which is the configuration the system exists to flag, and is rarer than any one of them alone.
+*Live cattle, continued.* Against its own 2006-2026 history, at the same report week:
+
+$$\mathcal{D} = \underbrace{0.057}_{C} \times \underbrace{0.204}_{I} \times \underbrace{0.146}_{\Phi\text{ pct}} = 0.0017$$
+
+which is the **9.6th percentile of its own history**. The market carries the template shape in all 82 weeks measured, and its damage reading is near the bottom of its range.
+
+That is not a contradiction, it is the multiplicative form doing its job. Shape is a statement about *who* holds; $\mathcal{D}$ is a statement about *how much*, relative to the exit and to this market's own past. Positioning happens to be light (the 67,025 Managed Money net is the smallest of the 82 weeks in the vintage store), so $C$ is near zero and takes the product with it whatever $\Phi$ says. A market can be perfectly template-shaped and perfectly safe.
+
+*The constructed extreme, continued.* Positioning at a five-year extreme puts $C$ near the top of its range; $T \approx 20$ days against a thinning market puts $I$ high; $\Phi = 0.44$ with one category dominating. All three terms elevated simultaneously, which is the configuration the system exists to flag and is rarer than any one of them alone.
 
 Report $\mathcal{D}$ as a percentile of its own history, never as an absolute level. The number has no meaning across markets; only its position within its own distribution does.
 

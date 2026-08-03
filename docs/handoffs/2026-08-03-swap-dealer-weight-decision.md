@@ -2,7 +2,7 @@
 
 **Status:** **complete, 2026-08-03 (PR #44).** Decided by the human as **option (a)**:
 `swap: 0.4` stands, examined and deliberately kept. See §7. §6 corrects §1's headline figure
-before the decision was taken, and `single_weight_sweep` (the one item §4 released) is built.
+before the decision was taken, and `single_weight_sweep` (the one item §4 released) is built. **§8 records `§C6-C8`, which landed in parallel and did not reverse the decision**: they close option (c) outright, measure the cost of (a), and show most of it never reaches `D`.
 **Date:** 2026-08-03
 **Lives at:** `crowdmon/docs/handoffs/2026-08-03-swap-dealer-weight-decision.md`
 **Target:** the human. A session may prepare the change; it may not choose the number
@@ -231,3 +231,40 @@ immovable side, is untouched by any of this.
 this decision should be re-opened rather than treated as settled precedent.
 
 **Status: complete. The weight table is unchanged, deliberately.**
+
+---
+
+## 8. §C6-C8 landed in parallel, and they reached the same place by a different road
+
+Appended after the decision, on merging `origin/main` into PR #44. **The decision in §7 was
+taken without this evidence**, because PR #43 (`claude/b-series-reconcile`) was in flight at
+the same time and neither branch could see the other. Recorded rather than folded into §7, so
+that what was known at the moment of deciding stays legible.
+
+**Nothing here reverses §7.** Two of the three findings support it and the third is its cost,
+now measured rather than asserted.
+
+| section | bearing on the decision |
+|---|---|
+| **§C6** | Settles that **weights stay static** and the composite is reported under several tables with the spread as an uncertainty band. That **independently closes option (c)**, which §7 set aside on judgement, so (c) is now closed by a decision rather than merely unscheduled |
+| **§C7** | The cost of (a), quantified: `Phi(0.4) > Phi(0.067)` on **99.31%** of market-weeks, median **+19.6%**, and **worst exactly where it is least deserved**. Gold inflates **+27.8%** against cocoa's +12.1%, **2.30x**, because on gold the swap dealer *is* the immovable hedging side |
+| **§C8** | Why that mostly does not arrive. `D` consumes `Phi` as a **percentile**, so a 19.6% level inflation moves the median market-week only **5.9 percentiles**. Cross-market Spearman is **0.954** on classic outrights, 18 of the top 20 in common |
+
+**§C8 supplies the operating rule §7 did not have**, and it is sharper than anything in §2's
+option list:
+
+> On classic outrights the `w_SD` choice moves levels and barely moves rankings, so the band
+> is a footnote. On the ERCOT and PJM book it can reorder a market's **own** history (Transco
+> Zone 6 basis at Spearman **-0.416**), so publish the band beside a `D` percentile there.
+
+That is option (a) **and** a scoped option (d), which is a better answer than either alone and
+was not available when §2 was written.
+
+**One thing §7 got right for a reason it did not have.** §7 declined (b) partly because 0.1 is
+a tie and 0.067 unreachable (§C10). §C7 now shows 0.067 is also the value that inflates the
+**ceiling** to 14.925 (§C6), so the stress reading was doubly unusable as a weight: outside the
+ordering *and* off the scale everything else is measured on.
+
+**Status unchanged: complete. `swap: 0.4` and `TFF_WEIGHTS["dealer"]: 0.4` stand.** Option (c)
+moves from unscheduled to closed by §C6. The `core/config.py` annotation §7 added should be
+read alongside §C7's per-market table, which is the detail it summarises.
