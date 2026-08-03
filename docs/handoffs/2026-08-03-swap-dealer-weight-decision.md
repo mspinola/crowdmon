@@ -144,3 +144,42 @@ asymmetry is identically 1.0 on 100.0000% of market-weeks.
 - Whether `TFF_WEIGHTS["dealer"]` moves with it
 - What the change does to the published `Q_sell/OI` and `Q_buy/OI` rankings, measured
 - An explicit note that metals remain unresolved, because they do
+
+---
+
+## 6. Amendment, 2026-08-03: the sweep §4 called for was built, and it corrects §1
+
+Appended per the append-never-edit rule; §0-§5 above are preserved as issued.
+
+§4 listed "add a single-weight sweep to `futures/weight_sensitivity.py`" as the one thing a
+session could do without the decision. It is built (`single_weight_sweep`), and running it
+over the wider band **corrects a figure in §1 of this handoff.**
+
+**§1 quotes 42.0% on the Supplemental 13. That band was 0.2 to 0.7, and 0.7 is outside the
+plausible class**: it puts a swap dealer above both `nonreportable` (0.6) and
+`other_reportable` (0.5). `2026-08-01 §A22` established that §6.3's judgement is an ordering
+before it is a set of values, and that reordering it destroys the rankings entirely, so an
+order-violating value is a different claim rather than a rival one.
+
+Restricted to values that keep the ordering intact, `w_SD` spans `[0.2, 0.4]` and median
+`A = Q_sell/Q_buy` moves:
+
+| population | order-preserving band | full 0.067-0.7 band |
+|---|---|---|
+| all 346 markets | 0.9869 to 1.0213, **3.5%** | 12.0% |
+| the 13 Supplemental markets | 2.1845 to 2.5750, **17.9%** | 54.1% |
+
+**Read §2's options against 17.9% and 3.5%, not 42.0%.** The direction of §1's finding
+survives (`w_SD` is load-bearing on the Supplemental markets and a rounding error pooled) and
+its force does not. Live 0.4 against the routine-turnover reading 0.305 is 7.1% apart.
+
+**Option (b) needs a boundary correction.** "Cut it toward 0.1" lands on a **tie** with
+`producer_merchant`, which collapses the swap-versus-hedger distinction rather than
+reweighting it, and any value below 0.1 inverts it. So (b)'s usable range is open at the
+bottom: it stops at 0.1 exclusive, and the stress reading of 0.067 is not reachable without
+making a claim §6.3 contradicts. That is a constraint on the option, not an argument
+against it.
+
+Full detail and the reproducer: `2026-08-03 §C6`.
+
+**Status: still open. The weight table is still unchanged.**

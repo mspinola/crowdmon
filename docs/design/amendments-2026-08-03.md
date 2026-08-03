@@ -254,3 +254,65 @@ three being wrong together, because it makes the false version look corroborated
 files a reader reaches first while the file that is actually authoritative is the one nobody
 opens. **Re-testing a blocker is half the job; the other half is a grep for every place that
 asserted it.**
+
+## C6. §C3's own 42% is inflated: 0.7 is outside the plausible class, and the honest figure is 17.9%
+
+**Corrects `2026-08-03 §C3`**, which is this file. Swept over the wider band the regime
+finding implies (0.067 stress, 0.305 routine, plus §C3's grid), and reported through the new
+`weight_sensitivity.single_weight_sweep` rather than ad-hoc.
+
+The classification that matters is not new. `2026-08-01 §A22` established that §6.3's
+judgement is an **ordering** before it is a set of values, and measured what the distinction
+is worth: order-preserving jitter keeps at least 7 of the `Q_sell/OI` top 10, while inverting
+the ordering destroys it entirely (0 of 10, rank correlation -0.045). A swept value that
+reorders the table is a different claim, not a rival value.
+
+**Three of the seven swept values are outside that class, and one of them is §C3's own
+endpoint.** With `producer_merchant: 0.1`, `other_reportable: 0.5`, `nonreportable: 0.6`:
+
+| `w_SD` | status | why |
+|---|---|---|
+| 0.067 | **outside** | now below `producer_merchant` |
+| 0.100 | **outside** | **ties** `producer_merchant`, collapsing the distinction |
+| 0.200 | inside | |
+| 0.305 | inside | |
+| 0.400 | inside | live |
+| 0.550 | **outside** | now above `other_reportable` |
+| 0.700 | **outside** | now above `nonreportable` and `other_reportable` |
+
+Median `A = Q_sell/Q_buy`, over the 82-week vintage panel:
+
+| population | over the **order-preserving** band `[0.2, 0.4]` | over the full 0.067-0.7 band |
+|---|---|---|
+| all 108,780 rows / 346 markets | 0.9869 to 1.0213, **3.5%** | 0.9739 to 1.0904, 12.0% |
+| the 13 Supplemental markets | 2.1845 to 2.5750, **17.9%** | 2.0137 to 3.1028, 54.1% |
+
+**So §C3's headline 42.0% is not wrong arithmetic, it is the wrong band.** It swept 0.2 to
+0.7 and quoted the span, and 0.7 puts a swap dealer above both retail and the mixed
+"other reportable" bucket, which is a claim about holder behaviour nobody in this project has
+made. Restricted to values that keep §6.3's ordering intact, the answer is **17.9% on the
+markets in scope and 3.5% pooled**.
+
+**The conclusion moves with it, and it moves toward the sceptical reading.** §C3 closed with
+"`w_SD = 0.4` is not a safe default that happens not to matter. It is a number the answer
+depends on." That survives in direction and not in force: 17.9% across the whole plausible
+range is a real dependence and it is not the 42% that sentence was written about. The
+practical distance is smaller still, because the live value 0.4 and the routine-turnover
+reading 0.305 are 7.1% apart on the Supplemental 13 (2.5750 to 2.3920).
+
+**The tie at 0.1 is worth stating separately, because a stable sort hides it.** Setting
+`w_SD` to exactly `producer_merchant`'s 0.1 leaves the sorted category list unchanged, so a
+naive order check reports the ordering intact. It is not intact, it is **collapsed**: the
+table stops distinguishing a swap dealer from a producer hedging physical, which is the one
+distinction §6.3 is most confident about. `single_weight_sweep` reports `ties_with` and fails
+`preserves_order` on a tie for that reason. This matters directly for the decision, since
+"cut it toward 0.1" is one of the options on the table and 0.1 exactly is the boundary of the
+class rather than a point inside it.
+
+**What this does not change.** The template rate is still identically 0.447106 at every one
+of the seven values, spread 0.000000000, because `_shape_labels` reads two category nets and
+their signs and no weight of any kind enters it (§C2). Widening the band does not give that
+quantity the ability to respond, and an insensitivity there remains uninformative about
+`w_SD` no matter how wide the sweep.
+
+Reproducer: [`../analysis/reproduce_w_sd_band.py`](../analysis/reproduce_w_sd_band.py).

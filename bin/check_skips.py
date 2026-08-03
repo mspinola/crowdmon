@@ -5,11 +5,11 @@
     python bin/check_skips.py --profile ci   skips.json
     python bin/check_skips.py --profile live skips.json
 
-**Why this exists.** 58 of this package's assertions live in `tests/*_live.py` and need the
+**Why this exists.** 59 of this package's assertions live in `tests/*_live.py` and need the
 real store: the layer-2 trap-table figures (gold notional wrong by +294% in 2002, soybean
 volatility 201x too high off `backadj`), the appendix's cocoa arithmetic, the volume and
 trigger measurements. Every one of them **skips silently** when the store is absent, and CI
-runs against a two-panel fixture, so those 58 have never run in CI and a green badge has
+runs against a two-panel fixture, so those 59 have never run in CI and a green badge has
 never meant they passed. That is not a hypothetical failure mode; it is the current state,
 and it is what this script exists to make visible.
 
