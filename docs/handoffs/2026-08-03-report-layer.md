@@ -1,6 +1,6 @@
 # Handoff: step 7's report layer, and whether a `D` can carry its own caveats
 
-**Status:** **§2 complete (PR #PLACEHOLDER), gate PASSES at `R=4, E=1`. §3 open and unclaimed.
+**Status:** **§2 complete (PR #55), gate PASSES at `R=4, E=1`. §3 open and unclaimed.
 §4 will not run before 2026-12-29.** Outcome as §9, findings `2026-08-03 §C18-§C22`
 **Date:** 2026-08-03
 **Drafted against:** `075ad26916dcef41c5e0efcd7cf75671c395048a` (`main`, merge of PR #46)
