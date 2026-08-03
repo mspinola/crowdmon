@@ -259,6 +259,7 @@ from .weight_sensitivity import (
     flat_phi_identity,
     plausible_variants,
     reference_variants,
+    single_weight_sweep,
     summarise,
     sweep,
 )
@@ -297,7 +298,7 @@ __all__ = [
     "ALIGNMENT_COLUMNS", "DEFAULT_MIN_MARKETS", "DEFAULT_METHOD",
     "seasonal_profile", "deseasonalise", "seasonality_report", "week_of_year",
     "SeasonalError", "DEFAULT_MIN_YEARS",
-    "plausible_variants", "reference_variants", "sweep", "summarise",
+    "plausible_variants", "reference_variants", "sweep", "single_weight_sweep", "summarise",
     "flat_phi_identity", "SensitivityError", "REFERENCE_WEIGHTINGS",
     "market_concentration", "add_concentration_extremity",
     "concentration_vs_fragility", "quadrant", "ConcentrationError",

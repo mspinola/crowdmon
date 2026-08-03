@@ -13,6 +13,7 @@ from crowdmon.futures import (
     flat_phi_identity,
     plausible_variants,
     reference_variants,
+    single_weight_sweep,
     summarise,
     sweep,
 )
@@ -191,3 +192,34 @@ def test_the_default_weights_are_their_own_baseline():
     assert out["top_n_overlap"].iloc[0] == 1
     assert out["phi_corr"].iloc[0] == pytest.approx(1.0)
     assert out["rank_corr"].iloc[0] == pytest.approx(1.0)
+
+
+def test_a_non_positive_swept_weight_is_refused(history_panel):
+    """Zero and negative are refused loudly, because neither fails in a visible way.
+
+    Both reach `weight_ceiling = max(w)/min(w)` and neither produces a number a reader would
+    question. Zero raises a bare `ZeroDivisionError` from inside the row loop, which names
+    arithmetic rather than the input that caused it. Negative is worse: it returns a row, and
+    a NEGATIVE ceiling looks like a formatting problem rather than a claim that a category
+    absorbs forced flow.
+
+    `preserves_order` does not catch either. It compares positions, so it reports `False` for
+    a negative weight for the same reason it would for a small positive one, and the caller
+    cannot tell a value outside the plausible class from a value outside the number line.
+    """
+    for bad in (0.0, -0.5, float("nan")):
+        with pytest.raises(SensitivityError, match="must be positive"):
+            single_weight_sweep(history_panel, "swap", [0.2, bad])
+
+
+def test_single_weight_sweep_is_on_the_package_surface():
+    """It is imported from `crowdmon.futures` here, not from the module it lives in.
+
+    Its sibling `sweep` has always been surfaced that way, and a public engine reachable only
+    by its deep path is one a caller has to know the layout to find. There is no public-API
+    test in this package, so this is the only thing pinning it.
+    """
+    from crowdmon import futures
+
+    assert futures.single_weight_sweep is single_weight_sweep
+    assert "single_weight_sweep" in futures.__all__
