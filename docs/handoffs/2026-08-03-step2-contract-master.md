@@ -1,6 +1,6 @@
 # Handoff: contract spec inventory, then contract master
 
-**Status:** complete (PR #NN), Task 1 executed, Tasks 2-3 found already shipped
+**Status:** complete (PR #46), Task 1 executed, Tasks 2-3 found already shipped
 **Date:** 2026-08-03
 **Lives at:** `crowdmon/docs/handoffs/2026-08-03-step2-contract-master.md`
 **Target:** Claude Code session, `crowdmon` worktree
