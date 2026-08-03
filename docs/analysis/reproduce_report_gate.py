@@ -3,7 +3,7 @@
     COTDATA_STORE=~/code/cotdata_store python docs/analysis/reproduce_report_gate.py
 
 Deterministic: no sampling, no seeds, no fitting. Regenerates every figure in
-`docs/design/amendments-2026-08-03.md` §C18-§C22.
+`docs/design/amendments-2026-08-03.md` §C20-§C24.
 
 **This is a classification exercise, not a validation.** It asks whether each caveat this
 package has measured can be attached to a market-week, and whether an existing output
@@ -62,16 +62,16 @@ def build():
         volume, on=["report_date", "market_code"], how="left")
     # `add_commonality` keys on `symbol`, which `market_fragility` does not carry: it is a
     # contract-master column and fragility is deliberately price-free. Annotated here rather
-    # than inside §C22 so the ranked frame is the same object the composite was built from.
+    # than inside §C24 so the ranked frame is the same object the composite was built from.
     per_market = ContractMaster.load().annotate(per_market)
     ranked = rank_markets(per_market, volume=per_market["adv"],
                           stress_volume=per_market["adv_stress"])
     return panel, per_category, ranked, add_composite(ranked, per_category)
 
 
-def c18_warmup_is_row_computable(scored: pd.DataFrame) -> None:
-    """§C18. The two null causes are separable per row, and the rule is exact."""
-    rule("C18. Warm-up and a missing term are separable per row, exactly")
+def c20_warmup_is_row_computable(scored: pd.DataFrame) -> None:
+    """§C20. The two null causes are separable per row, and the rule is exact."""
+    rule("C20. Warm-up and a missing term are separable per row, exactly")
     terms = ["crowding_long", "illiquidity_sell", "fragility"]
     null_pct = scored["damage_sell_pct"].isna()
     raw_null = scored["damage_sell"].isna()
@@ -96,9 +96,9 @@ def c18_warmup_is_row_computable(scored: pd.DataFrame) -> None:
     print("     so the state is row-computable from columns the frame already carries.")
 
 
-def c19_a17_is_partial(scored: pd.DataFrame, panel: pd.DataFrame) -> None:
-    """§C19. `flow_state` conditions `ΔD` strongly, and is silent on most falling weeks."""
-    rule("C19. dD plus flow_state: decisive on 40%, and the handoff's own contrast is empty")
+def c21_a17_is_partial(scored: pd.DataFrame, panel: pd.DataFrame) -> None:
+    """§C21. `flow_state` conditions `ΔD` strongly, and is silent on most falling weeks."""
+    rule("C21. dD plus flow_state: decisive on 40%, and the handoff's own contrast is empty")
     flows = decompose(panel)
     mm = flows[flows["category"] == "managed_money"][
         ["report_date", "market_code", "flow_state"]].copy()
@@ -124,9 +124,9 @@ def c19_a17_is_partial(scored: pd.DataFrame, panel: pd.DataFrame) -> None:
           f"{(joined['flow_state'] == 'quiet').sum()} of {joined['flow_state'].notna().sum():,}")
 
 
-def c20_ceiling_and_identity(scored: pd.DataFrame, panel: pd.DataFrame) -> None:
-    """§C20. One caveat varies per row and is already published; one is constant."""
-    rule("C20. The Phi ceiling varies and is exposed; the A21 identity is constant")
+def c22_ceiling_and_identity(scored: pd.DataFrame, panel: pd.DataFrame) -> None:
+    """§C22. One caveat varies per row and is already published; one is constant."""
+    rule("C22. The Phi ceiling varies and is exposed; the A21 identity is constant")
     ceiling = pd.to_numeric(scored["phi_denominator_covered"], errors="coerce")
     print(f"phi_denominator_covered: {ceiling.nunique():,} distinct values over "
           f"{len(scored):,} rows")
@@ -140,9 +140,9 @@ def c20_ceiling_and_identity(scored: pd.DataFrame, panel: pd.DataFrame) -> None:
     print("  -> computable per row and IDENTICAL on every row, so it discriminates nothing.")
 
 
-def c21_the_band_has_no_market(scored: pd.DataFrame) -> None:
-    """§C21. §C8's obligation cannot fire on any panel that carries a `D` percentile."""
-    rule("C21. The C8 band obligation is unenforceable for want of a market, not a classifier")
+def c23_the_band_has_no_market(scored: pd.DataFrame) -> None:
+    """§C23. §C8's obligation cannot fire on any panel that carries a `D` percentile."""
+    rule("C23. The C8 band obligation is unenforceable for want of a market, not a classifier")
     current = scored.copy()
     current["venue"] = current["market_name"].str.rsplit(" - ", n=1).str[-1]
     print(f"venue parses from market_name on {current['venue'].notna().mean():.1%} of rows")
@@ -163,10 +163,10 @@ def c21_the_band_has_no_market(scored: pd.DataFrame) -> None:
     print("     and has none of the markets. The classifier was never the blocker.")
 
 
-def c22_already_exposed(per_category: pd.DataFrame, ranked: pd.DataFrame,
+def c24_already_exposed(per_category: pd.DataFrame, ranked: pd.DataFrame,
                         scored: pd.DataFrame) -> None:
-    """§C22. Three of the four survivors are already attached by a shipped function."""
-    rule("C22. Coverage and commonality already attach per row, so they do not count to E")
+    """§C24. Three of the four survivors are already attached by a shipped function."""
+    rule("C24. Coverage and commonality already attach per row, so they do not count to E")
     ladder = coverage_ladder(per_category, scored)
     print(f"coverage_ladder: {len(ladder)} rows for "
           f"{per_category['market_code'].nunique()} markets (per MARKET, joins on market_code)")
@@ -191,11 +191,11 @@ def main() -> None:
     panel, per_category, ranked, scored = build()
     scored["report_date"] = pd.to_datetime(scored["report_date"])
 
-    c18_warmup_is_row_computable(scored)
-    c19_a17_is_partial(scored, panel)
-    c20_ceiling_and_identity(scored, panel)
-    c21_the_band_has_no_market(scored)
-    c22_already_exposed(per_category, ranked, scored)
+    c20_warmup_is_row_computable(scored)
+    c21_a17_is_partial(scored, panel)
+    c22_ceiling_and_identity(scored, panel)
+    c23_the_band_has_no_market(scored)
+    c24_already_exposed(per_category, ranked, scored)
 
     rule("The pre-registered table")
     print("R = row-computable, E = of those, not already exposed by a shipped output.")

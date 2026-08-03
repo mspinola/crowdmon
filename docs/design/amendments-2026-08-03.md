@@ -1039,7 +1039,26 @@ Reproducer: [`../analysis/reproduce.py`](../analysis/reproduce.py)`::positioning
 
 ---
 
-## C17. The ag and dairy backlog is mostly not worth speccing, and the dairy block fails the gate
+## C17. CRITERION 1 CORRECTED. The ag and dairy backlog is mostly not worth speccing, and the dairy block fails the gate
+
+> **The flat 0.05 cut in criterion 1 below is wrong, and every verdict it reaches is right.**
+> Corrected by `§C18`, which benchmarks the levered-holder bar against the candidate's own
+> **complex** median rather than the pooled 0.1371 this section used. The pooled figure is a
+> bar for the median complex and for no other: covered **energy** sits at **0.0435**, so the
+> flat cut excludes Nat Gas (0.0369) and WTI (0.0399), the two largest markets in the universe
+> and both already covered. Applied to the energy backlog it condemned four of the five codes
+> already committed to a producer run, which is how it was caught.
+>
+> **Nothing below changes.** This section's candidates are grains (complex median 0.0982) and
+> dairy (0.1021), both near the pooled figure, so the flat cut happened to be roughly right
+> here. Re-run under §C18 the ten land identically; only Malaysian palm oil's *reason* moves,
+> from "under 0.05" to "0.49x of grains". Rough rice is **4.41x** of grains and the dairy
+> block runs 0.11x to 0.34x of dairy, so the headline hardens rather than softens.
+>
+> **Kept unedited, and kept running, for the same reason `§C15` is**: how a bar was wrong is
+> the useful part, and this one was wrong in a way that agreed with the right answer on the
+> data it was applied to. `backlog_priority_within_complex` is the corrected test and covers
+> all 34 backlog codes; `ag_dairy_backlog_priority` still reproduces the numbers quoted here.
 
 **Answers** a request to prioritise the ag and dairy codes in the §C14 backlog. The honest
 answer is that **six of the ten should not be specced at all**, and the largest by open
@@ -1096,7 +1115,115 @@ Reproducer: [`../analysis/reproduce.py`](../analysis/reproduce.py)`::ag_dairy_ba
 
 ---
 
-## C18. Warm-up and a missing term are separable per row, and the rule has zero exceptions
+## C18. The levered-holder bar is per COMPLEX, and §C17's flat cut is wrong for energy
+
+**Corrects `§C17`'s first criterion.** §C17 excluded a candidate whose median `|P_MM| / OI`
+fell under **0.05**, implicitly benchmarking against the pooled covered median of 0.1371.
+Applied to the energy backlog that rule is not merely conservative, it is **wrong**, and it
+was caught only because it condemned five codes already committed to a producer run.
+
+**The covered median MM share by complex, which is what a candidate should face:**
+
+| complex | covered median | n |
+|---|---|---|
+| Energies | **0.0435** | 4 |
+| Grains | 0.0982 | 6 |
+| Dairy | 0.1021 | 1 |
+| Softs | 0.1651 | 6 |
+| Metals | 0.1931 | 5 |
+| Live Stock | 0.3039 | 3 |
+| **pooled** | **0.1371** | 25 |
+
+**Nat Gas (0.0369) and WTI (0.0399) are both UNDER the flat 0.05 cut.** They are the two
+largest markets in the entire universe and they are already covered. A bar that excludes them
+is not measuring whether a market has a levered holder; it is re-discovering that **energy is
+thin on Managed Money**, which `2026-08-02 §B33` and `§C13` had both already measured, and
+then mislabelling that property of the complex as a defect of each candidate.
+
+The corrected bar: **a candidate is thin when its MM share is under 0.5x its own complex's
+covered median.** The 0.5x is a choice rather than a measurement and is stated as one.
+
+**Every `§C17` verdict survives**, which is why that block is kept and kept running rather
+than deleted. Its candidates are grains (bar 0.0982) and dairy (0.1021), both near the pooled
+0.1371, so the flat cut happened to be roughly right there. Palm oil is the only candidate
+whose *reason* changes, from "under 0.05" to "0.49x of grains", and it lands the same way.
+
+**The general lesson, and it is the second time this session:** `§C16` found a statistic that
+returned strong correlations between unrelated markets, and this finds a threshold that
+returns "no levered holder" for the largest markets in the book. Both were calibrated against
+a pooled figure when the quantity varies by an order of magnitude across complexes. **A bar
+taken from a pooled median is a bar for the median complex and for no other.**
+
+Reproducer: [`../analysis/reproduce.py`](../analysis/reproduce.py)`::backlog_priority_within_complex`.
+
+---
+
+## C19. The whole 34-code backlog under the corrected bar, and every committed code passes
+
+**13 of 34 pass every bar**, 5 fail on duplicative flow and 16 on the levered-holder bar.
+
+**All six committed codes pass**, so nothing already decided needs revisiting:
+
+| code | market | x complex | `r(ΔMM)` |
+|---|---|---|---|
+| `023A56` | HENRY HUB PENULTIMATE FIN | 2.02x | -0.063 |
+| `023A55` | HENRY HUB LAST DAY FIN | 1.09x | -0.164 |
+| `067411` | ICE Europe WTI | 0.98x | -0.054 |
+| `03565C` | HH PENULTIMATE NAT GAS | 0.78x | -0.234 |
+| `03565B` | HENRY HUB | 0.70x | -0.116 |
+| `039601` | ROUGH RICE | **4.41x** | 0.047 |
+
+Tranche 1 spans 0.70x to 2.02x of typical energy, which is the range the covered energy
+markets themselves occupy. Rough rice at 4.41x of grains is the strongest candidate anywhere
+in the backlog, on any complex.
+
+### Seven new candidates pass
+
+| code | market | complex | x complex | mean OI |
+|---|---|---|---|---|
+| `06665P` | MT BELVIEU ETHANE OPIS | Energies | **3.80x** | 49,818 |
+| `406651` | PGP PROPYLENE (PCW) CAL | Energies | 2.25x | 7,367 |
+| `192691` | NORTH EURO HRC STEEL | Metals | **1.88x** | 10,973 |
+| `192651` | STEEL-HRC | Metals | 0.98x | 33,298 |
+| `06665Q` | MT BELV NORM BUTANE OPIS | Energies | 0.91x | 51,235 |
+| `06665O` | PROPANE | Energies | 0.63x | 139,138 |
+| `189691` | LITHIUM HYDROXIDE | Metals | 0.54x | 27,847 |
+
+**Mt Belvieu ethane is the standout and was invisible under the flat bar.** At 3.80x the
+energy median with 8,798 contracts of Managed Money net and all 82 weeks, it is the second
+strongest candidate in the backlog after rough rice, and §C17's rule would have excluded it
+at 0.165 > 0.05 only by luck: three of its NGL neighbours sit under 0.05 and would have been
+excluded correctly for the wrong reason.
+
+**`406651` and `192691` carry a caveat**: 66 and 78 weeks of 82 respectively. Both clear the
+40-week floor, neither has the full history, and `192691` is 78 weeks because it is genuinely
+newer rather than intermittent.
+
+### The excludes, and one that is remarkable
+
+**Micro gold fails BOTH bars**: 0.07x of the metals median, and flow correlation **0.355**
+against gold, above §C16's 0.229 band. `§C14` recommended settling it before the large items
+by analogy with `2026-08-02 §B30`'s lumber case; that recommendation is now **measured rather
+than inferred**, and it is the only backlog code that is both thin and duplicative.
+
+**`06765A` WTI FINANCIAL CRUDE OIL is the finding worth carrying.** Mean open interest
+**175,418**, which would place it 15th of the covered 25, and a median Managed Money net of
+**475 contracts**, 0.07x the energy bar. A market can be large, liquid, a pure outright, and
+still contain essentially no participant this monitor describes. Two NGL codes are starker
+still: `06665G` propane non-LDH at 29,972 OI and `025608` ethanol T2 at 5,647 both have a
+median Managed Money net of **exactly zero**.
+
+That is the same shape as the dairy block in `§C17` and it is now the dominant failure mode
+across the whole backlog: **16 of 34 codes fail for want of a levered holder, against 5 for
+redundancy.** The backlog is not mostly full of duplicates. It is mostly full of markets where
+the fragility term has nothing to describe, which is what `§C13`'s gate found from the outside
+and this finds from the inside.
+
+Reproducer: [`../analysis/reproduce.py`](../analysis/reproduce.py)`::backlog_priority_within_complex`.
+
+---
+
+## C20. Warm-up and a missing term are separable per row, and the rule has zero exceptions
 
 **Answers candidate 1 of the §2 gate** in
 [`../handoffs/2026-08-03-report-layer.md`](../handoffs/2026-08-03-report-layer.md).
@@ -1120,11 +1247,11 @@ It is not **exposed**: `composite.damage_report` returns panel-level counts, no 
 the state, and a reader must supply the inference rule from prose. It is the only one of the
 seven candidates in that position, which is what carries the gate.
 
-Reproducer: [`../analysis/reproduce_report_gate.py`](../analysis/reproduce_report_gate.py)`::c18_warmup_is_row_computable`.
+Reproducer: [`../analysis/reproduce_report_gate.py`](../analysis/reproduce_report_gate.py)`::c20_warmup_is_row_computable`.
 
 ---
 
-## C19. `flow_state` conditions `ΔD` strongly, and the contrast the handoff named does not exist
+## C21. `flow_state` conditions `ΔD` strongly, and the contrast the handoff named does not exist
 
 **Answers candidate 6**, which
 [`../handoffs/2026-08-03-report-layer.md`](../handoffs/2026-08-03-report-layer.md) §2
@@ -1165,11 +1292,11 @@ shape §5's negative #4 describes, arriving one level down at a single candidate
 at the brief: **a marker that is right when it speaks and silent most of the time reads as
 complete unless it says "indeterminate" out loud.**
 
-Reproducer: [`../analysis/reproduce_report_gate.py`](../analysis/reproduce_report_gate.py)`::c19_a17_is_partial`.
+Reproducer: [`../analysis/reproduce_report_gate.py`](../analysis/reproduce_report_gate.py)`::c21_a17_is_partial`.
 
 ---
 
-## C20. One caveat varies per row and is already published; the other is a constant
+## C22. One caveat varies per row and is already published; the other is a constant
 
 **Answers candidates 3 and 7.** They look alike (both are per-row computations about `Phi`)
 and they fall on opposite sides of the gate, which is what makes the pair worth stating
@@ -1191,11 +1318,11 @@ The distinction the gate turns on is not "can this be computed per row" but **"d
 value differ between rows where the caveat bites and rows where it does not"**. Two functions
 of the same quantity, both per-row, and only one of them is a caveat.
 
-Reproducer: [`../analysis/reproduce_report_gate.py`](../analysis/reproduce_report_gate.py)`::c20_ceiling_and_identity`.
+Reproducer: [`../analysis/reproduce_report_gate.py`](../analysis/reproduce_report_gate.py)`::c22_ceiling_and_identity`.
 
 ---
 
-## C21. `§C8`'s band obligation has no market to fire on, and the classifier was never the blocker
+## C23. `§C8`'s band obligation has no market to fire on, and the classifier was never the blocker
 
 **Answers candidate 4, and overturns the premise of the handoff's own §4.**
 
@@ -1228,11 +1355,11 @@ the one recorded (`README.md` counts volume, extremity and §A.10's returns as t
 set). The recorded reason was "no classifier in `src/`"; the real reason is "no market". A
 session that had built the classifier would have shipped it and found nothing to point it at.
 
-Reproducer: [`../analysis/reproduce_report_gate.py`](../analysis/reproduce_report_gate.py)`::c21_the_band_has_no_market`.
+Reproducer: [`../analysis/reproduce_report_gate.py`](../analysis/reproduce_report_gate.py)`::c23_the_band_has_no_market`.
 
 ---
 
-## C22. Three of the four survivors are already attached by a shipped function
+## C24. Three of the four survivors are already attached by a shipped function
 
 **Answers candidates 2 and 5**, and is the reason `E` is 1 rather than 4.
 
@@ -1249,8 +1376,8 @@ consistent with `2026-08-02 §B30`'s finding that they are one migrated instrume
 distinct values spanning **-0.0661 to 1.0300**, one per market and repeated across its weeks.
 
 Both are row-attachable and both are **already exposed** by a function a caller can run
-today, alongside `phi_denominator_covered` from `§C20`. So of the four caveats that survive
-as row-computable, three are already reachable and only `§C18`'s warm-up state is not.
+today, alongside `phi_denominator_covered` from `§C22`. So of the four caveats that survive
+as row-computable, three are already reachable and only `§C20`'s warm-up state is not.
 
 **The gate passes on the pre-registered table, and the substance is thinner than the count.**
 
@@ -1271,4 +1398,4 @@ with one genuine gap closed. Whether the pre-registered floor was set too low is
 question about the rule; it is not grounds to override it after seeing the numbers, which is
 the failure the rule exists to prevent.
 
-Reproducer: [`../analysis/reproduce_report_gate.py`](../analysis/reproduce_report_gate.py)`::c22_already_exposed`.
+Reproducer: [`../analysis/reproduce_report_gate.py`](../analysis/reproduce_report_gate.py)`::c24_already_exposed`.

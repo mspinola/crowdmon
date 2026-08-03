@@ -1,7 +1,7 @@
 # Handoff: step 7's report layer, and whether a `D` can carry its own caveats
 
 **Status:** **§2 complete (PR #55), gate PASSES at `R=4, E=1`. §3 open and unclaimed.
-§4 will not run before 2026-12-29.** Outcome as §9, findings `2026-08-03 §C18-§C22`
+§4 will not run before 2026-12-29.** Outcome as §9, findings `2026-08-03 §C20-§C24`
 **Date:** 2026-08-03
 **Drafted against:** `075ad26916dcef41c5e0efcd7cf75671c395048a` (`main`, merge of PR #46)
 **Lives at:** `crowdmon/docs/handoffs/2026-08-03-report-layer.md`
@@ -447,23 +447,23 @@ reason is measured rather than a deferral.
 Executed against `533e6a2` by the session that authored this handoff. That is normal practice
 here for a build handoff and is not the case the cold-session rule covers, which is about
 rendering a `crucible` verdict on the package's own output. The conflict it does create is
-named in `2026-08-03 §C22` and defused by the pre-registration: both readings of the one
+named in `2026-08-03 §C24` and defused by the pre-registration: both readings of the one
 ambiguous candidate give the same verdict.
 
-Findings: `2026-08-03 §C18` through `§C22`. Reproducer:
+Findings: `2026-08-03 §C20` through `§C24`. Reproducer:
 [`../analysis/reproduce_report_gate.py`](../analysis/reproduce_report_gate.py).
 
 ### The verdict on the pre-registered table
 
 | candidate | row-computable | already exposed |
 |---|---|---|
-| 1, warm-up floors | **yes**, and the rule is exact (`§C18`) | **no** |
-| 2, unscoreability and the rung | yes, per market, joins on `market_code` (`§C22`) | yes, `coverage_ladder` |
-| 3, `Phi` ceiling | yes, 27,135 distinct values (`§C20`) | yes, `q_arithmetic` |
-| 4, the `w_SD` band | classifier yes, **but no market to fire on** (`§C21`) | no |
-| 5, commonality `beta` | yes, 100% of rows (`§C22`) | yes, `add_commonality` |
-| 6, `§A17` via `ΔD` | **partial**, decisive on 40.2% (`§C19`) | no |
-| 7, `§A21` flat-weight identity | **no**, constant at 1.11e-16 (`§C20`) | n/a |
+| 1, warm-up floors | **yes**, and the rule is exact (`§C20`) | **no** |
+| 2, unscoreability and the rung | yes, per market, joins on `market_code` (`§C24`) | yes, `coverage_ladder` |
+| 3, `Phi` ceiling | yes, 27,135 distinct values (`§C22`) | yes, `q_arithmetic` |
+| 4, the `w_SD` band | classifier yes, **but no market to fire on** (`§C23`) | no |
+| 5, commonality `beta` | yes, 100% of rows (`§C24`) | yes, `add_commonality` |
+| 6, `§A17` via `ΔD` | **partial**, decisive on 40.2% (`§C21`) | no |
+| 7, `§A21` flat-weight identity | **no**, constant at 1.11e-16 (`§C22`) | n/a |
 
 **`R = 4, E = 1` strict; `R = 5, E = 2` lenient. Both land on `R>=4, E>=1`, so the gate
 PASSES and §3 runs.**
@@ -474,7 +474,7 @@ PASSES and §3 runs.**
 band obligation is unenforceable because the stratum lives in an analysis script. Wrong
 diagnosis: `venue` parses from `market_name` on 100% of rows and the power side needs two
 venue strings, no enumeration. The real blocker is that **no panel holds both halves at
-once** (`§C21`): the current-state panel has 1,051 weeks and zero power/gas markets, the
+once** (`§C23`): the current-state panel has 1,051 weeks and zero power/gas markets, the
 vintage panel has 263 power/gas markets and 82 weeks against a 104-week `min_periods`. The
 rule becomes live no earlier than **2026-12-29**. Do not build §4. Re-check after that date.
 
@@ -495,7 +495,7 @@ completeness.
 
 - **Render "indeterminate" out loud** wherever candidate 6 is silent, which is 59.8% of
   falling-D weeks. A marker that speaks only when confident and stays blank otherwise is
-  §5's negative #4 in miniature, and `§C19` is the measured instance
+  §5's negative #4 in miniature, and `§C21` is the measured instance
 - **Enumerate the misreadings before building**, per §3 as issued. That is unchanged and
   now has a sharper denominator: five reading instructions, one of which (`§A21`) has just
   been shown to have no per-row form at all, so the brief cannot carry it and must say that

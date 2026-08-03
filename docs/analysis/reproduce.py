@@ -39,6 +39,8 @@ Prints, in order:
   C15. the head of the backlog is not a duplicate of CL and NG
   C16. why that test must use flows: positioning LEVELS correlate spuriously
   C17. prioritising the ag and dairy backlog, most of which fails the gate
+  C18-C19. the levered-holder bar is per COMPLEX, not flat, and the whole 34-code
+       backlog re-run under it
 
 The leading ordinals above are the order the blocks were added and have drifted: 17 and 18
 each appear twice and there is no 19. Not renumbered here, because these numbers are quoted
@@ -2386,6 +2388,14 @@ def ag_dairy_backlog_priority() -> None:
     2. **Is the flow independent?** First-differenced correlation against the nearest
        economic sibling, judged against the noise band from `§C16`. Levels are not used.
     3. **Can it be scored?** Weeks present of 82. `2026-08-02 §B29`'s oats lesson.
+
+    **Criterion 1's flat 0.05 cut is superseded by `§C18`**, which benchmarks within complex
+    instead. This block is kept, and kept running, because §C17 quotes its numbers and every
+    verdict it reaches survives the correction: the ag and dairy candidates are grains and
+    dairy, whose complex medians (0.0982 and 0.1021) sit near the pooled 0.1371, so the flat
+    cut happened to be roughly right for them. It is badly wrong for energy, where the
+    covered median is 0.0435 and the flat cut would exclude WTI and Nat Gas themselves.
+    `backlog_priority_within_complex` is the corrected test and covers all 34 codes.
     """
     rule("AG AND DAIRY BACKLOG PRIORITY (2026-08-03 C17)")
     vp = from_vintage()
@@ -2429,6 +2439,148 @@ def ag_dairy_backlog_priority() -> None:
     print("  thing §C13's gate exists to keep out of coverage.")
 
 
+#: Every real outright in the §C14 backlog, with its complex and its nearest ECONOMIC
+#: sibling among the covered 25. Siblings are assigned by economics, never by best fit
+#: (§C16), and the complex is what the levered-holder bar is measured against (§C18).
+BACKLOG = {
+    # ── energy ──────────────────────────────────────────────────────────────
+    "067411": ("Energies", "067651"), "06765A": ("Energies", "067651"),
+    "06765T": ("Energies", "067651"), "023A55": ("Energies", "023651"),
+    "023A56": ("Energies", "023651"), "03565B": ("Energies", "023651"),
+    "03565C": ("Energies", "023651"), "025651": ("Energies", "111659"),
+    "025608": ("Energies", "111659"), "06665O": ("Energies", "067651"),
+    "06665G": ("Energies", "067651"), "06665T": ("Energies", "067651"),
+    "06665B": ("Energies", "067651"), "06665Q": ("Energies", "067651"),
+    "06665R": ("Energies", "067651"), "06665P": ("Energies", "023651"),
+    "406651": ("Energies", "067651"),
+    # ── metals ──────────────────────────────────────────────────────────────
+    "088695": ("Metals", "088691"), "188691": ("Metals", "085692"),
+    "189691": ("Metals", "085692"), "191693": ("Metals", "085692"),
+    "191696": ("Metals", "085692"), "192651": ("Metals", "085692"),
+    "192691": ("Metals", "085692"),
+    # ── ag and dairy, from §C17, re-run here under the corrected bar ────────
+    "135731": ("Grains", "007601"), "001626": ("Grains", "001602"),
+    "005603": ("Grains", "005602"), "037021": ("Grains", "007601"),
+    "039601": ("Grains", "002602"), "063642": ("Dairy", "052641"),
+    "050642": ("Dairy", "052641"), "052642": ("Dairy", "052641"),
+    "052644": ("Dairy", "052641"), "052645": ("Dairy", "052641"),
+}
+
+#: Codes already committed to the producer run. §1 of the spec-backlog handoff plus the §9
+#: decision. Printed so the test's verdict on them is visible rather than implied.
+COMMITTED = {"067411", "023A55", "023A56", "03565B", "03565C", "039601"}
+
+#: A candidate is thin when its Managed Money share is under this fraction of its own
+#: complex's covered median. A choice, not a measurement, and stated as one.
+THIN_RATIO = 0.5
+
+
+def backlog_priority_within_complex() -> None:
+    """Amendments C18 and C19: the levered-holder bar is per COMPLEX, and the result.
+
+    **C18 corrects `§C17`'s flat cut.** §C17 excluded a candidate whose median `|P_MM| / OI`
+    fell under 0.05, implicitly benchmarking against the pooled covered median of 0.1371.
+    Applied to energy that rule is not conservative, it is wrong: the covered energy median
+    is **0.0435**, and Nat Gas (0.0369) and WTI (0.0399), the two largest markets in the
+    entire universe, sit UNDER the flat cut. `2026-08-02 §B33` and `§C13` had already
+    measured energy as genuinely thin on Managed Money, so the flat bar re-discovers that
+    property of the complex and mislabels it a defect of each candidate.
+
+    **C19 is the result over all 34 backlog outrights**, so ag and dairy are re-run here
+    rather than left on the superseded bar. Every §C17 verdict survives, which is why that
+    block stays.
+    """
+    rule("BACKLOG PRIORITY, BENCHMARKED WITHIN COMPLEX (2026-08-03 C18-C19)")
+    from crowdmon.futures import (
+        ContractMaster,
+        add_volume,
+        fragility_frame,
+        latest,
+        rank_markets,
+    )
+
+    cm = ContractMaster.load()
+    p = cm.annotate(latest())
+    adv = (add_volume(p)[["market_code", "adv"]].dropna()
+           .drop_duplicates("market_code").set_index("market_code")["adv"])
+    fr = fragility_frame(p)
+    ranked = rank_markets(fr, volume=fr["market_code"].map(adv))
+    spec = (p[["market_code", "market_name", "asset_class"]]
+            .drop_duplicates("market_code").set_index("market_code"))
+    names = spec["market_name"]
+    covered = ranked[ranked["dtl_sell"].notna()]["market_code"].tolist()
+
+    vp = from_vintage()
+    oi = (vp.drop_duplicates(["report_date", "market_code"])
+          .pivot(index="report_date", columns="market_code", values="open_interest"))
+    net = _mm_net_panel()
+    diff = net.diff()
+    mm = vp[vp["category"] == "managed_money"]
+    q = mm[mm["open_interest"] > 0]
+    prom = ((q["long_contracts"] - q["short_contracts"]).abs() / q["open_interest"]) \
+        .groupby(q["market_code"]).median()
+    absnet = q.assign(n=(q["long_contracts"] - q["short_contracts"]).abs()) \
+        .groupby("market_code")["n"].median()
+    weeks = vp.drop_duplicates(["report_date", "market_code"]).groupby("market_code").size()
+
+    bench = spec.loc[covered].assign(p=prom).groupby("asset_class")["p"].median()
+    print("\n  covered median MM share BY COMPLEX, which is the bar each candidate faces")
+    for cx, v in bench.items():
+        n = int((spec.loc[covered, "asset_class"] == cx).sum())
+        print(f"    {cx:<12}{v:.4f}   (n={n})")
+    print(f"    pooled      {prom.reindex(covered).median():.4f}   <- what §C17 used")
+
+    rows = []
+    for code, (cx, sib) in BACKLOG.items():
+        w = int(weeks.get(code, 0))
+        pr = float(prom.get(code, float("nan")))
+        rd = diff[code].corr(diff[sib]) if code in diff else float("nan")
+        rows.append({"code": code, "name": names[code].rsplit(" - ", 1)[0][:29], "cx": cx,
+                     "oi": oi[code].mean(), "weeks": w, "prom": pr,
+                     "ratio": pr / bench[cx], "absnet": absnet.get(code, float("nan")),
+                     "r_sib": rd})
+    t = pd.DataFrame(rows).set_index("code")
+
+    def verdict(r):
+        if r.weeks < 40:
+            return f"EXCLUDE: {r.weeks} of 82 weeks"
+        if r.ratio < THIN_RATIO:
+            return f"EXCLUDE: thin for {r.cx.lower()}"
+        if pd.notna(r.r_sib) and r.r_sib > FLOW_NOISE_P90:
+            return "duplicative flow"
+        return "INDEPENDENT"
+
+    t["verdict"] = t.apply(verdict, axis=1)
+    t = t.sort_values(["cx", "ratio"], ascending=[True, False])
+    print(f"\n  {'code':<8}{'market':<31}{'OI':>10}{'wk':>4}{'MMshr':>7}{'x cx':>6}"
+          f"{'MMnet':>8}{'r_sib':>7}  verdict")
+    cur = None
+    for code, r in t.iterrows():
+        if r.cx != cur:
+            cur = r.cx
+            print(f"  -- {cur}, bar = {bench[cur]:.4f} " + "-" * 52)
+        flag = " *committed" if code in COMMITTED else ""
+        print(f"  {code:<8}{r['name']:<31}{r.oi:>10,.0f}{r.weeks:>4}{r.prom:>7.3f}"
+              f"{r.ratio:>6.2f}{r.absnet:>8,.0f}{r.r_sib:>7.3f}  {r.verdict}{flag}")
+
+    print(f"\n  thin below {THIN_RATIO}x the complex bar; flow noise p90 "
+          f"{FLOW_NOISE_P90} (§C16)")
+    print("\n ", t["verdict"].str.replace(r":.*", "", regex=True).value_counts().to_string()
+          .replace("\n", "\n  "))
+
+    passing = t[t["verdict"] == "INDEPENDENT"]
+    print(f"\n  {len(passing)} of {len(t)} pass every bar. Already committed: "
+          f"{sorted(COMMITTED & set(t.index))}")
+    fresh = passing.index.difference(COMMITTED)
+    print("  NEW candidates that pass, best first within complex:")
+    for code in [c for c in passing.index if c in fresh]:
+        r = passing.loc[code]
+        print(f"    {code}  {r['name']:<30}{r.cx:<10}{r.ratio:>5.2f}x  OI {r.oi:>9,.0f}")
+    print("\n  Every committed code passes, so the tranche-1 and §9 decisions stand.")
+    print("  MICRO GOLD fails BOTH bars (0.07x, and flow 0.355 against gold above the")
+    print("  0.229 band), which settles §C14's advice by measurement rather than analogy.")
+
+
 if __name__ == "__main__":
     main()
     normalisation()
@@ -2458,3 +2610,4 @@ if __name__ == "__main__":
     variant_codes_are_not_duplicates()
     positioning_levels_are_spurious()
     ag_dairy_backlog_priority()
+    backlog_priority_within_complex()
