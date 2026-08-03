@@ -4,8 +4,8 @@
 **Date:** 2026-08-03
 **Target:** whoever runs the Norgate producer, plus a follow-up `crowdmon` session
 **Depends on:** PR #46 (the inventory that identified these codes)
-**Evidence:** [`../design/amendments-2026-08-03.md`](../design/amendments-2026-08-03.md) §C14-§C17
-**Reproducer:** `../analysis/reproduce.py::variant_codes_are_not_duplicates`, `::ag_dairy_backlog_priority`
+**Evidence:** [`../design/amendments-2026-08-03.md`](../design/amendments-2026-08-03.md) §C14-§C19
+**Reproducer:** `../analysis/reproduce.py::variant_codes_are_not_duplicates`, `::backlog_priority_within_complex`
 
 > **Two tranches. §1-§7 are the five energy codes and were written first; §8 is the ag and
 > dairy tranche, appended later.** The title of this file said "ICE Europe WTI and the Henry
@@ -16,7 +16,10 @@
 > candidates and **§9 records the decision to take only the first**, so read §9 before acting
 > on §8's table. §9.2 supersedes §5's expected counts, which were written for tranche 1 alone.
 >
-> **§8.3 corrects a statistic §2 leads with**, so read it before quoting §2's table.
+> **§8.3 corrects a statistic §2 leads with**, so read it before quoting §2's table, and
+> **§10.1 corrects the BAR §8 uses**, which would have condemned four of §1's five codes.
+> §10 tests the remaining 24 backlog codes and proposes no third tranche; all six committed
+> codes pass, so §1, §8 and §9 stand unchanged.
 
 ---
 
@@ -268,3 +271,75 @@ highest of any backlog candidate measured.
 
 If the producer run is split for any reason, **run rough rice first.** It is the one item in
 the whole backlog that is both certain to be available and certain to be worth having.
+
+---
+
+# §10. The rest of the backlog tested, appended 2026-08-03: seven new candidates, no change to the ask
+
+**Appended after §9.** §C17's test was run on the remaining 24 metals and energy codes, which
+`§C19` reports. **Nothing here changes the committed six**, and no third tranche is proposed:
+this section exists so the next session finds the measurement rather than re-running it, and
+so the seven codes that passed are on record as passing rather than as unexamined.
+
+## 10.1 The committed six all pass, and one bar had to be fixed first
+
+Running the test on the energy backlog initially condemned **four of the five tranche-1
+codes**. That was a fault in the test, not in the tranche. `§C18` has the detail: §C17 used a
+flat cut of 0.05 on Managed Money share, benchmarked against the pooled covered median of
+0.1371, and the **covered energy median is 0.0435**. Nat Gas (0.0369) and WTI (0.0399), the
+two largest markets in the universe and both already covered, sit under that flat cut.
+
+Benchmarked within complex, as §C18 corrects it:
+
+| code | market | x complex | verdict |
+|---|---|---|---|
+| `039601` | ROUGH RICE | **4.41x** grains | the strongest candidate anywhere in the backlog |
+| `023A56` | HH PENULTIMATE FIN | 2.02x energy | pass |
+| `023A55` | HH LAST DAY FIN | 1.09x energy | pass |
+| `067411` | ICE Europe WTI | 0.98x energy | pass |
+| `03565C` | HH PENULT NAT GAS | 0.78x energy | pass |
+| `03565B` | HENRY HUB | 0.70x energy | pass |
+
+Tranche 1 spans 0.70x to 2.02x, which is the range the covered energy markets themselves
+occupy. **§1, §8 and §9 stand unchanged.**
+
+## 10.2 Seven codes pass and are NOT being asked for
+
+Recorded so they are visible, not to expand the run. If a later tranche is wanted, this is the
+list and the order:
+
+| code | market | complex | x complex | mean OI | note |
+|---|---|---|---|---|---|
+| `06665P` | MT BELVIEU ETHANE OPIS | Energies | **3.80x** | 49,818 | strongest new candidate, all 82 weeks |
+| `406651` | PGP PROPYLENE (PCW) CAL | Energies | 2.25x | 7,367 | **66 of 82 weeks** |
+| `192691` | NORTH EURO HRC STEEL | Metals | **1.88x** | 10,973 | **78 of 82 weeks**, genuinely newer rather than intermittent |
+| `192651` | STEEL-HRC | Metals | 0.98x | 33,298 | all 82 weeks |
+| `06665Q` | MT BELV NORM BUTANE OPIS | Energies | 0.91x | 51,235 | all 82 weeks |
+| `06665O` | PROPANE | Energies | 0.63x | 139,138 | all 82 weeks |
+| `189691` | LITHIUM HYDROXIDE | Metals | 0.54x | 27,847 | all 82 weeks, at the bar |
+
+**Mt Belvieu ethane is the one to take first if any are taken.** It was invisible under the
+flat bar and is the second strongest candidate in the whole backlog after rough rice.
+
+**Norgate coverage is the open question for all seven**, exactly as §4 states for tranche 1,
+and it is more doubtful here: OPIS- and PCW-assessed NGL contracts and European steel are
+further from Norgate's liquid-outright universe than a CBOT grain is. Confirm before
+committing to any of them.
+
+## 10.3 What the excludes say about the backlog as a whole
+
+**16 of 34 codes fail for want of a levered holder; only 5 fail for redundancy.** The backlog
+is not mostly duplicates. It is mostly markets where the fragility term has nothing to
+describe, which is `§C13`'s gate finding from the inside what it found from the outside.
+
+Two worth naming:
+
+- **`06765A` WTI FINANCIAL CRUDE OIL**: mean OI **175,418**, which would rank 15th of the
+  covered 25, and a median Managed Money net of **475 contracts**. Large, liquid, a pure
+  outright, and empty of the participant this monitor is about.
+- **`088695` MICRO GOLD fails both bars**, at 0.07x of metals and flow 0.355 against gold.
+  §C14 recommended settling it by analogy with `2026-08-02 §B30`; that is now measured, and it
+  is the only backlog code that is both thin and duplicative.
+
+`06665G` propane non-LDH (29,972 OI) and `025608` ethanol T2 both have a median Managed Money
+net of **exactly zero**.
