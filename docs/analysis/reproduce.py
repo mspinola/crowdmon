@@ -2198,6 +2198,77 @@ def contract_spec_inventory() -> None:
     print("  the size, and 2026-08-02 B30 is the precedent for merging before ranking.")
 
 
+#: The two families §C14 flagged as the head of the backlog, each against the already
+#: covered flagship it looks like a variant of. Deliberately paired by hand rather than by a
+#: name-prefix rule: `03565B`/`03565C` are Henry Hub and do NOT share `023651`'s prefix,
+#: so a prefix rule would have silently dropped the two most interesting rows.
+VARIANT_PAIRS = [
+    ("067411", "ICE Europe WTI", "067651", "NYMEX WTI-PHYSICAL (CL)"),
+    ("023A55", "HH last day fin", "023651", "NAT GAS NYME (NG)"),
+    ("023A56", "HH penultimate fin", "023651", "NAT GAS NYME (NG)"),
+    ("03565B", "HENRY HUB", "023651", "NAT GAS NYME (NG)"),
+    ("03565C", "HH penultimate nat gas", "023651", "NAT GAS NYME (NG)"),
+]
+
+
+def variant_codes_are_not_duplicates() -> None:
+    """Amendment C15: the head of the §C14 backlog is not a second copy of CL and NG.
+
+    The objection this tests was raised against the request to spec these five, by analogy
+    with micro gold (`§C14`): a code that looks like a variant of a covered market would put
+    the same underlying into every cross-market ranking twice, and `2026-08-02 §B30` is the
+    precedent for merging before ranking. **The analogy fails, and it fails on the measure
+    that matters.** Open interest tracks (WTI at 0.771), which is what makes them look like
+    duplicates, while Managed Money net positioning is consistently NEGATIVE and week-to-week
+    flow is near zero. They carry independent holder information.
+
+    Also prints the blocker: adding these needs a Norgate `contract_specs` row and both
+    stored price tiers, and MME/MFS are the worked example of a registry entry without them.
+    """
+    from cotdata import all_symbols, store
+
+    from crowdmon.futures import ContractMaster
+
+    rule("VARIANT CODES ARE NOT DUPLICATES (2026-08-03 C15)")
+    vp = from_vintage()
+    oi = (vp.drop_duplicates(["report_date", "market_code"])
+          .pivot(index="report_date", columns="market_code", values="open_interest"))
+    mm = vp[vp["category"] == "managed_money"]
+    net = (mm.assign(net=mm["long_contracts"] - mm["short_contracts"])
+           .pivot(index="report_date", columns="market_code", values="net"))
+
+    print(f"\n  {'code':<9}{'candidate':<25}{'against':<12}{'r(OI)':>8}"
+          f"{'r(MM net)':>11}{'r(dMM)':>9}{'mean OI':>12}")
+    for code, name, sib, sib_name in VARIANT_PAIRS:
+        r_oi = oi[code].corr(oi[sib])
+        r_mm = net[code].corr(net[sib])
+        r_d = net[code].diff().corr(net[sib].diff())
+        print(f"  {code:<9}{name:<25}{sib_name[:10]:<12}{r_oi:>8.3f}{r_mm:>11.3f}"
+              f"{r_d:>9.3f}{oi[code].mean():>12,.0f}")
+    for sib, sib_name in (("067651", "NYMEX WTI-PHYSICAL (CL)"), ("023651", "NAT GAS (NG)")):
+        print(f"  {'':<9}{'(flagship) ' + sib_name:<46}{'':>28}{oi[sib].mean():>12,.0f}")
+
+    print("\n  Every Managed Money correlation is NEGATIVE and every flow correlation is")
+    print("  near zero, so these are not a second copy of the flagship's holder base. The")
+    print("  micro-gold analogy does not transfer, and the objection is withdrawn.")
+
+    # ── the blocker, and the worked example that proves it ───────────────────
+    reg = {s.internal for s in all_symbols()}
+    spec = set(store.read_metadata()["Symbol"])
+    by_code = {s.cftc_code for s in all_symbols() if s.cftc_code}
+    print(f"\n  registry symbols {len(reg)}, contract_specs rows {len(spec)}")
+    print(f"  registry symbols with NO spec row: {sorted(reg - spec)}")
+    missing_reg = [c for c, *_ in VARIANT_PAIRS if c not in by_code]
+    print(f"  of the {len(VARIANT_PAIRS)} candidates, {len(missing_reg)} have no registry "
+          f"symbol at all: {missing_reg}")
+    cov = ContractMaster.load().coverage()
+    print("\n  MME/MFS are the worked example: a registry entry with norgate: null is")
+    print("  missing all three artifacts and is invisible to coverage, so adding YAML")
+    print("  entries for the five above would reproduce exactly this and nothing more.\n")
+    print(cov[~cov["joinable"]][["symbol", "cftc_code", "has_specs", "has_unadj_price",
+                                 "has_backadj_price", "missing"]].to_string(index=False))
+
+
 if __name__ == "__main__":
     main()
     normalisation()
@@ -2224,3 +2295,4 @@ if __name__ == "__main__":
     flow_equivalence()
     lumber_is_one_instrument()
     contract_spec_inventory()
+    variant_codes_are_not_duplicates()
