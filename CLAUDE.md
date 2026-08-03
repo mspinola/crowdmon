@@ -31,7 +31,7 @@ not about next week's return. Positioning extremes persist for quarters.
 | [`crowdmon_plain_language_summary.md`](docs/design/crowdmon_plain_language_summary.md) — the argument in prose, **and the authoritative appendix** | here |
 | [`crowdmon_futures_cot_module.md`](docs/design/crowdmon_futures_cot_module.md) — the primary spec, §13 build order | here |
 | [`amendments-2026-08-01.md`](docs/design/amendments-2026-08-01.md) — A1-A22, **closed** | here |
-| [`amendments-2026-08-02.md`](docs/design/amendments-2026-08-02.md) — B1-B32, commonality through the cocoa template on TFF. **Closed** | here |
+| [`amendments-2026-08-02.md`](docs/design/amendments-2026-08-02.md) — B1-B37, commonality through the template follow-ups and §A.2's real worked example. **Closed** | here |
 | [`amendments-2026-08-03.md`](docs/design/amendments-2026-08-03.md) — C1 onward, template classification stability and the `w_SD` sweep. **The open file** | here |
 | `crowdmon_step2_normalisation.md` — layer 2, **accepted and shipped**. History, not instructions | `../cotdata/docs/design/` |
 | `cot_vintage.md` — the vintage store this reads | `../cotdata/docs/design/` |
@@ -48,16 +48,23 @@ from a formula there should read the amendments alongside it, and several sectio
 It is written in LaTeX, which renders on GitHub and not in every viewer. The source is plain
 text either way, so read the file rather than a rendering if the math matters.
 
-**Its worked example is executed, not just read** ([`tests/test_appendix.py`](tests/test_appendix.py)):
-§A.2's cocoa figures and §A.5's days-to-liquidate reproduce exactly, so the implementation
-is pinned to the specification rather than merely believed to match it. Places where the
-appendix is right about its example and wrong about real data: spreading and "a single
-category dominating is typical" (2026-08-01 §A6); the cocoa **shape** itself, which is a
-minority configuration concentrated in metals and livestock rather than in the harvest
-markets the example is drawn from, and which cocoa itself has not held for most of the last
-year (2026-08-02 §B31); and the shape's complete absence from financial futures, where its
-mirror image is 77% of open interest and the example's 9.05x asymmetry is arithmetically
-unreachable (§B32).
+**Its worked example is executed, not just read** ([`tests/test_appendix.py`](tests/test_appendix.py)),
+and **it is now a real market**: LIVE CATTLE, report week 2026-07-28, carried through §A.2,
+§A.5, §A.7 and §A.9 (2026-08-02 §B37). That buys a second failure mode worth having, since
+the figures can now drift because the store changed rather than only because the code did,
+so [`tests/test_appendix_live.py`](tests/test_appendix_live.py) re-derives them from the real
+store. The constructed cocoa table is retained beside it, labelled, with its position stated:
+`Q_sell/Q_buy = 9.045` is **90.5% of a ceiling set by `core/config.py`**, not an empirical
+extreme.
+
+Places where the appendix was right about its example and wrong about real data, all now
+corrected in place: spreading and "a single category dominating is typical" (2026-08-01 §A6,
+measured at 29% of markets); the cocoa **shape** itself, a minority configuration
+concentrated in metals and livestock rather than in the harvest markets the example was drawn
+from, and which cocoa has not held since early 2026 (§B31, §B36); its complete absence from
+financial futures, where the mirror image is 77% of open interest and 9.05x is arithmetically
+unreachable (§B32); and the reading that the median market has no asymmetry, which is
+direction cancelling rather than symmetry (§B34).
 
 Precedence: **a measurement beats a doc, the appendix beats a handoff, and a handoff beats
 your own judgement about what would be nicer.**
@@ -111,6 +118,28 @@ one out is what stops the same analysis being run twice with different results.
 - **Every quoted figure carries a reproducer.** `docs/analysis/reproduce.py` regenerates
   every number in the analysis documents; `tests/fixtures/build_fixtures.py` regenerates the
   committed test data.
+- **Cite results by PATH plus REPRODUCER, never by a bare section ID.** `§B34` names neither
+  a repo nor a file, so a session with no context cannot resolve it and cannot tell "does
+  not exist" from "exists somewhere I did not look". Write both halves:
+
+  ```
+  docs/design/amendments-2026-08-02.md §B34
+  docs/analysis/reproduce.py::template_direction_agnostic
+  ```
+
+  This is not a style preference. Three sessions in a row concluded `§B33-B36` did not exist
+  because nothing in the citation said where to look; they were one `git show` away on an
+  unpushed branch, and the second of those sessions re-derived the work and recorded a wrong
+  definition of `A_agnostic` from the guess (`2026-08-03 §C4`). The bare form is not banned,
+  because 368 of them already exist and rewriting prose is not the fix. Instead
+  [`tests/test_references.py`](tests/test_references.py) resolves every one against the
+  sections `docs/design/amendments-*.md` actually defines, so it **fails loudly** rather than
+  silently. **A reference that cannot be located is marked, never deleted**: it goes in that
+  file's `KNOWN_UNRESOLVED` with a reason and a place to look, and the entry itself fails
+  once the gap closes. Deleting an unresolvable citation is what made the last one invisible.
+- **Before concluding a thing does not exist, search all refs, not `main`.**
+  `git log --all --oneline -- <path>`, and grep for the reproducer FUNCTION name rather than
+  the section ID: the numbers are the asset and the prose is replaceable.
 - **House style: worked numbers over abstract restatement, everywhere.** Carry the numbers
   through each formula in sequence, show the arithmetic rather than only its result, end in
   prose. A formula whose inputs are never printed is one nobody has ever checked.
@@ -153,7 +182,9 @@ src/crowdmon/
     notional.py             rung 3, contracts to USD. Refuses anything but unadj
     riskunits.py            rung 4, notional x sigma. Refuses anything but propadj
     flow.py                 A.3 flow decomposition
-    fragility.py            A.2 Q_sell / Q_buy / Phi
+    fragility.py            A.2 Q_sell / Q_buy / Phi, and `shape_labels`: the six-outcome
+                            (stable, fragile) classification, by explicit mask never
+                            fall-through. Lives here because both reproducers had a copy
     breadth.py              §6.2 breadth-depth quadrant
     concentration.py        §6.2 CR4/CR8. Published, never null, needs nothing else
     impact.py               A.5 exit COST. Amihud needs the multiplier, see A20
@@ -284,15 +315,22 @@ COTDATA_STORE=/tmp/crowdmon_test .venv/bin/python -m pytest tests/ -q -rs
 .venv/bin/python -m ruff check src tests bin
 ```
 
-**That fixture run skips 58 assertions, and they are the valuable ones.** Every
+**That fixture run skips 66 assertions, and they are the valuable ones.** Every
 `tests/*_live.py` needs the real store, so CI has never executed the layer-2 trap-table
-figures, the appendix's cocoa arithmetic, the volume and trigger measurements, or
-`2026-08-03 §C1-C4` (`test_supplemental_live.py`, the most exposed of the set: three of its
-five assertions read `cot_supplemental`, a domain one release old). From the
-**main checkout**, against `~/code/cotdata_store`, the same suite is **493 passed / 5
-skipped** rather than **435 / 63**.
+figures, the appendix's live-cattle arithmetic (`test_appendix_live.py`, `2026-08-02 §B37`),
+the volume and trigger measurements, or
+`2026-08-03 §C1-C8` (`test_supplemental_live.py`, the most exposed of the set: three of its
+assertions read `cot_supplemental`, a domain one release old). From the
+**main checkout**, against `~/code/cotdata_store`, the same suite is **534 passed / 5
+skipped** rather than **468 / 71**.
 
-> **From a worktree those two figures are 491 / 7 and 433 / 65**, because `test_boundaries`
+**These four numbers are measured, so re-measure them rather than adjusting them by hand.**
+Any PR that adds or removes a `tests/*_live.py` assertion moves all four, and two PRs in
+flight at once each move them from a base that does not include the other. Whichever merges
+second re-runs both commands and updates this paragraph, `bin/check_skips.py`'s header and
+`bin/live-tests.sh`'s. This note exists because that has already happened once.
+
+> **From a worktree those two figures are 532 / 7 and 466 / 73**, because `test_boundaries`
 > resolves `../cotdata` and `../marketdata` relative to the test file and finds neither,
 > so the two producer-direction checks skip. Quote the main-checkout numbers: a worktree
 > reports two fewer passes and has one real seam unguarded. This note exists because an
@@ -306,7 +344,7 @@ subscription and this repo is public, and the vintage store accumulates forward 
 2026-07-31 so no download reconstructs it. The split is therefore permanent:
 
 ```bash
-bin/live-tests.sh          # the 58, against the real store. Scheduled 09:15 daily
+bin/live-tests.sh          # the 66, against the real store. Scheduled 09:15 daily
 ```
 
 `--profile live` is the load-bearing part. A run whose store is missing or unsynced would
