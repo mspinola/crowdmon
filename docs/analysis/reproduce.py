@@ -36,6 +36,9 @@ Prints, in order:
   B30. whether the lumber code split is what makes lumber unscoreable
   C12-C14. the contract-spec inventory: what is covered, whether it is usable, and what
        the 254 uncovered codes are actually made of
+  C15. the head of the backlog is not a duplicate of CL and NG
+  C16. why that test must use flows: positioning LEVELS correlate spuriously
+  C17. prioritising the ag and dairy backlog, most of which fails the gate
 
 The leading ordinals above are the order the blocks were added and have drifted: 17 and 18
 each appear twice and there is no 19. Not renumbered here, because these numbers are quoted
@@ -2269,6 +2272,163 @@ def variant_codes_are_not_duplicates() -> None:
                                  "has_backadj_price", "missing"]].to_string(index=False))
 
 
+#: Cross-complex |r| on first differences, 90th percentile, from
+#: `positioning_levels_are_spurious`. Used as the noise band a flow correlation must clear
+#: before it counts as evidence of a shared holder base. Recomputed by that block rather
+#: than trusted: it is a property of this panel's length and persistence, not a constant.
+FLOW_NOISE_P90 = 0.229
+
+#: Ag and dairy codes in the §C14 backlog, each against its nearest ECONOMIC sibling among
+#: the covered 25. Paired by hand and by economics, never by best fit: §C16 is the whole
+#: reason a max-correlation scan cannot be used to pick the comparison.
+AG_DAIRY_SIBLING = {
+    "135731": ("CANOLA", "007601"),            # vs soybean oil, substitute veg oil
+    "001626": ("WHEAT-HRSpring", "001602"),    # vs wheat-SRW, third wheat class
+    "005603": ("MINI SOYBEANS", "005602"),     # vs soybeans, same contract smaller
+    "037021": ("Malaysian palm oil", "007601"),  # vs soybean oil
+    "063642": ("CHEESE", "052641"),            # vs class III milk, its own input
+    "050642": ("BUTTER", "052641"),
+    "039601": ("ROUGH RICE", "002602"),        # vs corn, nearest grain
+    "052642": ("NON FAT DRY MILK", "052641"),
+    "052644": ("CME MILK IV", "052641"),
+    "052645": ("DRY WHEY", "052641"),
+}
+
+
+def _mm_net_panel(report_type: str = "disaggregated") -> pd.DataFrame:
+    """Managed Money net, one column per market code, indexed by report date."""
+    vp = from_vintage(report_type=report_type)
+    mm = vp[vp["category"] == "managed_money"]
+    return (mm.assign(net=mm["long_contracts"] - mm["short_contracts"])
+            .pivot(index="report_date", columns="market_code", values="net"))
+
+
+def positioning_levels_are_spurious() -> None:
+    """Amendment C16: correlating Managed Money LEVELS is spurious, and §C15 leaned on it.
+
+    Positioning levels are near unit-root (lag-1 autocorrelation median 0.956), so a
+    correlation between two of them is the Granger-Newbold problem in its textbook form. The
+    consequence is not subtle and is measured three ways here: cross-complex pairs whose true
+    correlation should be near zero, and a Monte Carlo scanning an INDEPENDENT random walk
+    against the covered 25, which is exactly the "nearest holder base" scan that produced
+    palm oil against lean hogs at 0.741.
+
+    **This corrects the emphasis of `§C15`, not its conclusion.** §C15 led with negative
+    level correlations as the striking evidence that the energy variant codes are a different
+    holder base. Those numbers are noise. It also reported the first-differenced correlations,
+    which were near zero, and those carry the finding.
+    """
+    from crowdmon.futures import (
+        ContractMaster,
+        add_volume,
+        fragility_frame,
+        latest,
+        rank_markets,
+    )
+
+    rule("POSITIONING LEVELS ARE SPURIOUS (2026-08-03 C16)")
+    cm = ContractMaster.load()
+    p = cm.annotate(latest())
+    adv = (add_volume(p)[["market_code", "adv"]].dropna()
+           .drop_duplicates("market_code").set_index("market_code")["adv"])
+    fr = fragility_frame(p)
+    ranked = rank_markets(fr, volume=fr["market_code"].map(adv))
+    covered = ranked[ranked["dtl_sell"].notna()]["market_code"].tolist()
+    net = _mm_net_panel()[covered]
+    diff = net.diff()
+
+    ac = net.apply(lambda s: s.autocorr(1))
+    acd = diff.apply(lambda s: s.autocorr(1))
+    print(f"\n  lag-1 autocorrelation over {len(covered)} covered markets")
+    print(f"    LEVELS       median {ac.median():.3f}   min {ac.min():.3f}   "
+          f"max {ac.max():.3f}")
+    print(f"    DIFFERENCES  median {acd.median():.3f}   min {acd.min():.3f}   "
+          f"max {acd.max():.3f}")
+
+    spec = (p[["market_code", "asset_class"]].drop_duplicates("market_code")
+            .set_index("market_code")["asset_class"])
+    pairs = [(a, b) for i, a in enumerate(covered) for b in covered[i + 1:]
+             if spec.get(a) != spec.get(b)]
+    lv = np.array([abs(net[a].corr(net[b])) for a, b in pairs])
+    dv = np.array([abs(diff[a].corr(diff[b])) for a, b in pairs])
+    print(f"\n  cross-complex pairs, true correlation should be near zero (n={len(pairs)})")
+    print(f"    |r| LEVELS       median {np.median(lv):.3f}  p90 {np.percentile(lv, 90):.3f}"
+          f"  max {lv.max():.3f}   share above 0.5: {(lv > 0.5).mean():.1%}")
+    print(f"    |r| DIFFERENCES  median {np.median(dv):.3f}  p90 {np.percentile(dv, 90):.3f}"
+          f"  max {dv.max():.3f}   share above 0.5: {(dv > 0.5).mean():.1%}")
+
+    rng = np.random.default_rng(0)
+    ml, md = [], []
+    for _ in range(2000):
+        x = np.cumsum(rng.standard_normal(len(net)))
+        ml.append(max(abs(np.corrcoef(x, net[c].values)[0, 1]) for c in covered))
+        md.append(max(abs(np.corrcoef(np.diff(x), diff[c].values[1:])[0, 1])
+                      for c in covered))
+    print(f"\n  scanning all {len(covered)} covered markets with an INDEPENDENT random "
+          f"walk, 2000 draws, seed 0")
+    print(f"    max |r| LEVELS       median {np.median(ml):.3f}  "
+          f"p95 {np.percentile(ml, 95):.3f}")
+    print(f"    max |r| DIFFERENCES  median {np.median(md):.3f}  "
+          f"p95 {np.percentile(md, 95):.3f}")
+    print("\n  A series with NO relationship to anything scores a max level correlation of")
+    print(f"  {np.median(ml):.3f} half the time. Every 'nearest holder base' figure computed")
+    print("  on levels is therefore uninformative, and §C15's negative level correlations")
+    print("  are noise. Its conclusion stands on the differenced figures it also reported.")
+
+
+def ag_dairy_backlog_priority() -> None:
+    """Amendment C17: prioritising the ag and dairy codes in the §C14 backlog.
+
+    Three criteria, in order, and the first is the one that decides most of the list:
+
+    1. **Is there a levered holder at all?** Median `|P_MM| / OI` against the covered
+       median of 0.1371. This is `§C13`'s gate applied per candidate rather than to the set.
+    2. **Is the flow independent?** First-differenced correlation against the nearest
+       economic sibling, judged against the noise band from `§C16`. Levels are not used.
+    3. **Can it be scored?** Weeks present of 82. `2026-08-02 §B29`'s oats lesson.
+    """
+    rule("AG AND DAIRY BACKLOG PRIORITY (2026-08-03 C17)")
+    vp = from_vintage()
+    oi = (vp.drop_duplicates(["report_date", "market_code"])
+          .pivot(index="report_date", columns="market_code", values="open_interest"))
+    net = _mm_net_panel()
+    mm = vp[vp["category"] == "managed_money"]
+    q = mm[mm["open_interest"] > 0]
+    prom = ((q["long_contracts"] - q["short_contracts"]).abs() / q["open_interest"]) \
+        .groupby(q["market_code"]).median()
+    absnet = q.assign(n=(q["long_contracts"] - q["short_contracts"]).abs()) \
+        .groupby("market_code")["n"].median()
+    weeks = vp.drop_duplicates(["report_date", "market_code"]).groupby("market_code").size()
+
+    print(f"\n  {'code':<8}{'market':<24}{'mean OI':>10}{'wks':>5}{'MM share':>10}"
+          f"{'MM net':>9}{'r(dMM)':>9}  verdict")
+    rank = []
+    for code, (name, sib) in AG_DAIRY_SIBLING.items():
+        w = int(weeks.get(code, 0))
+        pr = float(prom.get(code, float("nan")))
+        rd = net[code].diff().corr(net[sib].diff()) if code in net else float("nan")
+        if w < 40:
+            v, tier = f"EXCLUDE: {w} of 82 weeks", 4
+        elif pr < 0.05:
+            v, tier = "EXCLUDE: no levered holder", 4
+        elif pd.notna(rd) and rd > FLOW_NOISE_P90:
+            v, tier = "duplicative flow", 2
+        else:
+            v, tier = "INDEPENDENT", 1
+        rank.append((tier, -pr, code, name, v))
+        print(f"  {code:<8}{name:<24}{oi[code].mean():>10,.0f}{w:>5}{pr:>10.3f}"
+              f"{absnet.get(code, float('nan')):>9,.0f}{rd:>9.3f}  {v}")
+    print(f"\n  covered-market median MM share 0.1371; §C16 flow noise band "
+          f"p90 = {FLOW_NOISE_P90}")
+    print("\n  PRIORITY ORDER")
+    for i, (_, _, code, name, v) in enumerate(sorted(rank), 1):
+        print(f"    {i}. {code} {name:<22} {v}")
+    print("\n  Only ROUGH RICE clears every bar, and it is the SMALLEST market that does.")
+    print("  Six of ten fail outright. The dairy complex minus cheese carries a Managed")
+    print("  Money book an order of magnitude below the covered median, so it is the very")
+    print("  thing §C13's gate exists to keep out of coverage.")
+
+
 if __name__ == "__main__":
     main()
     normalisation()
@@ -2296,3 +2456,5 @@ if __name__ == "__main__":
     lumber_is_one_instrument()
     contract_spec_inventory()
     variant_codes_are_not_duplicates()
+    positioning_levels_are_spurious()
+    ag_dairy_backlog_priority()

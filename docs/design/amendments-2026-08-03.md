@@ -969,3 +969,104 @@ look like progress and change no coverage figure.
 The work order is [`../handoffs/2026-08-03-spec-backlog-producer.md`](../handoffs/2026-08-03-spec-backlog-producer.md).
 
 Reproducer: [`../analysis/reproduce.py`](../analysis/reproduce.py)`::variant_codes_are_not_duplicates`.
+
+---
+
+## C16. Correlating positioning LEVELS is spurious, and §C15 led with it
+
+**Corrects the EMPHASIS of `§C15`, not its conclusion.** Found while applying §C15's own
+rule ("test positioning correlation before merging or excluding a variant code") to the ag
+and dairy backlog, where several nearest-match pairings came back economically absurd:
+Malaysian palm oil against lean hogs at 0.741, non fat dry milk against palladium at -0.666,
+butter against NY Harbour ULSD at 0.693. Absurd pairings are a symptom, so the symptom was
+measured rather than explained away.
+
+**Managed Money net positioning is near unit-root.** Lag-1 autocorrelation over the covered
+25 has median **0.956** (min 0.784, max 0.981); first-differenced it is 0.211. A correlation
+between two such series is the Granger-Newbold spurious-regression problem in textbook form.
+
+Three measurements, each stronger than the last:
+
+| test | levels | first differences |
+|---|---|---|
+| cross-complex pairs, n=251, true `r` should be ~0: median \|r\| | **0.395** | 0.095 |
+| the same, p90 / max | 0.705 / 0.878 | 0.229 / 0.392 |
+| the same, share above 0.5 | **33.5%** | **0.0%** |
+| max \|r\| scanning all 25 covered with an INDEPENDENT random walk, median | **0.773** | 0.237 |
+| the same, p95 | 0.905 | 0.333 |
+
+**A series with no relationship to anything scores a maximum level correlation of 0.773 half
+the time.** So every "nearest holder base" figure computed on levels is uninformative, and
+the absurd pairings above are not anomalies to explain: they are the expected output of the
+procedure.
+
+**What this does to `§C15`.** Its table led with `r(MM net)`, bolding negative level
+correlations from -0.224 to -0.643 as the striking evidence that the energy variant codes
+carry a different holder base. **Those numbers are noise.** §C15 also reported `r(ΔMM)`, at
+-0.054 to -0.234, and against the noise band above (cross-complex differences, median 0.095
+and p90 0.229) those are genuinely consistent with independence. **The conclusion survives on
+the statistic it printed second.** That is luck rather than method: had the level correlations
+come back strongly positive by chance, §C15 would have withdrawn a correct recommendation.
+
+The corrected rule, superseding §C15's closing sentence: **test positioning correlation on
+FIRST DIFFERENCES, against a noise band computed from the same panel.** A level correlation
+is not weak evidence of a shared holder base, it is no evidence.
+
+Reproducer: [`../analysis/reproduce.py`](../analysis/reproduce.py)`::positioning_levels_are_spurious`.
+
+---
+
+## C17. The ag and dairy backlog is mostly not worth speccing, and the dairy block fails the gate
+
+**Answers** a request to prioritise the ag and dairy codes in the §C14 backlog. The honest
+answer is that **six of the ten should not be specced at all**, and the largest by open
+interest is not the one to start with.
+
+Three criteria in order, the first deciding most of the list:
+
+1. **Is there a levered holder?** Median `|P_MM| / OI` against the covered median of
+   **0.1371**. This is `§C13`'s gate applied per candidate rather than to the whole set.
+2. **Is the flow independent?** First-differenced correlation against the nearest *economic*
+   sibling, judged against `§C16`'s noise band (p90 = 0.229). Levels are not used, and the
+   sibling is paired by economics rather than by best fit, for the same reason.
+3. **Can it be scored?** Weeks present of 82, per `2026-08-02 §B29`'s oats lesson.
+
+| code | market | mean OI | weeks | MM share | MM net | `r(ΔMM)` | verdict |
+|---|---|---|---|---|---|---|---|
+| `039601` | ROUGH RICE | 12,374 | 82 | **0.433** | 5,173 | 0.047 | **INDEPENDENT** |
+| `001626` | WHEAT-HRSpring | 77,384 | 82 | 0.278 | 20,934 | 0.338 | duplicative flow |
+| `135731` | CANOLA | 271,205 | 82 | 0.209 | 56,733 | 0.584 | duplicative flow |
+| `063642` | CHEESE | 25,601 | 82 | 0.076 | 2,058 | 0.520 | duplicative flow |
+| `037021` | Malaysian palm oil | 27,355 | 82 | 0.048 | 1,147 | 0.053 | EXCLUDE, no levered holder |
+| `052645` | DRY WHEY | 3,968 | **14** | 0.035 | 130 | 0.334 | EXCLUDE, history |
+| `052642` | NON FAT DRY MILK | 11,022 | 82 | **0.018** | 204 | -0.076 | EXCLUDE, no levered holder |
+| `050642` | BUTTER | 14,789 | 82 | **0.013** | 200 | 0.157 | EXCLUDE, no levered holder |
+| `052644` | CME MILK IV | 10,018 | 82 | **0.012** | 106 | -0.174 | EXCLUDE, no levered holder |
+| `005603` | MINI SOYBEANS | 27,891 | **13** | **0.000** | 0 | n/a | EXCLUDE, history |
+
+**Only rough rice clears every bar, and it is the smallest market that does.** Its Managed
+Money share of 0.433 is **3.2x the covered median** and the highest of any candidate, its
+flow correlation against corn (0.047) sits well inside the noise band, and it has all 82
+weeks. Ranking this backlog by open interest, which is how §C14 printed it, puts rough rice
+seventh of ten.
+
+**The dairy complex is the finding, and it is negative.** Butter, non fat dry milk, Class IV
+milk and dry whey carry Managed Money books of **0.012 to 0.035 of open interest**, an order
+of magnitude below the covered median, and 106 to 204 contracts in absolute terms. These are
+hedger markets: dairy processors laying off input and output risk, with essentially no
+levered participant to be forced out. Speccing them would add markets **the thesis cannot
+speak about**, which is precisely what `§C13`'s gate exists to keep out of coverage. Cheese
+is the only dairy code with a real Managed Money presence and its flow is 0.520 correlated
+with Class III milk, which is unsurprising given Class III is priced off cheese.
+
+**Two confirmations of earlier rules, both by measurement rather than by name.** Mini soybeans
+is the micro-gold case `§C14` predicted, and it fails twice over: 13 of 82 weeks and a median
+Managed Money net of **exactly zero**. And canola, the largest of the ten, is the most
+duplicative on flow (0.584 against soybean oil), so open interest and analytical value point
+in opposite directions across this whole set.
+
+**Recommended tranche: `039601` rough rice alone**, with `001626` WHEAT-HRSpring second if a
+third wheat class is wanted for its own sake rather than for new information. Everything below
+that is either redundant with a covered market or has no holder the monitor can describe.
+
+Reproducer: [`../analysis/reproduce.py`](../analysis/reproduce.py)`::ag_dairy_backlog_priority`.

@@ -1,11 +1,17 @@
-# Handoff: contract specs for ICE Europe WTI and the Henry Hub complex
+# Handoff: contract specs for the §C14 backlog
 
 **Status:** open, blocked on the Norgate producer (Windows box). Nothing to do in `crowdmon`
 **Date:** 2026-08-03
 **Target:** whoever runs the Norgate producer, plus a follow-up `crowdmon` session
-**Depends on:** PR #46 (the inventory that identified these five)
-**Evidence:** [`../design/amendments-2026-08-03.md`](../design/amendments-2026-08-03.md) §C14, §C15
-**Reproducer:** [`../analysis/reproduce.py`](../analysis/reproduce.py)`::variant_codes_are_not_duplicates`
+**Depends on:** PR #46 (the inventory that identified these codes)
+**Evidence:** [`../design/amendments-2026-08-03.md`](../design/amendments-2026-08-03.md) §C14-§C17
+**Reproducer:** `../analysis/reproduce.py::variant_codes_are_not_duplicates`, `::ag_dairy_backlog_priority`
+
+> **Two tranches. §1-§7 are the five energy codes and were written first; [§8](#8-second-tranche-appended-2026-08-03-the-ag-and-dairy-backlog)
+> is the ag and dairy tranche, appended later.** The title of this file said "ICE Europe WTI
+> and the Henry Hub complex" while §1-§7 were the whole of it; it is broadened here because a
+> single producer run covers both and the operator should not have to find two documents.
+> **§8.3 corrects a statistic §2 leads with**, so read it before quoting §2's table.
 
 ---
 
@@ -134,3 +140,57 @@ in the workspace, so §8's `V = 0` treatment for a limit day remains unimplement
 
 Nor does it change the §10 validation verdict. That closed `uninformative` on spent episodes,
 and new markets supply no new clean episodes for weeks that have already happened.
+
+---
+
+# §8. Second tranche, appended 2026-08-03: the ag and dairy backlog
+
+**Appended after the body above was written, not an edit to it.** §1-§7 concern the five
+energy codes. This section adds the ag and dairy tranche, so a single producer run covers
+both. Its evidence is
+[`../design/amendments-2026-08-03.md`](../design/amendments-2026-08-03.md) §C16 and §C17;
+reproducer `../analysis/reproduce.py::ag_dairy_backlog_priority`.
+
+## 8.1 The answer is mostly "do not"
+
+Asked to prioritise the ten ag and dairy codes in the §C14 backlog, the measured answer is
+that **six should not be specced at all** and one more is marginal. Ranking by open interest,
+which is how §C14 printed the backlog, gets the order close to backwards.
+
+| priority | code | market | why |
+|---|---|---|---|
+| **1** | `039601` | ROUGH RICE | **the only clear yes.** MM share 0.433, 3.2x the covered median and the highest of the ten; flow independent of corn (0.047, inside the noise band); all 82 weeks |
+| 2 | `001626` | WHEAT-HRSpring | MM share 0.278, but flow 0.338 against wheat-SRW is above the noise band. Worth it only if a third wheat class is wanted for its own sake |
+| 3 | `135731` | CANOLA | largest of the ten at 271,205 OI and the **most duplicative on flow** (0.584 against soybean oil). Size and value point opposite ways |
+| 4 | `063642` | CHEESE | only dairy code with real Managed Money (0.076), and 0.520 correlated with Class III milk, which is priced off cheese |
+| - | `037021` `050642` `052642` `052644` | palm oil, butter, NFDM, Class IV milk | **do not spec.** MM share 0.012 to 0.048, an order of magnitude under the covered median, 106 to 1,147 contracts absolute. Hedger markets with no levered holder to force out |
+| - | `052645` `005603` | dry whey, mini soybeans | **do not spec.** 14 and 13 weeks of 82. Mini soybeans also has a median Managed Money net of exactly zero |
+
+**If only one thing is added from this tranche, add rough rice.** Norgate almost certainly
+carries it (`ZR`, a standard CBOT contract), which makes it the cheapest item in the whole
+backlog as well as the best justified.
+
+## 8.2 Why the dairy block is a refusal rather than a deferral
+
+Butter, non fat dry milk, Class IV milk and dry whey are not "small markets we will get to".
+They are markets **this monitor has nothing to say about**. Damage is crowding x illiquidity x
+holder fragility, and with Managed Money at 1.2% to 3.5% of open interest there is no fragile
+holder for the fragility term to describe. Adding them would grow the covered count while
+lowering the share of coverage the thesis applies to, which is exactly the failure §C13's gate
+was built to catch, arriving from the inside instead of the outside.
+
+This is worth stating because the natural next request is "then do the metals and the
+remaining energy codes", and the same test should be run first. Cobalt, lithium hydroxide and
+the two aluminium codes are all plausible members of the same category.
+
+## 8.3 One methodological correction that changes §2 of this handoff
+
+§2 above argues the energy five are not duplicates, and leads with Managed Money **level**
+correlations. `§C16` measures that statistic and finds it spurious: positioning levels have
+lag-1 autocorrelation of 0.956, and an **independent random walk** scanned against the covered
+25 posts a maximum level correlation of **0.773 half the time**.
+
+**§2's conclusion survives, on its second statistic.** The first-differenced correlations it
+also reported (-0.054 to -0.234) sit inside a noise band of p90 = 0.229, so the energy five
+really are flow-independent of `CL` and `NG`. But the bolded negative numbers in §2's table
+are noise and should not be quoted. Any future variant test uses first differences.
