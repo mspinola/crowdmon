@@ -19,18 +19,21 @@ names the state; above it, the week is `mixed`. `tolerance_sensitivity` reports 
 that number is deciding, because a classification that reshuffles between 0.15 and 0.40 is
 a statement about the tolerance rather than about the market.
 
-**`cotdata.vintage_flow.decompose` is this function at `tolerance=1.0` with the gap rule
-off**, not a rival implementation. Measured on 135,835 real transitions the two agree on
-100.000000% of labels under that parameterisation, with `d_long`, `d_short` and `d_net`
-identical on every row. At the default tolerance they disagree on 62% of weeks, and every
-one of those disagreements is of exactly two kinds: this module declining to commit
-(`mixed`) where that one names the dominant leg, or refusing the interval (`gap`) where
-that one differences across it anyway. Neither ever names the opposite direction.
+**This is now the only flow decomposition in the workspace.** `cotdata.vintage_flow.decompose`
+*was* this function at `tolerance=1.0` with the gap rule off, not a rival implementation, and
+was removed as a duplicate in cotdata#93. The measurement that argued for removing it:
+on 135,835 real transitions the two agreed on 100.000000% of labels under that
+parameterisation, with `d_long`, `d_short` and `d_net` identical on every row. At this
+module's default tolerance they disagreed on 62% of weeks, every disagreement of exactly two
+kinds: this module declining to commit (`mixed`) where that one named the dominant leg, or
+refusing the interval (`gap`) where that one differenced across it anyway. Neither ever named
+the opposite direction. They differed in what they REFUSED, which was the whole of it.
 
-The two therefore differ in what they REFUSE, which is the whole of it: that one is
-parameter-free and always commits, this one can say "two-sided" and can say "that was not
-a week". `tests/test_flow_equivalence.py` pins the relationship so it cannot drift
-silently, since the dedup cannot go the other way (`cotdata` may not import `crowdmon`).
+`tests/test_flow_equivalence.py` **skips rather than compares**, and that is the intended end
+state rather than a gap: there is nothing left to compare here, and the copy staying gone is
+asserted from the other side in `cotdata/tests/test_vintage_flow.py`, since the dedup could
+not go this way round (`cotdata` may not import `crowdmon`). `zero_sum_check` stays in
+`cotdata`, being a claim about its own parse, and `cot_adapter` runs it on every load.
 See `docs/design/amendments-2026-08-02.md` §B29.
 """
 from __future__ import annotations
