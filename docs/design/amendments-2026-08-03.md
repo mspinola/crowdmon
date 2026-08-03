@@ -1093,3 +1093,182 @@ third wheat class is wanted for its own sake rather than for new information. Ev
 that is either redundant with a covered market or has no holder the monitor can describe.
 
 Reproducer: [`../analysis/reproduce.py`](../analysis/reproduce.py)`::ag_dairy_backlog_priority`.
+
+---
+
+## C18. Warm-up and a missing term are separable per row, and the rule has zero exceptions
+
+**Answers candidate 1 of the §2 gate** in
+[`../handoffs/2026-08-03-report-layer.md`](../handoffs/2026-08-03-report-layer.md).
+
+The two floors reproduce as `README.md` states: `damage_sell` first scores **2010-05-25**,
+`damage_sell_pct` first scores **2012-05-15**. Of 27,194 market-weeks, **8,831 (32.5%)** carry
+a null `damage_sell_pct`, and those nulls have two unrelated causes.
+
+| cause | rows |
+|---|---|
+| an upstream term is missing (`crowding_long`, `illiquidity_sell` or `fragility`) | 6,256 |
+| all three terms present, the third rolling window has not filled | **2,575** |
+
+**The separating rule is exact.** After 2012-05-15, 797 of 19,160 rows are still null and
+**zero** of them have all three terms present. So `all three terms present AND
+damage_*_pct null` identifies warm-up with no exceptions on this panel, and every post-floor
+null is a missing term rather than a young series.
+
+That makes the caveat **row-computable from columns the composite frame already carries**.
+It is not **exposed**: `composite.damage_report` returns panel-level counts, no column names
+the state, and a reader must supply the inference rule from prose. It is the only one of the
+seven candidates in that position, which is what carries the gate.
+
+Reproducer: [`../analysis/reproduce_report_gate.py`](../analysis/reproduce_report_gate.py)`::c18_warmup_is_row_computable`.
+
+---
+
+## C19. `flow_state` conditions `ΔD` strongly, and the contrast the handoff named does not exist
+
+**Answers candidate 6**, which
+[`../handoffs/2026-08-03-report-layer.md`](../handoffs/2026-08-03-report-layer.md) §2
+explicitly said to test rather than pre-assign. Testing it was right and the hypothesis was
+half wrong.
+
+`2026-08-01 §A17` warns that a falling `D` may be a market mid-exit rather than a market
+getting safer. The proposed reading was that `ΔD` beside the Managed Money flow state
+separates them: falling under `long_liquidation` is mid-exit, falling under a flat flow is
+genuinely safer. Over 18,338 market-weeks carrying both:
+
+| flow state | n | median `ΔD` | share falling |
+|---|---|---|---|
+| `long_liquidation` | 1,820 | **-0.0573** | **0.8396** |
+| `new_longs` | 1,932 | **+0.0455** | 0.1532 |
+| `short_covering` | 1,629 | +0.0127 | 0.3683 |
+| `new_shorts` | 1,939 | -0.0064 | 0.5245 |
+| `mixed` | **10,707** | **0.0000** | 0.4656 |
+| `gap` | 310 | +0.0062 | 0.4290 |
+| `quiet` | **1** | +0.0064 | 0.0000 |
+
+**The signal is real at the extremes.** `long_liquidation` falls 84% of the time against
+`new_longs` at 15%, and their median `ΔD` have opposite signs. A falling `D` under
+liquidation is a different event from a falling `D` under accumulation, exactly as §A17 says.
+
+**Two things kill it as a per-row caveat carrier.**
+
+- **`quiet` occurs 3 times in 27,167 market-weeks, and never on a falling-D week.** The
+  "genuinely safer" arm of the proposed contrast is **empty in the data**. Positioning is
+  almost never flat week to week, so the comparison as written cannot be made.
+- **`mixed` is 10,707 of 18,338 weeks and 58.2% of falling-D weeks**, with a median `ΔD` of
+  exactly 0.0000 and a 46.6% falling share, which is a coin flip. Of 8,559 falling-D
+  market-weeks, only **3,441 (40.2%)** carry a decisive state and **5,118 (59.8%)** carry
+  nothing.
+
+So the value exists on every row and answers the question on two rows in five. That is the
+shape §5's negative #4 describes, arriving one level down at a single candidate rather than
+at the brief: **a marker that is right when it speaks and silent most of the time reads as
+complete unless it says "indeterminate" out loud.**
+
+Reproducer: [`../analysis/reproduce_report_gate.py`](../analysis/reproduce_report_gate.py)`::c19_a17_is_partial`.
+
+---
+
+## C20. One caveat varies per row and is already published; the other is a constant
+
+**Answers candidates 3 and 7.** They look alike (both are per-row computations about `Phi`)
+and they fall on opposite sides of the gate, which is what makes the pair worth stating
+together.
+
+**`phi_denominator_covered`, the reachable `Phi` ceiling, is genuinely per-row**: 27,135
+distinct values over 27,194 market-weeks, running 0.3892 to 1.0000 with a median of 0.8326.
+**97.7% of rows sit below 0.99**, so a reader calibrating `Phi` against 1.0 is wrong nearly
+always. It is already a column on the fragility frame and `futures.report.q_arithmetic`
+already prints it, so it is row-computable and **exposed**.
+
+**`weight_sensitivity.flat_phi_identity` returns per market-week too**, and carries no
+information at all: maximum absolute residual **1.110e-16** and **zero** rows above 1e-12.
+`2026-08-01 §A21` holds everywhere, which is why it is a statement about the construction
+rather than about any market. Computable per row and **identical on every row**, so it
+discriminates nothing and cannot be a caveat marker.
+
+The distinction the gate turns on is not "can this be computed per row" but **"does the
+value differ between rows where the caveat bites and rows where it does not"**. Two functions
+of the same quantity, both per-row, and only one of them is a caveat.
+
+Reproducer: [`../analysis/reproduce_report_gate.py`](../analysis/reproduce_report_gate.py)`::c20_ceiling_and_identity`.
+
+---
+
+## C21. `§C8`'s band obligation has no market to fire on, and the classifier was never the blocker
+
+**Answers candidate 4, and overturns the premise of the handoff's own §4.**
+
+`2026-08-03 §C8` closes with an operating rule: publish the `w_SD` band beside a `D`
+percentile on power and gas basis markets, where the two weight tables can reorder a market's
+own history (Transco Zone 6 at Spearman **-0.4160**). The handoff recorded this as
+structurally unenforceable because the classic-outright stratum lives only in
+`reproduce_template_stability.py`, and proposed §4 to make it reachable from the package.
+
+**The classifier is not the problem.** `venue` parses from `market_name` on **100.0%** of
+rows (`market_name.str.rsplit(" - ").str[-1]`), and the power side of the split needs only
+the two venue strings `reproduce.py::POWER_VENUES` already names. No hardcoded per-market
+enumeration is required for the direction §C8 actually cares about.
+
+**The problem is that no panel can hold both halves of the obligation at once.**
+
+| panel | markets | weeks | power/gas markets | `pct(D)` computable |
+|---|---|---|---|---|
+| current-state | 27 | 1,051 | **0** | yes |
+| vintage | 346 | 82 | **263 (76.0%)** | **no**, 82 < 104 `min_periods` |
+
+One panel has the markets and is too short for the percentile; the other carries the
+percentile and contains none of the markets. **§C8's rule is therefore vacuous in practice
+today**, not wrong. It becomes live the week the vintage panel reaches 104 observations,
+which on weekly data is **2026-12-29** at the earliest, and only for markets present from
+first capture.
+
+This is the second time a `crowdmon` blocker has turned out to be a different blocker than
+the one recorded (`README.md` counts volume, extremity and §A.10's returns as the earlier
+set). The recorded reason was "no classifier in `src/`"; the real reason is "no market". A
+session that had built the classifier would have shipped it and found nothing to point it at.
+
+Reproducer: [`../analysis/reproduce_report_gate.py`](../analysis/reproduce_report_gate.py)`::c21_the_band_has_no_market`.
+
+---
+
+## C22. Three of the four survivors are already attached by a shipped function
+
+**Answers candidates 2 and 5**, and is the reason `E` is 1 rather than 4.
+
+`coverage.coverage_ladder` returns **one row per `market_code`** (27 for 27 markets), which
+joins onto every week of that market. Two markets carry a non-null `drops_at`, both lumber,
+consistent with `2026-08-02 §B30`'s finding that they are one migrated instrument:
+
+| market | `drops_at` |
+|---|---|
+| RANDOM LENGTH LUMBER | `extremity_z` |
+| LUMBER | `crowding` |
+
+`commonality.add_commonality` attaches `beta` per row on **100.0%** of 27,194 rows, 26
+distinct values spanning **-0.0661 to 1.0300**, one per market and repeated across its weeks.
+
+Both are row-attachable and both are **already exposed** by a function a caller can run
+today, alongside `phi_denominator_covered` from `§C20`. So of the four caveats that survive
+as row-computable, three are already reachable and only `§C18`'s warm-up state is not.
+
+**The gate passes on the pre-registered table, and the substance is thinner than the count.**
+
+| reading | `R` | `E` | outcome |
+|---|---|---|---|
+| strict, excluding candidates 4, 6 and 7 | **4** | **1** | `R>=4, E>=1` -> **PASSES** |
+| lenient, counting candidate 6 as partial | **5** | **2** | `R>=4, E>=1` -> **PASSES** |
+
+**The verdict does not turn on the judgement call**, which is the whole point of fixing the
+table before measuring. The session that wrote the threshold also applied it, and its
+incentive ran toward passing; both readings of the one ambiguous candidate give the same
+answer, so the incentive had nothing to act on.
+
+**What a reader should take from `E = 1`.** The brief's safety case rests on a single caveat
+that no output currently states. That is enough to pass a threshold written in advance and it
+is not much, and anyone reading §3's output should know the assembly is mostly convenience
+with one genuine gap closed. Whether the pre-registered floor was set too low is a fair
+question about the rule; it is not grounds to override it after seeing the numbers, which is
+the failure the rule exists to prevent.
+
+Reproducer: [`../analysis/reproduce_report_gate.py`](../analysis/reproduce_report_gate.py)`::c22_already_exposed`.
