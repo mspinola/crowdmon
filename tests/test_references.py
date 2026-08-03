@@ -27,8 +27,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import pytest
-
 REPO = Path(__file__).resolve().parents[1]
 
 #: Files worth scanning. Amendment IDs appear in prose, in module docstrings and in test
@@ -48,14 +46,10 @@ _REFERENCE = re.compile(r"§§?([ABC])(\d+)(?:\s*[-–]\s*§?([ABC])?(\d+))?")
 #: An entry here is a RECORDED GAP, not a suppression: the test below also fails if one
 #: becomes resolvable, so a merge that closes a gap forces the note to be removed.
 KNOWN_UNRESOLVED: dict[str, str] = {
-    "C5": (
-        "Filed by crowdmon#42 (branch `claude/repo-hygiene-b33-b36-7e0c36`, `15a013a`), "
-        "unmerged at the time this test was written. It records the stale 'there is no "
-        "volume' claim that survived in three places after volume shipped, and is pinned "
-        "by its own live test in `tests/test_volume_live.py`. `2026-08-03 §C6` opens with "
-        "a note explaining the gap so a reader who finds C4 beside C6 does not conclude a "
-        "section was lost. DELETE THIS ENTRY when #42 merges."
-    ),
+    # Empty, and that is the healthy state. The last entry was `C5`, which lived on
+    # crowdmon#42 while this test was being written and resolved when that PR merged, at
+    # which point `test_the_known_gaps_are_still_gaps` failed and forced its removal. That
+    # is the mechanism working: an allowlist nobody prunes becomes a list of lies.
 }
 
 
@@ -140,13 +134,19 @@ def test_every_amendment_reference_in_the_repo_resolves():
     )
 
 
-@pytest.mark.parametrize("section_id", sorted(KNOWN_UNRESOLVED))
-def test_the_known_gaps_are_still_gaps(section_id):
-    """An allowlist nobody prunes becomes a list of lies. This prunes it by failing."""
-    assert section_id not in _defined_sections(), (
-        f"§{section_id} now resolves, so its KNOWN_UNRESOLVED entry in {Path(__file__).name} "
-        f"is stale and must be removed along with any prose explaining the gap. The entry "
-        f"said:\n\n  {KNOWN_UNRESOLVED[section_id]}"
+def test_the_known_gaps_are_still_gaps():
+    """An allowlist nobody prunes becomes a list of lies. This prunes it by failing.
+
+    Not parametrized over `KNOWN_UNRESOLVED`, deliberately. An empty dict would make
+    `pytest.mark.parametrize` emit a SKIP, and `bin/check_skips.py` would then see a skip
+    reason no profile allows: a test that guards an empty allowlist must PASS, not vanish.
+    """
+    defined = _defined_sections()
+    resolved_now = sorted(sid for sid in KNOWN_UNRESOLVED if sid in defined)
+    assert not resolved_now, (
+        "these KNOWN_UNRESOLVED entries now resolve, so they are stale and must be removed "
+        "along with any prose explaining the gap:\n"
+        + "\n".join(f"  §{sid}: {KNOWN_UNRESOLVED[sid]}" for sid in resolved_now)
     )
 
 

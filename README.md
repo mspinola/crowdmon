@@ -245,15 +245,19 @@ Three refusals worth knowing before reading any output:
 - **`Phi` is gross over `2·OI`, and the bound is asserted.** Nets sum to zero across
   categories and cannot form a share of anything. The wrong form (`Σ w|P|/OI`) is unbounded,
   so `0 ≤ Phi ≤ 1` is checked on every computation rather than only in tests.
-- **No volume is invented.** `T = Q/(κV)` is the real output and there is no per-contract
-  volume source in this workspace, so `days_to_liquidate` is `None` and `volume` is an
-  optional argument that slots in later. `Q/OI` ranks markets; it does not measure a
-  duration.
+- **No volume is invented, and none has to be.** `T = Q/(κV)` is the real output and
+  `futures/volume.py` supplies the denominator, so `days_to_liquidate` is a real duration on
+  25 of the 279 markets on the latest Disaggregated panel. The other 254 are codes with no
+  contract spec, not markets with no volume. It is still `None` without a volume argument,
+  and it stays `None` rather than being estimated: `Q/OI` ranks markets and does not measure
+  a duration, and the two rank at 0.585. What is genuinely absent is a **per-contract**
+  volume, which `T` never needed.
 
 ### Reading `D` on live output
 
 Four things, and none of them is discoverable from the number itself. They were measured
-separately and are gathered here because together they are the reading instructions.
+separately and are gathered here because together they are the reading instructions. The
+third carries a qualifier (`3b`) that arrived later and narrows it rather than adding a fifth.
 
 **1. `D` falls during an unwind, and that is correct.** It describes a pre-condition, and both
 the position and the forceable holders it describes leave while the event happens. Across
@@ -272,6 +276,15 @@ plausible order-preserving weightings the `Q_sell/OI` top-10 keeps at least 7 of
 the §6.3 ordering destroys it entirely (0 of 10, rank correlation −0.045). And the
 load-bearing weight is Producer/Merchant at 0.1, because it holds 56% of gross open interest,
 which makes `Q_buy/OI` the less stable of the two published rankings. (`2026-08-01 §A22`)
+
+**3b. That robustness is a statement about pooled rankings, and it does not transfer to a
+level on a subpopulation.** Sweeping Swap Dealer alone over `w_SD ∈ {0.2, 0.4, 0.7}` moves the
+median `Q_sell/Q_buy` by **0.6% across all 21,756 vintage market-weeks** and by **42.0% across
+the 13 Supplemental agricultural markets**, monotonically. Pooled over a universe that is
+three-quarters power and gas basis, one weight is a rounding error; on a named subset of
+outrights it is load-bearing. So "the weights are robust" is true of the published rankings and
+is not a licence to read any weight as safe for any question. **The population is part of the
+sensitivity result, not context around it.** (`2026-08-03 §C3`)
 
 **4. `D` assumes exits are independent across markets, and they are not.** `I` is `pct(T)`
 rather than `pct(T_eff)` deliberately: with a constant `beta_bar` the two are bit-identical,
@@ -363,13 +376,24 @@ Here, in [`docs/design/`](docs/design/):
   read the source if the math matters.
 - [crowdmon_futures_cot_module.md](docs/design/crowdmon_futures_cot_module.md) — the full
   system description and the §13 build order.
-- [amendments-2026-08-01.md](docs/design/amendments-2026-08-01.md) — what measurement
-  contradicted in both of the above. Read it alongside them, not after.
+- what measurement contradicted in both of the above, **one file per day** because a shared
+  section counter collided three times in one afternoon across parallel sessions. Read them
+  alongside the two documents above, not after:
+  [amendments-2026-08-01.md](docs/design/amendments-2026-08-01.md) (A1-A22, closed),
+  [amendments-2026-08-02.md](docs/design/amendments-2026-08-02.md) (B1-B32, closed),
+  [amendments-2026-08-03.md](docs/design/amendments-2026-08-03.md) (C1 onward, **the open
+  file**). [`docs/design/README.md`](docs/design/README.md) is the index and states the
+  convention.
 
 Still in `cotdata`, because they are about that repo's own subsystems:
 
 - [crowdmon_step2_normalisation.md](https://github.com/mspinola/cotdata/blob/main/docs/design/crowdmon_step2_normalisation.md)
-  (contract master and normalisation, proposed and measured, **not accepted**)
+  (contract master and normalisation). **Accepted, and layer 2 shipped** as
+  `futures/notional.py` and `futures/riskunits.py`, so it is **history, not instructions**:
+  an earlier version of this line said "not accepted" and was stale on both counts. It named
+  `backadj` for volatility in four places, corrected on cotdata `main` in `ff2b755`. The trap
+  table in [CLAUDE.md](CLAUDE.md) is authoritative on the three price series; that document
+  is not.
 - [cot_vintage.md](https://github.com/mspinola/cotdata/blob/main/docs/design/cot_vintage.md)
   (the vintage store this package reads)
 

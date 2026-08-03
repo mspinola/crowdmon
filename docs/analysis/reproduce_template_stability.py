@@ -8,10 +8,9 @@ originals turned out to exist on an unpushed branch and are now on main as
 `::template_direction_agnostic`, `::template_swap_share` and `::template_stability`.
 
 C6-C8 are the `w_SD` band that §4 of `docs/handoffs/2026-08-03-b-series-recovery.md` asks
-for, under a settled decision that the weights stay static. **§C5 is not here**: it belongs
-to crowdmon#42 (branch `claude/repo-hygiene-b33-b36-7e0c36`, `15a013a`) and is about a stale
-"there is no volume" claim, with its own live pin in `tests/test_volume_live.py`. The gap is
-deliberate and named rather than silent. Run from the repo root:
+for, under a settled decision that the weights stay static. **§C5 is not here**: it arrived
+from crowdmon#42, is about a stale "there is no volume" claim, and carries its own inline
+reproducer and its own live pin in `tests/test_volume_live.py`. Run from the repo root:
 
     COTDATA_STORE=$HOME/code/cotdata_store .venv/bin/python docs/analysis/reproduce_template_stability.py
 

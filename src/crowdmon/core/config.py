@@ -102,9 +102,17 @@ GAP_DAYS_TOLERANCE = 0
 #: conventional figure and is judgement of the same kind as the weights above.
 #:
 #: `pressure.exit_pressure` returns `T` only when a volume is passed and `None` otherwise.
-#: There is no per-contract volume source in this workspace today (ADR-0007 step 2 is on
-#: ice), so today it is always `None`, and the alternative — estimating a volume — would
-#: put a fabricated denominator under the headline number of the whole system.
+#: **A volume now exists**, and this comment used to say it did not. `futures/volume.py`
+#: supplies a whole-market ADV from exchange volume `cotdata` already stores, under a
+#: parameter named `front` that reads like front-month and is not, so `T` is a real duration
+#: for every market that joins: 25 of the 279 on the latest Disaggregated panel, the rest
+#: being codes with no contract spec rather than markets with no volume.
+#:
+#: What is still absent is a **per-contract** volume, which ADR-0007 step 2 would move and
+#: which nobody owns. `T` never needed it. The refusal that survives is narrower and
+#: unchanged: never estimate a volume, because a fabricated denominator under the headline
+#: number of the whole system is worse than a missing one. A missing number is visibly
+#: missing and an estimated one is not.
 KAPPA = 0.2
 
 

@@ -219,3 +219,52 @@ def test_stress_volume_is_not_reliably_the_conservative_one(cotdata_store):
     ratio = live["adv_stress"] / live["adv"]
     assert (ratio > 1).any(), "no market trades more under stress; re-measure the docs"
     assert (ratio < 1).any(), "no market thins under stress; that would be surprising"
+
+
+def test_t_is_a_real_duration_and_every_null_is_a_missing_spec(cotdata_store):
+    """`2026-08-03 §C5`. Pins the claim whose stale twin survived in two places for a day.
+
+    `README.md` and `core/config.py` both said `days_to_liquidate` "is always `None`" long
+    after `volume.py` shipped the denominator. That is the sentence this test exists to
+    break. It asserts the two halves separately, because they fail for different reasons:
+
+    1. **`T` is populated at all.** If this drops to zero the stale claim has become true
+       again, most likely because the contract-master join broke rather than because volume
+       vanished.
+    2. **Every null is a market with no contract spec**, never a market with no volume. This
+       is the half that makes the claim false rather than merely imprecise, and it is the
+       one a reader cannot check from the number.
+
+    Counts when written: 25 of 279 populated, 254 null, 0 of the nulls carrying a symbol.
+    The 25 is not asserted exactly, since a new contract spec in `marketdata` would lift it
+    legitimately; the attribution is asserted exactly, since nothing legitimate makes a
+    spec'd market lose its volume silently.
+    """
+    vi = pytest.importorskip("cotdata.vintage_ingest")
+    if vi.read_observations().empty:
+        pytest.skip("store not populated: the vintage store is empty")
+
+    from crowdmon.futures import ContractMaster, VintageCotSource, add_volume, fragility_frame
+    from crowdmon.futures.pressure import rank_markets
+
+    panel = ContractMaster.load().annotate(
+        VintageCotSource(report_type="disaggregated").load("2026-07-31"))
+    panel = panel[panel["report_date"] == panel["report_date"].max()]
+    frag = add_volume(fragility_frame(panel).merge(
+        panel[["market_code", "symbol"]].drop_duplicates(), on="market_code", how="left"))
+    ranked = rank_markets(frag, volume=frag["adv"])
+
+    scored = ranked["dtl_sell"].notna()
+    assert scored.sum() >= 20, (
+        f"only {int(scored.sum())} of {len(ranked)} markets have a real T. It was 25 when "
+        f"§C5 was written, and a collapse to 0 is what the stale 'always None' claim in "
+        f"README.md and core/config.py used to assert. Check the ContractMaster join first.")
+
+    unscored = ranked[~scored]
+    assert unscored["symbol"].isna().all(), (
+        f"{int(unscored['symbol'].notna().sum())} market(s) have a contract spec and still "
+        f"no days-to-liquidate: "
+        f"{sorted(unscored.loc[unscored['symbol'].notna(), 'market_code'])[:5]}. Every null "
+        f"is supposed to be a code with no spec (Nodal power zones, minor grains), not a "
+        f"tradeable market whose volume went missing. If this fires, T is silently absent "
+        f"somewhere it should exist and a ranking built on it is short those markets.")
