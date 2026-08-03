@@ -285,8 +285,17 @@ COTDATA_STORE=/tmp/crowdmon_test .venv/bin/python -m pytest tests/ -q -rs
 
 **That fixture run skips 52 assertions, and they are the valuable ones.** Every
 `tests/*_live.py` needs the real store, so CI has never executed the layer-2 trap-table
-figures, the appendix's cocoa arithmetic, or the volume and trigger measurements. Against
-`~/code/cotdata_store` the same suite is **485 passed / 7 skipped** rather than 433 / 59.
+figures, the appendix's cocoa arithmetic, or the volume and trigger measurements. From the
+**main checkout**, against `~/code/cotdata_store`, the same suite is **487 passed / 5
+skipped** rather than **435 / 57**.
+
+> **From a worktree those two figures are 485 / 7 and 433 / 59**, because `test_boundaries`
+> resolves `../cotdata` and `../marketdata` relative to the test file and finds neither,
+> so the two producer-direction checks skip. Quote the main-checkout numbers: a worktree
+> reports two fewer passes and has one real seam unguarded. This note exists because an
+> earlier version of this paragraph quoted the worktree pair without saying so, which is
+> hazard 5 of the editable-install list arriving as a documentation bug rather than a test
+> failure.
 
 The data cannot be committed to close the gap: `manifests/prices.json` records
 `"source": "norgate"` for both the bars and `contract_specs`, Norgate is a commercial
