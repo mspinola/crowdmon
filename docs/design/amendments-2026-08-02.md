@@ -1554,3 +1554,157 @@ one round of checking, because merging only the per-category half of the pipelin
 returns `crowding=0`, for the unrelated reason that `build()` still reads the unmerged store
 and every per-market rung reports `058644` alone. Two different routes to the same number,
 one of them meaningless. The end-to-end run is what distinguishes them.
+
+---
+
+## B31. The template is a metals-and-livestock shape, not a harvest shape, and B28's 27.2% is a population average
+
+**Refines** [B28](#b28-the-cocoa-template-is-a-joint-claim-and-answering-it-with-two-margins-understates-the-miss),
+which is right that the cocoa template is a joint claim and right to measure it as a
+contingency table. Two things it could not see from one week of the pooled universe: the
+27.2% is an average over a population that is **76% ICE power and gas basis**
+([2026-08-01 A5](amendments-2026-08-01.md#a5-the-disaggregated-universe-is-mostly-power-and-gas-basis)),
+which is not the population appendix §A.2's example is drawn from, and a single week cannot
+distinguish a shape that is a property of the market from one that is a property of the week.
+
+Reproducer: `docs/analysis/reproduce.py`, the `template_shape_stratified` block, all 82
+vintage weeks (2025-01-07 to 2026-07-28, 346 markets, 21,756 market-weeks).
+
+> B28 is not amended and its figures stand. It measured one week over the whole universe and
+> said so. This section measures 82 weeks stratified, which is a different measurement, and
+> it moves the reading rather than correcting an error.
+
+### Split by population, the template roughly doubles
+
+| stratum | template | inverted | both short | both long | MM flat | market-weeks |
+|---|---|---|---|---|---|---|
+| classic outright | **44.7%** | 25.0% | 22.8% | 3.7% | 1.7% | 3,214 |
+| spread/basis/regional | 25.3% | 13.0% | 17.8% | 19.9% | 23.8% | 2,177 |
+| power/gas/carbon venue | 26.8% | 25.6% | 16.0% | 16.7% | 14.8% | 16,365 |
+
+In the latest week alone the classic figure is 52.5% against 23.0%, so B28's pooled 27.2% is
+very close to the power/gas number for the arithmetic reason that power and gas are most of
+the universe.
+
+**The hand-drawn "classic outright" list is not doing the work.** A venue-only split, with no
+judgement about any individual contract, gives ag/metal exchanges 47.3% against power/gas
+26.8%, and the ag/metal share is higher in **82 of 82 weeks**, median gap +19.8pp, smallest
+gap +7.4pp. Paired by week, so the highly autocorrelated weeks are not being counted as
+independent draws.
+
+### The fragile long side is the half that fails, and it is the half the thesis needs
+
+| stratum | PM net short | MM net long | both (the template) | if independent |
+|---|---|---|---|---|
+| classic outright | 69.2% | **50.0%** | 44.7% | 34.6% |
+| power/gas venue | 46.5% | 43.6% | 26.8% | 20.3% |
+
+Two things fall out. The clauses are **positively dependent** (44.7% against 34.6% under
+independence), which is the fact a marginal table structurally cannot show and the reason
+B28's correction was the right one. And the binding constraint is Managed Money, not the
+hedger: even among classic outrights the producer-hedged short side holds in seven weeks in
+ten, while the fragile levered long side is a coin flip. The half of the template that fails
+is the half carrying the `damage = crowding x illiquidity x fragility` argument.
+
+### It is a mixture of always and never, not a 45% chance each week
+
+Per market, over its own 82 weeks, and this is the finding that changes how the number should
+be read:
+
+| stratum | never (<=10%) | 10-25% | 25-50% | 50-75% | 75-90% | always (>=90%) | markets |
+|---|---|---|---|---|---|---|---|
+| classic outright | 33.3% | 12.8% | 7.7% | 12.8% | 10.3% | **23.1%** | 39 |
+| spread/basis/regional | 50.0% | 11.5% | 15.4% | 7.7% | 7.7% | 7.7% | 26 |
+| power/gas/carbon venue | 54.8% | 9.0% | 11.1% | 8.5% | 5.0% | 11.6% | 199 |
+
+**64.0% of the 264 markets with at least 40 weeks sit at one extreme or the other.** The
+universe is not a coin weighted to 27%; it is a mixture of markets that essentially always
+carry the shape and markets that essentially never do. "The template holds in x% of markets"
+invites a per-week probability reading that the data does not support.
+
+### Which markets are always template is not the ones the example suggests
+
+By complex, template share of market-weeks: **metals 66.5%**, softs 52.4%, energy outright
+40.9%, grains/oilseeds 38.2%, livestock/dairy 37.2%, lumber 19.5%.
+
+Always template (>=90% of weeks): LIVE CATTLE, FEEDER CATTLE, GOLD, SILVER, COPPER, COFFEE C,
+GASOLINE RBOB (all 1.000), ETHANOL 0.939, PLATINUM 0.927.
+
+Never template (<=10%): HENRY HUB, WTI-PHYSICAL, WTI FINANCIAL, WTI ICE EUROPE, NON FAT DRY
+MILK, CME MILK IV (all 0.000), WHEAT-SRW 0.024, CHEESE and BUTTER 0.037, MICRO GOLD 0.037,
+MILK CLASS III 0.073, ROUGH RICE 0.073, PALLADIUM 0.098.
+
+**Every crude oil and natural gas code in the store is never-template, and the metals are the
+most reliably template complex of all.** The appendix motivates the shape with a physical
+harvest that a producer sells forward, and it fits gold, silver, copper and cattle best while
+fitting wheat, rice and the entire crude complex worst. Whatever generates the shape, an
+annual harvest is not it. Nothing here explains the mechanism, and this section deliberately
+does not guess at one.
+
+### A sixth outcome B28 does not have: no hedger side at all
+
+`PM == 0` is not "MM net flat". It is a market with no Producer/Merchant position to be on
+the other side, where the template is not false but **inexpressible**. It is 73 of 21,756
+market-weeks, concentrated almost entirely in the retail-sized contracts: MICRO GOLD 58 weeks
+of 80 (its Producer/Merchant gross book is zero in 58 of them, so the category is absent
+rather than flat), MICRO SILVER 5, Coinbase GOLD-1oz 4, and 6 scattered elsewhere.
+
+This is why the block labels shapes by explicit mask rather than by fall-through. A first
+pass at it defaulted unmatched rows to "MM net flat" and duly reported MICRO GOLD as an
+MM-flat market, when Managed Money is net long there in 84% of weeks and it is the *hedger*
+that is missing.
+
+### Cocoa does not currently show the cocoa shape
+
+| week | producer | swap | managed money | other | non-rep | shape |
+|---|---|---|---|---|---|---|
+| 2025-01-07 | -36,528 | -5,886 | **+35,138** | +656 | +6,620 | template |
+| 2025-10-21 | -16,747 | +11,176 | -918 | +7,094 | -605 | both short |
+| 2026-07-28 | -18,433 | **+22,894** | **-8,773** | +3,217 | +1,095 | both short |
+
+Producer/Merchant is net short in **82 of 82 weeks**, so that half of the template is as solid
+as the example implies. Managed Money is net long in only 45 of 82, and in the latest week is
+net *short*. The largest net long is the **Swap Dealer in 47 of 82 weeks**, against Managed
+Money in 35. §A.2 puts Swap Dealer at +10,000 beside Managed Money at +90,000; real cocoa is
+currently the reverse, and the long side is an index or swap book rather than a levered fund.
+
+That is a `w_c` of 0.4 rather than 1.0 sitting where the example's fragility comes from, which
+is the difference between a market that can be forced out and one that mostly cannot.
+
+### The asymmetry is bounded by the weight table, and §A.2 sits at 90.5% of the ceiling
+
+Since `sum_c P_c = 0`, the gross net-long total `G` equals the gross net-short total, so
+`Q_sell <= max(w)*G` and `Q_buy >= min(w)*G`, giving
+
+    Q_sell / Q_buy  <=  max(w) / min(w)  =  1.0 / 0.1  =  10.0
+
+Checked rather than argued: across all 21,756 market-weeks the maximum observed ratio is
+**9.9613** and there are **zero** breaches of 10.0.
+
+**This corrects a reading of my own from earlier in the same session.** "No template market
+in the latest week reaches the appendix's 9.05x, the maximum being copper at 8.81x" is true
+and nearly meaningless, because the quantity is config-bounded at 10.0 and 9.045 is 90.5% of
+that bound. The example is near-maximal by construction, not empirically extreme, and it is
+attainable: 54 market-weeks reach or exceed it, though all of them are gas basis, power or
+crude-differential markets rather than outrights.
+
+The number worth carrying from that check is a different one. **The median market-week ratio
+is 0.993** (p90 5.162, p99 8.197), so the typical market has `Q_sell` and `Q_buy` within a
+percent of each other: no asymmetry whatsoever. The cocoa example is not a typical market
+dressed up, it is one tail of a distribution whose centre is symmetric.
+
+This is the same lesson as
+[2026-08-01 A21](amendments-2026-08-01.md#a21-phi-has-no-cross-market-signal-independent-of-the-weight-table)
+in a second place. A ratio whose ceiling is set by `core/config.py` is partly a statement
+about the config, and quoting it as a free measurement overstates what was measured.
+
+### What this changes
+
+**No code change, again.** `fragility` computes `Q_sell` and `Q_buy` by sign over every
+category and has never assumed the template, which is what lets a same-side or hedgerless
+market produce a correct reading with no special case.
+
+What changes is standing advice, extending B28's. Before reading a `Phi` as "a fragile side
+opposed by a stable one": check the two large categories are opposed (B28), and check the
+market is one whose shape persists rather than one sampled in an unusual week (here). For
+crude, natural gas and SRW wheat the template is not a weak prior, it is the wrong prior.

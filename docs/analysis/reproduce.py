@@ -26,6 +26,7 @@ Prints, in order:
  17. the coverage ladder: which markets score nothing, and where (2026-08-02 B17)
  20. the macro-book PCA and what PC1 actually is, per report type (B21)
   B28. the cocoa template measured as a joint shape rather than two margins
+  B31. the same template stratified by population and followed through all 82 weeks
   B29. the two flow decompositions, and the oats rationale that does not hold
   B30. whether the lumber code split is what makes lumber unscoreable
 
@@ -1136,6 +1137,245 @@ def template_shape() -> None:
     print("  and MM is still the single largest Q_buy contributor in 32/94.")
 
 
+#: Judgement, enumerated so it is auditable rather than asserted: contracts on a
+#: deliverable physical underlying, traded as an OUTRIGHT rather than as a spread, a
+#: basis, a crack or an index. This is the population appendix §A.2's cocoa example is
+#: drawn from. The block below does NOT rest on it — the same finding is reproduced from
+#: a venue-only split that involves no hand classification at all.
+CLASSIC_OUTRIGHTS = {
+    "002602": ("CORN", "grains/oilseeds"),
+    "005602": ("SOYBEANS", "grains/oilseeds"),
+    "005603": ("MINI SOYBEANS", "grains/oilseeds"),
+    "026603": ("SOYBEAN MEAL", "grains/oilseeds"),
+    "007601": ("SOYBEAN OIL", "grains/oilseeds"),
+    "001602": ("WHEAT-SRW", "grains/oilseeds"),
+    "001612": ("WHEAT-HRW", "grains/oilseeds"),
+    "001626": ("WHEAT-HRSpring", "grains/oilseeds"),
+    "004603": ("OATS", "grains/oilseeds"),
+    "039601": ("ROUGH RICE", "grains/oilseeds"),
+    "135731": ("CANOLA", "grains/oilseeds"),
+    "073732": ("COCOA", "softs"),
+    "083731": ("COFFEE C", "softs"),
+    "033661": ("COTTON NO. 2", "softs"),
+    "080732": ("SUGAR NO. 11", "softs"),
+    "040701": ("FCOJ", "softs"),
+    "057642": ("LIVE CATTLE", "livestock/dairy"),
+    "061641": ("FEEDER CATTLE", "livestock/dairy"),
+    "054642": ("LEAN HOGS", "livestock/dairy"),
+    "052641": ("MILK CLASS III", "livestock/dairy"),
+    "050642": ("BUTTER", "livestock/dairy"),
+    "063642": ("CHEESE", "livestock/dairy"),
+    "052642": ("NON FAT DRY MILK", "livestock/dairy"),
+    "052645": ("DRY WHEY", "livestock/dairy"),
+    "052644": ("CME MILK IV", "livestock/dairy"),
+    "088691": ("GOLD", "metals"),
+    "088695": ("MICRO GOLD", "metals"),
+    "084691": ("SILVER", "metals"),
+    "084694": ("MICRO SILVER", "metals"),
+    "085692": ("COPPER #1", "metals"),
+    "085699": ("MICRO COPPER", "metals"),
+    "076651": ("PLATINUM", "metals"),
+    "075651": ("PALLADIUM", "metals"),
+    "191691": ("ALUMINUM", "metals"),
+    "067651": ("WTI-PHYSICAL", "energy outright"),
+    "06765A": ("WTI FINANCIAL", "energy outright"),
+    "06765T": ("BRENT LAST DAY", "energy outright"),
+    "067411": ("WTI ICE EUROPE", "energy outright"),
+    "023651": ("NAT GAS NYMEX", "energy outright"),
+    "03565B": ("HENRY HUB", "energy outright"),
+    "022651": ("NY HARBOR ULSD", "energy outright"),
+    "111659": ("GASOLINE RBOB", "energy outright"),
+    "025651": ("ETHANOL", "energy outright"),
+    "058644": ("LUMBER", "lumber"),
+}
+#: Venues whose listings are power, gas basis, carbon and RECs (2026-08-01 A5).
+POWER_VENUES = {"ICE FUTURES ENERGY DIV", "NODAL EXCHANGE"}
+#: Venues listing the ags and metals, used for the judgement-free robustness split.
+AG_METAL_VENUES = {"CHICAGO BOARD OF TRADE", "CHICAGO MERCANTILE EXCHANGE",
+                   "COMMODITY EXCHANGE INC.", "ICE FUTURES U.S.",
+                   "MIAX FUTURES EXCHANGE"}
+
+
+def _shape_labels(pm: pd.Series, mm: pd.Series) -> pd.Series:
+    """The six mutually exclusive outcomes of the Producer/Merchant x Managed Money pair.
+
+    B28 counts five, and the sixth is not a refinement of a rounding error: `PM == 0` is a
+    market with **no hedger side at all**, where the template is not false but
+    inexpressible. Labelling by fall-through instead of by explicit mask silently folds it
+    into "MM flat", which is how a first pass at this block reported MICRO GOLD as an
+    MM-flat market when Managed Money is in fact net long in 84% of its weeks.
+    """
+    out = pd.Series(pd.NA, index=pm.index, dtype=object)
+    out = out.mask((pm < 0) & (mm > 0), "template (PM short, MM long)")
+    out = out.mask((pm > 0) & (mm < 0), "inverted (PM long, MM short)")
+    out = out.mask((pm < 0) & (mm < 0), "same side (both short)")
+    out = out.mask((pm > 0) & (mm > 0), "same side (both long)")
+    out = out.mask((pm != 0) & (mm == 0), "MM net flat")
+    out = out.mask(pm == 0, "no hedger side (PM flat)")
+    if out.isna().any():
+        raise ValueError(f"{int(out.isna().sum())} market-weeks fell through every shape "
+                         f"mask; the six labels are meant to be exhaustive.")
+    return out
+
+
+def _shape_panel() -> pd.DataFrame:
+    """One row per (report_date, market_code): category nets, stratum, and shape."""
+    full = from_vintage()
+    full = full.assign(net=full["long_contracts"] - full["short_contracts"])
+    n = (full.groupby(["report_date", "market_code", "category"])["net"].sum()
+             .unstack("category").reset_index())
+    n["market_name"] = n["market_code"].map(full.groupby("market_code")["market_name"].first())
+    n["venue"] = n["market_name"].str.rsplit(" - ", n=1).str[-1]
+    n["complex"] = n["market_code"].map(lambda c: CLASSIC_OUTRIGHTS.get(c, (None, None))[1])
+    n["stratum"] = np.where(
+        n["market_code"].isin(CLASSIC_OUTRIGHTS), "1 classic outright",
+        np.where(n["venue"].isin(POWER_VENUES), "3 power/gas/carbon venue",
+                 "2 spread/basis/regional"))
+    n["venue_stratum"] = np.where(
+        n["venue"].isin(AG_METAL_VENUES), "ag/metal exchange",
+        np.where(n["venue"].isin(POWER_VENUES), "power/gas venue", "other venue"))
+    n["shape"] = _shape_labels(n["producer_merchant"], n["managed_money"])
+    return n
+
+
+def _share_table(frame: pd.DataFrame, by: str) -> pd.DataFrame:
+    """Row-percentage crosstab of shape, rendered as `%` strings.
+
+    Formatted here rather than left as floats because `report.to_markdown` picks a format
+    per column for contract counts, and a column of shares reads as `52.5000`.
+    """
+    ct = pd.crosstab(frame[by], frame["shape"])
+    pct = (ct.div(ct.sum(axis=1), axis=0) * 100).map(lambda v: f"{v:.1f}%")
+    return pct.assign(**{"market-weeks": ct.sum(axis=1)}).reset_index()
+
+
+def template_shape_stratified() -> None:
+    """Amendment B31: B28's 27.2% is a population average over a universe that is 76% power.
+
+    B28 measured the cocoa template as a joint shape rather than two margins, which was the
+    right correction, and reported it over all 279 markets of one week. Two things that
+    changes: the universe it averages over is three-quarters ICE power and gas basis
+    (2026-08-01 A5), which is not the population §A.2's example is drawn from, and one week
+    cannot say whether a market's shape is a property of the market or of the week.
+
+    Both are answered here over the vintage store's full 82 weeks. Nothing below rests on
+    the hand-drawn `CLASSIC_OUTRIGHTS` list: the venue-only split reproduces it.
+    """
+    rule("THE COCOA TEMPLATE, STRATIFIED AND THROUGH TIME (2026-08-02 B31)")
+
+    n = _shape_panel()
+    weeks = sorted(n["report_date"].unique())
+    last = weeks[-1]
+    print(f"\n{len(weeks)} report weeks, {pd.Timestamp(weeks[0]).date()} to "
+          f"{pd.Timestamp(last).date()}, {n['market_code'].nunique()} markets, "
+          f"{len(n):,} market-weeks")
+
+    print("\n--- 1. the joint shape by stratum, LATEST WEEK (B28's population, split) ---")
+    print(report.to_markdown(_share_table(n[n["report_date"] == last], "stratum")))
+    print("\n--- 2. the same, over all 82 weeks rather than one ---")
+    print(report.to_markdown(_share_table(n, "stratum")))
+
+    # The hand-drawn list is the obvious place for this to be leaning, so check it against
+    # a split that contains no per-contract judgement whatsoever.
+    print("\n--- 3. ROBUSTNESS: venue only, no hand classification of any contract ---")
+    print(report.to_markdown(_share_table(n, "venue_stratum")))
+    pw = n.pivot_table(index="report_date", columns="venue_stratum", values="shape",
+                       aggfunc=lambda s: (s == "template (PM short, MM long)").mean())
+    d = pw["ag/metal exchange"] - pw["power/gas venue"]
+    print(f"\n  ag/metal template share exceeds power/gas in {int((d > 0).sum())} of "
+          f"{len(d)} weeks, median gap {d.median():+.3f}, smallest gap {d.min():+.3f}.")
+    print("  Paired by week, so the 82 weeks are not being treated as independent draws.")
+
+    print("\n--- 4. inside the classic outrights, by complex, all 82 weeks ---")
+    cl = n[n["market_code"].isin(CLASSIC_OUTRIGHTS)]
+    print(report.to_markdown(_share_table(cl, "complex")))
+
+    print("\n--- 5. which HALF of the template fails ---")
+    rows = []
+    for label, sub in [("classic outright", cl),
+                       ("power/gas venue", n[n["venue"].isin(POWER_VENUES)])]:
+        pm_short = (sub["producer_merchant"] < 0).mean()
+        mm_long = (sub["managed_money"] > 0).mean()
+        rows.append({"stratum": label, "market-weeks": len(sub),
+                     "PM net short": f"{pm_short:.1%}", "MM net long": f"{mm_long:.1%}",
+                     "both (the template)":
+                         f"{((sub['producer_merchant'] < 0) & (sub['managed_money'] > 0)).mean():.1%}",
+                     "if independent": f"{pm_short * mm_long:.1%}"})
+    print(report.to_markdown(pd.DataFrame(rows)))
+    print("\n  The hedged short side is the robust half. The fragile levered long side is")
+    print("  the half that only holds half the time, and it is the half the thesis needs.")
+
+    print("\n--- 6. is shape a property of the MARKET or of the WEEK? ---")
+    g = n.groupby("market_code")
+    mkt = pd.DataFrame({
+        "stratum": g["stratum"].first(), "weeks": g.size(),
+        "tf": g["shape"].apply(lambda s: (s == "template (PM short, MM long)").mean())})
+    mkt = mkt[mkt["weeks"] >= 40]
+    band = pd.cut(mkt["tf"], bins=[-.001, .1, .25, .5, .75, .9, 1.001],
+                  labels=["never <=10%", "10-25%", "25-50%", "50-75%", "75-90%",
+                          "always >=90%"])
+    ct = pd.crosstab(mkt["stratum"], band)
+    print(report.to_markdown((ct.div(ct.sum(axis=1), axis=0) * 100)
+                             .map(lambda v: f"{v:.1f}%")
+                             .assign(markets=ct.sum(axis=1)).reset_index()))
+    extreme = ((mkt["tf"] <= .1) | (mkt["tf"] >= .9)).mean()
+    print(f"\n  {extreme:.1%} of the {len(mkt)} markets with >=40 weeks sit at one extreme")
+    print("  or the other. The universe is not 27% template-shaped; it is a mixture of")
+    print("  markets that essentially always are and markets that essentially never are.")
+
+    tfc = mkt[mkt["stratum"] == "1 classic outright"]["tf"].sort_values(ascending=False)
+    print("\n  classic outrights that are ALWAYS template (>=90% of weeks):")
+    for code in tfc[tfc >= .9].index:
+        print(f"    {tfc[code]:.3f}  {CLASSIC_OUTRIGHTS[code][0]:<18s} "
+              f"{CLASSIC_OUTRIGHTS[code][1]}")
+    print("\n  classic outrights that are NEVER template (<=10% of weeks):")
+    for code in tfc[tfc <= .1].sort_values().index:
+        print(f"    {tfc[code]:.3f}  {CLASSIC_OUTRIGHTS[code][0]:<18s} "
+              f"{CLASSIC_OUTRIGHTS[code][1]}")
+
+    print("\n--- 7. COCOA itself, every week the store holds ---")
+    c = n[n["market_code"] == "073732"].set_index("report_date").sort_index()
+    cats = ["producer_merchant", "swap", "managed_money", "other_reportable",
+            "nonreportable"]
+    print(f"  shapes: {c['shape'].value_counts().to_dict()}")
+    print(f"  PM net short in {int((c['producer_merchant'] < 0).sum())} of {len(c)} weeks; "
+          f"MM net long in {int((c['managed_money'] > 0).sum())}, "
+          f"net short in {int((c['managed_money'] < 0).sum())}")
+    longs = c[cats].where(c[cats] > 0)
+    print(f"  largest NET LONG holder, by week: {longs.idxmax(axis=1).value_counts().to_dict()}")
+    print("\n  first, middle and last week (contracts, net):")
+    for d0 in [c.index[0], c.index[len(c) // 2], c.index[-1]]:
+        row = c.loc[d0]
+        print(f"    {pd.Timestamp(d0).date()}  " +
+              "  ".join(f"{k[:4]} {int(row[k]):>+8,}" for k in cats) +
+              f"   [{row['shape']}]")
+    print("\n  §A.2 puts Swap Dealer at +10,000 against Managed Money +90,000. Real cocoa")
+    print("  in the latest week is Swap Dealer +22,894 against Managed Money -8,773: the")
+    print("  long side is an index/swap book, not a levered fund.")
+
+    print("\n--- 8. the asymmetry is bounded by the WEIGHT TABLE, not by the data ---")
+    from crowdmon.core import config as cfg
+
+    w = cfg.weights_for("disaggregated")
+    ceiling = max(w.values()) / min(w.values())
+    print(f"  weights {w}")
+    print("  Sum_c P_c = 0, so the gross net-long total G equals the gross net-short total.")
+    print("  Q_sell <= max(w)*G and Q_buy >= min(w)*G, hence Q_sell/Q_buy <= max(w)/min(w)")
+    print(f"  = {ceiling:.1f}. Checked rather than argued:")
+    con = contributions(from_vintage())
+    q = (con.groupby(["report_date", "market_code", "q_side"])["q_contribution"].sum()
+           .unstack("q_side").fillna(0.0))
+    ratio = (q["sell"] / q["buy"].replace(0, np.nan)).dropna()
+    print(f"    {len(ratio):,} market-weeks with both sides live, max observed "
+          f"{ratio.max():.4f}, breaches of {ceiling:.1f}: "
+          f"{int((ratio > ceiling + 1e-9).sum())}")
+    print(f"    median {ratio.median():.3f}, p90 {ratio.quantile(.9):.3f}, "
+          f"p99 {ratio.quantile(.99):.3f}")
+    print(f"    at or above the appendix's 9.045: {int((ratio >= 9.045).sum())} market-weeks")
+    print(f"\n  So §A.2's 9.05x is {9.045 / ceiling:.1%} of the mechanical ceiling, not an")
+    print("  empirical extreme, and the median market-week is 0.993 — no asymmetry at all.")
+
+
 def flow_equivalence() -> None:
     """Amendment B29: cotdata's decompose is this one at tolerance=1.0, and the oats rationale.
 
@@ -1322,5 +1562,6 @@ if __name__ == "__main__":
     coverage_ladder_report()
     macro_book_pca()
     template_shape()
+    template_shape_stratified()
     flow_equivalence()
     lumber_is_one_instrument()
