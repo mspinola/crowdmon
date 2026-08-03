@@ -1708,3 +1708,118 @@ What changes is standing advice, extending B28's. Before reading a `Phi` as "a f
 opposed by a stable one": check the two large categories are opposed (B28), and check the
 market is one whose shape persists rather than one sampled in an unusual week (here). For
 crude, natural gas and SRW wheat the template is not a weak prior, it is the wrong prior.
+
+---
+
+## B32. On TFF the cocoa shape is not rare, it is out of range, and the mirror image is the market
+
+**Extends** [B31](#b31-the-template-is-a-metals-and-livestock-shape-not-a-harvest-shape-and-b28s-272-is-a-population-average),
+which answered "do real markets show the cocoa shape" for Disaggregated and left TFF, the
+half of the COT universe the macro book lives in, unmeasured.
+
+Reproducer: `docs/analysis/reproduce_tff.py`, the `template_shape_tff` block, all 82 vintage
+weeks, 108 markets, 6,033 market-weeks. Respects the three traps
+[`2026-07-28-tff-financial-futures.md` §2](../analysis/2026-07-28-tff-financial-futures.md)
+establishes: the three consolidated aggregates are dropped, and every figure is reported both
+unweighted and open-interest-weighted because crypto is a third of the market count and 2% of
+the open interest.
+
+### There is no producer category, so the analogue is structural rather than exact
+
+| Disaggregated | w | TFF | w |
+|---|---|---|---|
+| managed_money | 1.0 | leveraged | 1.0 |
+| nonreportable | 0.6 | nonreportable | 0.6 |
+| other_reportable | 0.5 | other_reportable | 0.5 |
+| swap | 0.4 | dealer | 0.4 |
+| **producer_merchant** | **0.1** | **asset_manager** | **0.3** |
+
+The weight-1.0 fragile holder maps cleanly. The floor does not. Producer/Merchant is a
+physical hedger who can stand for delivery; Asset Manager is a pension or insurance book,
+unlevered and slow but with no delivery to stand for. **The template's immovable side has no
+counterpart in financial futures**, and the rest of this section is what sits there instead.
+
+### The mirror image is the market, and by open interest it is most of it
+
+Asset Manager against Leveraged Funds, all 82 weeks:
+
+| asset class | MIRROR (stable long, fragile short) | cocoa direction | same long | same short | no stable side | market-weeks |
+|---|---|---|---|---|---|---|
+| rates/credit | **72.5%** | 6.8% | 10.3% | 10.4% | 0.0% | 1,141 |
+| equity index | 44.9% | 12.0% | 30.8% | 8.0% | 3.5% | 2,001 |
+| fx | 29.3% | 16.3% | 30.5% | 23.9% | 0.0% | 1,196 |
+| crypto | 16.4% | 0.5% | 0.2% | 10.2% | **72.7%** | 1,613 |
+| commodity index | 72.0% | 0.0% | 28.0% | 0.0% | 0.0% | 82 |
+
+Weighted by open interest rather than market count: **MIRROR 77.3%**, both-short 10.8%,
+both-long 7.2%, **cocoa direction 3.8%**.
+
+**In the rates complex the inversion is near-total.** Across the nine contracts the
+cash-futures basis trade runs through, 624 of 738 market-weeks are MIRROR: Leveraged Funds
+net short in **93.0%** of them, Asset Managers net long in **87.9%**. This is the same
+configuration §4 of the TFF analysis showed by hand for one week, now measured over 82.
+
+The forced-flow consequence is the opposite of cocoa's, and it is not a detail. Cocoa's story
+is a fragile long side that must **sell** into a hedger who will not bid. The rates story is a
+fragile short side that must **buy** from an asset manager who will not offer. The median
+`Q_sell/Q_buy` on TFF is **0.582** against 0.993 on Disaggregated, so the lean is systematic
+rather than a feature of one week.
+
+### Dealer is not the stable counterparty either
+
+Running the same pair with Dealer (w=0.4) in the stable slot gives a different and messier
+answer: **same-side-both-short is 55.3% by open interest** and 50.5% of rates market-weeks.
+Dealer and Leveraged sit on the *same* side of the rates complex about half the time, which
+is what the basis trade implies (the dealer is intermediating, not taking the other side of
+the risk). So there is no second candidate for the immovable counterparty. Asset Manager is
+the only one, and it plays the role in the opposite direction.
+
+### Crypto has a fragile side and no stable side at all
+
+`asset_manager` is **absent** from crypto, not merely flat: gross zero in 1,172 of 1,613
+market-weeks (72.7%), with **zero** cases of a non-zero gross book netting to zero. Leveraged
+Funds are present in **100%** of those same market-weeks.
+
+That is the micro-gold finding from B31 at scale and in the more dangerous direction. Micro
+gold is a market with a fund and no hedger; so is a third of TFF by market count. A monitor
+reading "the fragile side is opposed by a stable one" gets no answer here rather than a weak
+one, and by market count this is the single most common configuration in the whole TFF report.
+
+### The asymmetry ceiling is three times tighter, so §A.2 is unreachable
+
+The B31 bound applies per report type, with each report's own weights:
+
+| report | max(w)/min(w) | max observed | breaches |
+|---|---|---|---|
+| Disaggregated | **10.000** | 9.9613 | 0 of 21,756 |
+| TFF | **3.333** | 3.1157 sell/buy, 3.2584 buy/sell | 0 of 6,033 |
+
+**§A.2's 9.05x cannot occur on TFF in any state of the world.** It is not that financial
+futures happen not to show that asymmetry; the weight table makes it arithmetically
+impossible, because the least-forceable TFF holder is three times more forceable than a
+physical producer. The example is out of range rather than unrepresentative.
+
+This is [2026-07-28 §2.3](../analysis/2026-07-28-tff-financial-futures.md)'s "Phi has a
+different floor in each report, so the two scales do not correspond", applied to the
+asymmetry ratio instead of to Phi, and it has the same consequence: **compare within a
+report, never across.**
+
+### Shape is less market-determined here than on Disaggregated
+
+52.8% of the 72 TFF markets with at least 40 weeks sit at one extreme of their mirror share,
+never or always, against 64.0% on Disaggregated. 11 markets are always MIRROR; 3 are always
+cocoa-direction. So the mixture reading from B31 survives, weakly, and TFF markets change
+configuration more readily than commodity markets do.
+
+### What this changes
+
+**No code change.** Every engine already runs on TFF as written, as the 2026-07-28 analysis
+found, and `fragility` computes both directions by sign.
+
+What it settles is the scope of the question B28 and B31 were answering. **The cocoa template
+is a commodity-market claim.** On Disaggregated it is a real minority shape concentrated in
+metals and livestock; on TFF the same configuration is 3.8% of open interest, its mirror is
+77.3%, and the asymmetry the example is famous for is unreachable by construction. Anyone
+carrying "fragile longs facing immovable shorts" as a default mental model of a crowded
+futures market is holding a picture that is wrong about the largest part of the COT universe
+by open interest, and wrong in the direction that matters: the forced flow there is buying.
