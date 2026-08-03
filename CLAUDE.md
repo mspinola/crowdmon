@@ -31,8 +31,8 @@ not about next week's return. Positioning extremes persist for quarters.
 | [`crowdmon_plain_language_summary.md`](docs/design/crowdmon_plain_language_summary.md) — the argument in prose, **and the authoritative appendix** | here |
 | [`crowdmon_futures_cot_module.md`](docs/design/crowdmon_futures_cot_module.md) — the primary spec, §13 build order | here |
 | [`amendments-2026-08-01.md`](docs/design/amendments-2026-08-01.md) — A1-A22, **closed** | here |
-| [`amendments-2026-08-02.md`](docs/design/amendments-2026-08-02.md) — B1-B15, commonality through cascade amplification. **The open file** | here |
-| `crowdmon_step2_normalisation.md` — layer 2, proposed and measured, **not accepted** | `../cotdata/docs/design/` |
+| [`amendments-2026-08-02.md`](docs/design/amendments-2026-08-02.md) — B1 onward, commonality through the cocoa template on TFF. **The open file** | here |
+| `crowdmon_step2_normalisation.md` — layer 2, **accepted and shipped**. History, not instructions | `../cotdata/docs/design/` |
 | `cot_vintage.md` — the vintage store this reads | `../cotdata/docs/design/` |
 
 **The appendix of `crowdmon_plain_language_summary.md` (§A.1-A.11) is the authoritative
@@ -49,9 +49,14 @@ text either way, so read the file rather than a rendering if the math matters.
 
 **Its worked example is executed, not just read** ([`tests/test_appendix.py`](tests/test_appendix.py)):
 §A.2's cocoa figures and §A.5's days-to-liquidate reproduce exactly, so the implementation
-is pinned to the specification rather than merely believed to match it. Two places where the
-appendix is right about its example and wrong about real data (spreading, and "a single
-category dominating is typical") are in amendments §A6.
+is pinned to the specification rather than merely believed to match it. Places where the
+appendix is right about its example and wrong about real data: spreading and "a single
+category dominating is typical" (2026-08-01 §A6); the cocoa **shape** itself, which is a
+minority configuration concentrated in metals and livestock rather than in the harvest
+markets the example is drawn from, and which cocoa itself has not held for most of the last
+year (2026-08-02 §B31); and the shape's complete absence from financial futures, where its
+mirror image is 77% of open interest and the example's 9.05x asymmetry is arithmetically
+unreachable (§B32).
 
 Precedence: **a measurement beats a doc, the appendix beats a handoff, and a handoff beats
 your own judgement about what would be nicer.**
@@ -92,10 +97,12 @@ one out is what stops the same analysis being run twice with different results.
 
 ## Working agreement
 
-- **Measure, do not assume.** Probing the actual files has now overturned six written
-  assumptions. Two worth internalising: the Oct-Nov 2025 shutdown left report dates
-  completely intact (it broke release dates instead), and Managed Money dominates the Phi
-  numerator in only 29% of markets rather than typically.
+- **Measure, do not assume.** Probing the actual files has overturned a written assumption in
+  nearly every session, and the dated amendment files are the record. **Deliberately not a
+  count here**: a running total in a file nobody updates goes stale silently, which is the
+  same failure the amendments themselves keep catching. Two worth internalising: the Oct-Nov
+  2025 shutdown left report dates completely intact (it broke release dates instead), and
+  Managed Money dominates the Phi numerator in only 29% of markets rather than typically.
 - **Specs are amendable.** If a measurement contradicts a doc, fix the doc in the same PR
   and say so. Where the doc lives in a sibling checkout, record it in
   `docs/design/amendments-*.md` rather than editing a shared working tree, and say that too.
@@ -234,6 +241,13 @@ changes, they fail and the docstrings get corrected rather than quietly becoming
 Additive back-adjustment preserves absolute price CHANGES, not percentage returns. Module
 spec §5.1 had it right ("ratio-adjusted (not difference-adjusted) so returns are correct").
 See `docs/design/amendments-2026-08-01.md` A8.
+
+**`crowdmon_step2_normalisation.md` in `../cotdata` carried the same error**, naming `backadj`
+for volatility in four places and calling it "the one real trap". Corrected on cotdata `main`
+in `ff2b755`, which also fixed the cause: its availability table listed `unadj` and `backadj`
+and omitted `propadj` entirely, so anyone reasoning from it was choosing between two options
+when there were three. That is why the table above lists that document as history rather than
+instructions. **This table is authoritative on the three series; that one is not.**
 
 A negative price is **not** by itself a sign of the wrong series, in any of the three
 adjustments. WTI settled at -37.63 on 2020-04-20; `unadj` records it faithfully and `propadj`
