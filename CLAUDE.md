@@ -280,8 +280,29 @@ COTDATA_STORE=/tmp/crowdmon_test .venv/bin/python -m pytest tests/ -q -rs
 ```
 
 ```bash
-.venv/bin/python -m ruff check src tests
+.venv/bin/python -m ruff check src tests bin
 ```
+
+**That fixture run skips 52 assertions, and they are the valuable ones.** Every
+`tests/*_live.py` needs the real store, so CI has never executed the layer-2 trap-table
+figures, the appendix's cocoa arithmetic, or the volume and trigger measurements. Against
+`~/code/cotdata_store` the same suite is **485 passed / 7 skipped** rather than 433 / 59.
+
+The data cannot be committed to close the gap: `manifests/prices.json` records
+`"source": "norgate"` for both the bars and `contract_specs`, Norgate is a commercial
+subscription and this repo is public, and the vintage store accumulates forward only from
+2026-07-31 so no download reconstructs it. The split is therefore permanent:
+
+```bash
+bin/live-tests.sh          # the 52, against the real store. Scheduled 09:15 daily
+```
+
+`--profile live` is the load-bearing part. A run whose store is missing or unsynced would
+otherwise skip its way to a green exit having verified nothing, so a data-absent skip is a
+failure there. CI runs the same checker under `--profile ci`, which allows those skips but
+fails on a **new** reason, which is how a pin silently stops running. Both live in
+[`bin/check_skips.py`](bin/check_skips.py); the schedule is
+`bin/com.mspinola.crowdmon-live-tests.plist.example`.
 
 Regenerate the analysis figures (needs the real store):
 
