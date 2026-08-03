@@ -12,6 +12,12 @@
 > Announced before the first line of code, per this directory's convention. If you were about
 > to start it, say so and I will drop it.
 
+> **§1.2's evidence is spent. Read §8 before acting on it.** The body below is preserved as
+> issued, per this directory's rule. §1.2 cites a live worktree as proof the spec backlog was
+> taken, and that worktree finished and merged as PR #47 two and a half minutes before this
+> handoff merged. The claim it makes is still correct and the pointer is now a filed handoff
+> rather than a working tree. Nothing else in the body is affected.
+
 ---
 
 ## 0. Why this and not something else
@@ -361,3 +367,47 @@ resolve, which is the point.
 
 If §2's gate fails, that is the deliverable. Write it up, close the handoff, and do not build
 §3 anyway.
+
+---
+
+## 8. Note appended 2026-08-03: §1.2's evidence is spent, its claim is not
+
+**Not an outcome. This handoff has not been executed.** Appended rather than edited into §1.2,
+because the body is preserved as issued.
+
+§1.2 says a worktree is live on `claude/spec-backlog-producer` at `075ad26` with
+`docs/analysis/reproduce.py` modified, and tells you to treat the spec backlog as taken. That
+session **finished while this handoff was in review**. It merged as PR #47 at 21:17:11 UTC,
+two and a half minutes before this file merged as PR #48 at 21:19:58. The worktree is clean and
+the branch is gone.
+
+**The instruction is unchanged and the evidence for it is now stronger.** The backlog is no
+longer claimed by an in-flight worktree, it is claimed by a filed, open work order:
+[2026-08-03-spec-backlog-producer.md](2026-08-03-spec-backlog-producer.md), status **open,
+blocked on the Norgate producer (Windows box), nothing to do in this repo.** Read that rather
+than looking for the worktree.
+
+**Why this note exists rather than a silent fix.** A session that goes looking for the live
+worktree §1.2 describes will not find one, and "the claim expired" is the natural reading. That
+is the stale-marker failure this directory keeps recording: `2026-08-03-index-share.md` sat
+marked open on top of finished analysis and invited a second execution. An expired-looking
+claim invites the same thing from the other direction.
+
+**One finding from PR #47 is worth carrying into §2**, because it is about exactly the kind of
+inference the gate has to make. `2026-08-03 §C15` records an objection that session raised
+against its own work and withdrew on measurement: ICE Europe WTI and the four Henry Hub codes
+look like variants of covered `CL` and `NG`, and open interest agrees (WTI at 0.771). Managed
+Money net correlation is **negative in all five** (to −0.643) and week-to-week flow correlation
+is near zero, so they are a different holder base rather than a second copy. `§C14`'s advice
+narrows to: test positioning correlation before merging or excluding a variant code. Reproducer
+`docs/analysis/reproduce.py::variant_codes_are_not_duplicates`.
+
+The transferable part: **open interest is the series the eye reaches for when asking whether
+two things are the same market, and it is the wrong one, because crowding is a property of who
+holds.** §2 classifies caveats by whether a value exists that tells a reader the caveat applies.
+A value that correlates with the right answer is not the same as a value that carries it, and
+`§C15` is the worked example of that gap costing a session an objection.
+
+**Nothing else in the body is affected.** §1.1's shipped inventory is unchanged: PR #47 was
+additive docs plus one reproducer function and touched no module. Both prohibitions in §6 that
+mention the backlog still stand.
