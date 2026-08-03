@@ -206,3 +206,51 @@ and guessing would put a number in a document with nothing behind it.
 parameter it is swept against (§C2), one is undefined (§C4), and one answers clearly and
 interestingly (§C3). §2 is executable on `Q_sell`/`Q_buy` alone, and that is enough to answer
 the question it was really asking.
+
+## C5. "There is no volume" survived in three places after volume shipped, one of them in code
+
+**Contradicts:** `README.md`'s third refusal ("there is no per-contract volume source in this
+workspace, so `days_to_liquidate` is `None`") and `core/config.py`'s `KAPPA` comment ("so
+today it is always `None`"). Both fixed in the same commit as this section.
+
+`futures/volume.py` shipped a whole-market ADV, `pressure.py`'s own header was updated to say
+so ("**`V` now exists**, and this module's header used to say it did not"), and two of its
+three neighbours were not. Measured on the latest Disaggregated panel:
+
+| quantity | value |
+|---|---|
+| markets on the panel | 279 |
+| markets with a non-null `dtl_sell` | **25** |
+| markets with a null `dtl_sell` | 254, **every one of them for want of a contract spec** |
+
+So the claim was false rather than imprecise. Not one of the 254 nulls is a market with no
+volume; they are Nodal power zones and minor grains with no entry in the contract master,
+which is the same 87%-of-rows figure `ContractMaster` reports from the other direction.
+
+Reproducer, against `COTDATA_STORE=~/code/cotdata_store`:
+
+```python
+p = ContractMaster.load().annotate(latest())
+adv = add_volume(p)[["market_code", "adv"]].dropna().drop_duplicates("market_code") \
+        .set_index("market_code")["adv"]
+f = fragility_frame(p)
+r = rank_markets(f, volume=f["market_code"].map(adv))      # positional, per the docstring
+r["dtl_sell"].notna().sum()                                 # 25
+```
+
+**The alignment trap, found while writing that reproducer and worth carrying.**
+`rank_markets` documents `volume` as "aligned to `fragility`'s index", which is **positional**.
+Passing a `market_code`-indexed Series does not raise: it reindexes to `NaN` and every `dtl_*`
+column comes back null, which is indistinguishable from "no volume was available". A first
+attempt at the count above returned **0 of 279** for exactly this reason and looked like a
+confirmation of the stale claim. Map to the frame's own `market_code` column first.
+
+**What this changes about the working agreement, and it is not "check more carefully".** Volume
+is already one of the four blocked-on rows `README.md` records as having proved stale on
+re-test. This is the failure *after* that one: the blocker lifted, the finding was written
+down, and the correction landed only where the work happened. `pressure.py` was right on
+2026-08-02 while `README.md` and `core/config.py` were still wrong, which is worse than all
+three being wrong together, because it makes the false version look corroborated by the two
+files a reader reaches first while the file that is actually authoritative is the one nobody
+opens. **Re-testing a blocker is half the job; the other half is a grep for every place that
+asserted it.**

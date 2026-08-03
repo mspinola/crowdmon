@@ -1,0 +1,146 @@
+# Handoff: the Swap Dealer weight decision
+
+**Status:** **open, and it is a decision rather than a measurement.** The evidence is
+complete and is not the bottleneck. Nothing here needs new data.
+**Date:** 2026-08-03
+**Lives at:** `crowdmon/docs/handoffs/2026-08-03-swap-dealer-weight-decision.md`
+**Target:** the human. A session may prepare the change; it may not choose the number
+**Depends on:** [2026-08-03-index-share.md](2026-08-03-index-share.md) (closed),
+`2026-08-03 §C1-C5`, `2026-08-01 §A21-A22`
+**Deliverable:** a decision on `swap: 0.4`, or a recorded decision to leave it
+
+> Update `Status:` to `complete (PR #NN)` when the decision lands, including if the
+> decision is "unchanged". A weight deliberately left alone and a weight nobody got to
+> look the same in `config.py` and are not the same thing.
+
+---
+
+## 0. Why this is filed separately
+
+The index-share handoff was told, in its own §2: "**Do not change the weight table in this
+session. Produce the evidence; the decision is separate and follows.**" It obeyed that, and
+closed. This is the follow-on it named, filed rather than left implicit so that the next
+session does not either re-run the evidence or quietly edit the number.
+
+Both failure modes have precedent here. Two modules were built twice in one afternoon
+because nobody wrote the claim down first, and the index-share handoff itself was executed
+from a stale `open` marker while it was being moved between repos.
+
+---
+
+## 1. What is already known, and must not be re-measured
+
+**The premise this started from is retired.** Index positioning is **not** meaningfully
+stickier than swap positioning. Median 12-week autocorrelation is index 0.777 against swap
+**0.826**; index leads in only 4 of 13 markets; and in the worst 5% of weeks the swap book
+moves **less** than the index book (-0.00167 against -0.00336). The two persistence
+statistics disagree on direction, which on its own disqualifies index share as a
+discriminator.
+
+**That is a genuine null and the clean evidence is spent.** `2026-08-03-index-share.md` §4
+named this outcome in advance as a real one. Do not re-run it expecting a per-market weight
+to fall out.
+
+**What replaced it, and nobody was looking for it.** Against Managed Money at 1.0:
+
+| regime | swap sits at | nearest configured weight |
+|---|---|---|
+| routine turnover | **0.305** | `swap: 0.4` |
+| the worst 5% of weeks | **0.067** | `producer_merchant: 0.1` |
+
+One weight cannot be both. **The incoherence in `swap: 0.4` is between REGIMES, not between
+markets**, which is the opposite of the per-market direction the work set out to find. It
+needs no Supplemental report and would show up in metals or anywhere else.
+
+**And the parameter is load-bearing exactly where it is being asked about.** Sweeping
+`w_SD` alone over {0.2, 0.4, 0.7}, median `A = Q_sell/Q_buy` (`2026-08-03 §C3`):
+
+| population | median `A` | swing |
+|---|---|---|
+| all 21,756 vintage market-weeks | 1.0213 → 1.0153 | **0.6%**, non-monotonic |
+| the 13 Supplemental markets | 2.1845 → 3.1028 | **42.0%**, monotonic |
+
+Pooled over a universe that is three-quarters ERCOT and PJM basis, `w_SD` is a rounding
+error. On the agricultural outrights it is not. `Q_sell` doubles while median `Q_buy` is
+unchanged from 0.4 to 0.7, which locates the mechanism: on the median Supplemental market
+the swap book sits on the **sell** side, so raising its weight lifts the numerator alone.
+
+---
+
+## 2. The decision, stated as options
+
+None of these is recommended here. That is the point of the file.
+
+**(a) Leave `swap: 0.4` and record why.** Defensible: it is close to the routine-turnover
+figure of 0.305, and routine weeks are most weeks. Cost: every `Q_sell` published during
+the weeks the monitor exists to warn about is computed with a weight measured to be roughly
+6x too high for those weeks.
+
+**(b) Cut it toward 0.1.** Defensible: `crowdmon` is a stress monitor, so the stress-regime
+number is the relevant one and 0.067 is nearer `producer_merchant` than `swap`. Cost: it
+collapses a category distinction on the ~95% of weeks that are not stressed, and it moves a
+weight to fit a measurement, which `core/config.py`'s own header forbids in the strongest
+terms ("configured, not fitted ... must never be tuned until an output looks better").
+
+**(c) Make the weight regime-conditional.** This is what the evidence actually points at
+and it is the largest change: `weights_for(report_type)` becomes
+`weights_for(report_type, regime)`, and something has to decide the regime, point-in-time,
+without lookahead. That is a new design decision, not a number.
+
+**(d) Publish the sensitivity beside the output instead of choosing.** `Q_sell` ships with
+its `w_SD ∈ {0.2, 0.4, 0.7}` band on Supplemental markets, and the reader sees the 42%.
+Cheapest, and consistent with §6.3's "subjected to sensitivity analysis rather than
+presented as estimates", but it pushes the judgement onto every reader forever.
+
+**If (b) or (c) is chosen, `TFF_WEIGHTS["dealer"]` is 0.4 for the same reason and by the
+same argument.** It has never been exercised (`config.py` says so). Changing swap and
+leaving dealer would split a deliberate symmetry by accident.
+
+---
+
+## 3. Constraints on whatever is decided
+
+**Metals are permanently outside the Supplemental report.** Gold, silver and copper are not
+covered and never will be by this source. Gold is the case that motivated half the original
+question, the market where the swap dealer sits on the **immovable** side with
+Producer/Merchant at a tenth of the swap book. Nothing measured here reaches it. Anything
+concluded for ag transfers to metals only with an argument that is not in this data.
+
+**Do not tie the decision to template classification.** `2026-08-03 §C1`: 22 of 39 markets
+read extreme pooled but only 17 in both halves, and cocoa runs 1.000 then 0.098 inside a
+single 82-week window. A classification computed on either half disagrees with the other
+about what kind of market five of them are. Prefer statements about position behaviour.
+
+**Swap is not the load-bearing weight in the table; Producer/Merchant is.**
+`2026-08-01 §A22`: PM at 0.1 holds **56% of gross open interest**, and raising it to 0.3 is
+the only single-weight move that pulls `Phi` correlation below 0.96. A session that
+re-opens the weight table should know that the weight nobody argues about decides the most,
+and that this handoff is deliberately not about it.
+
+**`Phi` has no signal independent of the weights at all.** `2026-08-01 §A21`: set every
+weight to 1.0 and it reduces exactly to `1 - spreading/OI`, to 1.11e-16 on 27,194
+market-weeks. So this decision is not calibrating a measurement, it is choosing what the
+measurement means. `2026-08-03 §C4` is the sharpest form: with the weights flattened the
+asymmetry is identically 1.0 on 100.0000% of market-weeks.
+
+---
+
+## 4. What a session may do without the decision
+
+- Add a single-weight sweep to `futures/weight_sensitivity.py`. It currently jitters **all**
+  weights order-preservingly and reports rank stability, so it cannot express "hold the
+  table, move one weight over a stated grid, report a level on a named subpopulation", which
+  is what §C3 needed and did ad-hoc in
+  [`../analysis/reproduce_template_stability.py`](../analysis/reproduce_template_stability.py).
+  A22 did the same thing ad-hoc for Producer/Merchant. Twice ad-hoc is a missing function.
+- **Not** change any value in `core/config.py`. That is the decision, and it is not a
+  session's to make.
+
+---
+
+## 5. Report back
+
+- The option chosen, in the terms of §2, with the reasoning
+- Whether `TFF_WEIGHTS["dealer"]` moves with it
+- What the change does to the published `Q_sell/OI` and `Q_buy/OI` rankings, measured
+- An explicit note that metals remain unresolved, because they do
