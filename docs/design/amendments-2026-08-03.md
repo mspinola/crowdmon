@@ -905,3 +905,67 @@ coverage is a build backlog, not a boundary": it is something we control, and no
 this repo can execute alone.
 
 Reproducer: [`../analysis/reproduce.py`](../analysis/reproduce.py)`::contract_spec_inventory`, and the full covered-set table is in [`../analysis/2026-07-28-contract-spec-inventory.md`](../analysis/2026-07-28-contract-spec-inventory.md).
+
+---
+
+## C15. The head of the backlog is NOT a duplicate, and the objection to it was mine
+
+**Withdraws an objection this session raised**, and records why it was wrong, because the
+reasoning that produced it is the kind that generalises badly.
+
+`§C14` closed with the advice that **micro gold should be settled before the large backlog
+items**, since it duplicates a covered market at a tenth the size and `2026-08-02 §B30` is
+the precedent for merging two codes before ranking. That advice stands for micro gold. When a
+request arrived to spec **ICE Europe WTI and the Henry Hub complex**, the same objection was
+raised by analogy: these look like variants of `067651` (NYMEX WTI, covered as `CL`) and
+`023651` (NAT GAS NYME, covered as `NG`), so specing them would put two underlyings into
+every cross-market ranking six times over.
+
+**Measured over the 82 vintage weeks, the analogy fails.**
+
+| code | candidate | against | `r(OI)` | `r(MM net)` | `r(ΔMM)` | mean OI |
+|---|---|---|---|---|---|---|
+| `067411` | ICE Europe WTI | CL | 0.771 | **-0.224** | -0.054 | 798,670 |
+| `023A55` | HH last day fin | NG | -0.097 | **-0.643** | -0.164 | 420,336 |
+| `023A56` | HH penultimate fin | NG | -0.146 | -0.413 | -0.063 | 253,028 |
+| `03565B` | HENRY HUB | NG | 0.179 | **-0.621** | -0.116 | 362,655 |
+| `03565C` | HH penultimate nat gas | NG | -0.424 | -0.128 | -0.234 | 153,896 |
+
+**Every Managed Money correlation is negative, and every flow correlation is near zero.**
+These are not a second copy of the flagship's holder base; they are a different holder base
+taking the other side, which is what a financially-settled look-alike beside a physically
+settled benchmark should look like.
+
+**The specific error is worth naming, because it is a measurement this package already had
+the means to make and did not.** Open interest is the series that *does* track (WTI at
+0.771), and open interest is what the eye reaches for when asking "is this the same market".
+It is the wrong series for the question. Crowding is a property of *who holds*, so the
+duplication test has to be run on the positioning, and on the positioning these five are
+nearly independent of their flagships. Reasoning by analogy from a name (`§C14`'s micro gold)
+and confirming it against the most available series would have removed the two largest items
+in the backlog on a false premise.
+
+**This does not rehabilitate micro gold.** `088695` is the same contract as `088691` at a
+tenth the size, traded by the same participants against the same delivery. The distinction is
+not "variant versus not" but whether the second code has its own holder base, and that is
+measurable rather than inferable from the name. `§C14`'s advice is narrowed accordingly:
+**test the positioning correlation before merging or excluding any variant code**, rather
+than treating a shared underlying as sufficient grounds for either.
+
+### The blocker is unchanged, and it is structural
+
+Nothing here can be acted on from this repo. `ContractMaster.load()` reaches a spec only
+through a **registry symbol** joined to the Norgate `contract_specs` table, and `coverage()`
+requires a spec **plus both stored price tiers** (`unadj` and `backadj`, since `propadj` is
+derived from the pair on read). All five candidates have **no registry symbol at all**, and
+all three artifacts come from the Windows-only Norgate producer.
+
+**MME and MFS are the worked example, already in the data.** They are the two of 49 registry
+symbols with no `contract_specs` row, carry `norgate: null`, and report
+`missing: specs,unadj_price,backadj_price`. Adding registry entries for the five candidates
+without a producer run would reproduce exactly that and nothing more: five inert rows that
+look like progress and change no coverage figure.
+
+The work order is [`../handoffs/2026-08-03-spec-backlog-producer.md`](../handoffs/2026-08-03-spec-backlog-producer.md).
+
+Reproducer: [`../analysis/reproduce.py`](../analysis/reproduce.py)`::variant_codes_are_not_duplicates`.
