@@ -14,6 +14,15 @@
 # otherwise SKIP its way to a green exit and report success having verified nothing. Under
 # that profile a data-absent skip is a failure.
 #
+# KNOWN FALSE-ALARM MODE, observed once: reading the store WHILE it is being written makes
+# panels momentarily unreadable, so tests skip and this exits non-zero. Seen 2026-08-03,
+# where a run reported 480 passed / 12 skipped against the usual 487 / 5, and the store's
+# cot_tff parquets carry an mtime of 08:11:04 in that same minute. Six runs before and after
+# were identical at 487 / 5. If this job fails with data-absent skips, check the store's
+# mtimes against the run's timestamp BEFORE hunting a defect. The 09:15 schedule is chosen
+# to sit clear of the observed write windows, and the failure direction is the safe one:
+# a spurious alarm rather than a silent pass.
+#
 # Wire to launchd: see bin/com.mspinola.crowdmon-live-tests.plist.example
 set -euo pipefail
 
