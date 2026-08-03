@@ -396,3 +396,35 @@ def test_c8_the_band_reaches_the_composite_through_the_percentile(vintage_panel)
         "§C8 records a maximum shift of 0.878. If no market-week moves more than half a "
         "percentile, the weight has stopped mattering anywhere and the band is theatre."
     )
+
+def test_c10_the_plausible_band_is_narrower_than_c3_swept(vintage_panel):
+    """`2026-08-03 §C10`. Pins the ORDER half of why §C3's band was too wide.
+
+    §C6 covers the SCALE half (0.067 moves the ceiling to 14.925). This is the other
+    end: 0.55 and 0.7 leave the ceiling at exactly 10.0 and still reorder the table. 0.7 is
+    outside the order-preserving class (`2026-08-01 §A22`): it puts a swap dealer above both
+    `nonreportable` and `other_reportable`. This asserts the classification rather than the
+    swing, because the classification is what makes the smaller number the honest one and it
+    is a property of the weight table rather than of any week's data.
+    """
+    from crowdmon.core import config as cfg
+    from crowdmon.futures.weight_sensitivity import single_weight_sweep
+
+    swept = single_weight_sweep(vintage_panel, "swap",
+                                [0.067, 0.1, 0.2, 0.305, 0.4, 0.55, 0.7])
+    by_value = swept.set_index("value")
+
+    inside = sorted(by_value.index[by_value["preserves_order"]])
+    assert inside == [0.2, 0.305, 0.4], (
+        f"the order-preserving band moved to {inside}. §C6 measured [0.2, 0.305, 0.4] "
+        f"against the live table {cfg.DISAGGREGATED_WEIGHTS}; if a weight changed, §C6 and "
+        f"the swap-dealer decision handoff both need re-reading.")
+
+    # The tie is the subtle one: a stable sort leaves the category order unchanged at 0.1,
+    # so only an explicit equality check catches that the distinction has been collapsed.
+    assert by_value.loc[0.1, "ties_with"] == "producer_merchant"
+    assert not by_value.loc[0.1, "preserves_order"], (
+        "w_SD = 0.1 ties producer_merchant and must NOT count as order-preserving; a "
+        "stable sort reports the ordering intact when it has actually been collapsed.")
+    assert by_value.loc[0.067, "crosses"] == "now below producer_merchant"
+    assert "other_reportable" in by_value.loc[0.7, "crosses"]

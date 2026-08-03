@@ -154,6 +154,115 @@ def sweep(panel: pd.DataFrame, variants, *, column: str = "q_sell_over_oi",
     return pd.DataFrame(rows)
 
 
+def single_weight_sweep(panel: pd.DataFrame, category: str, values,
+                        *, weights: dict[str, float] | None = None) -> pd.DataFrame:
+    """Hold the weight table, move ONE weight over a stated grid, report the level.
+
+    `sweep` above answers a different question and cannot be made to answer this one. It
+    jitters **every** weight at once and reports rank *stability* (`top_n_overlap`,
+    `rank_corr`), which is the right shape for "does a published ranking survive the table
+    being wrong". It is the wrong shape for "how far does the headline number move when this
+    one weight moves over the range anyone would actually argue for", because a rank
+    correlation is invariant to exactly the monotone rescaling a single weight induces.
+
+    Written because that question has now been asked twice and answered ad-hoc both times:
+    `2026-08-01 §A22` for `producer_merchant` (0.1 to 0.3) and `2026-08-03 §C3` for `swap`
+    (0.2 to 0.7), each in a throwaway script. Twice ad-hoc is a missing function.
+
+    One row per value, with `Q_sell`, `Q_buy` and their ratio `A` as **medians over
+    market-weeks** of whatever panel is passed. Subset the panel before calling: §C3's whole
+    finding is that the answer differs by population (0.6% pooled, 42.0% on the Supplemental
+    13), so the population is an input to this measurement and not context around it.
+
+    ## `preserves_order` is the column to read first
+
+    §6.3's judgement is an **ordering** before it is a set of values, and `2026-08-01 §A22`
+    measured what that distinction is worth: order-preserving jitter keeps at least 7 of the
+    `Q_sell/OI` top 10, while inverting the ordering destroys it entirely (0 of 10, rank
+    correlation -0.045). So a swept value that reorders the table is not a rival judgement
+    about the same question, it is a different claim, and a level read off one is not
+    comparable to the levels either side of it.
+
+    This is not hypothetical for the sweep that motivated the function. `swap` sits at 0.4
+    with `producer_merchant` at 0.1 beneath it, so any `w_SD < 0.1` says a swap dealer is
+    **less** forceable than a producer hedging physical, which is a claim about holder
+    behaviour that nobody has made. The flag is reported rather than raised, because seeing
+    where the band leaves the plausible class is the point.
+    """
+    base = dict(weights or cfg.DISAGGREGATED_WEIGHTS)
+    if category not in base:
+        raise SensitivityError(
+            f"{category!r} is not a weighted category; have {sorted(base)}. A typo here "
+            f"would otherwise sweep a weight nothing reads and report a flat line, which "
+            f"is indistinguishable from a genuine insensitivity.")
+    values = [float(v) for v in values]
+    if not values:
+        raise SensitivityError("no values to sweep")
+
+    others = {k: v for k, v in base.items() if k != category}
+    order = [k for k, _ in sorted(base.items(), key=lambda kv: -kv[1])]
+
+    rows = []
+    for value in values:
+        trial = dict(base, **{category: value})
+        frag = market_fragility(panel, weights=trial)
+        q_sell = pd.to_numeric(frag["q_sell"], errors="coerce")
+        q_buy = pd.to_numeric(frag["q_buy"], errors="coerce")
+        a = (q_sell / q_buy).where(q_buy > 0)
+        rows.append({
+            "category": category,
+            "value": value,
+            "median_q_sell": float(q_sell.median()),
+            "median_q_buy": float(q_buy.median()),
+            "median_a": float(a.median()),
+            "p90_a": float(a.quantile(0.90)),
+            "market_weeks": int(len(frag)),
+            # max(w)/min(w). Reported because a level that moves only because the spread of
+            # the table widened is a ceiling artifact rather than a measurement, which
+            # `2026-08-02 §B31` warns is easy to mistake for one.
+            "weight_ceiling": max(trial.values()) / min(trial.values()),
+            "preserves_order": (
+                [k for k, _ in sorted(trial.items(), key=lambda kv: -kv[1])] == order
+                and not _tied_with(value, others)),
+            "ties_with": ", ".join(_tied_with(value, others)) or None,
+            "crosses": _crossed(base[category], value, others),
+        })
+    return pd.DataFrame(rows)
+
+
+def _tied_with(value: float, others: dict[str, float]) -> list[str]:
+    """Categories this value lands exactly on, which is neither preserved nor violated.
+
+    A tie fails `preserves_order` here **deliberately**, and the reason is that a stable
+    sort hides it: at `w_SD = 0.1` the swept category and `producer_merchant` are equal, the
+    sorted key list is unchanged because Python's sort preserves insertion order, and the
+    naive check reports the ordering intact. It is not intact. It has been *collapsed*: the
+    table no longer distinguishes a swap dealer from a producer hedging physical, which is
+    the single distinction §6.3 is most confident about.
+
+    That is a different object from a re-weighting and it is the boundary of the plausible
+    class rather than a point inside it, so it is named rather than silently admitted.
+    """
+    return sorted(k for k, v in others.items() if value == v)
+
+
+def _crossed(base_value: float, value: float, others: dict[str, float]) -> str | None:
+    """Which categories this value has moved past, named rather than merely counted.
+
+    `preserves_order` says a line was crossed; this says whose, because "swap is now below
+    producer_merchant" is a claim about holder behaviour that someone can agree or disagree
+    with, and "order violated" is not.
+    """
+    was_below = {k for k, v in others.items() if base_value < v}
+    now_below = {k for k, v in others.items() if value < v}
+    parts = []
+    if crossed_up := sorted(was_below - now_below):
+        parts.append(f"now above {', '.join(crossed_up)}")
+    if crossed_down := sorted(now_below - was_below):
+        parts.append(f"now below {', '.join(crossed_down)}")
+    return "; ".join(parts) or None
+
+
 def _spearman(a: pd.Series, b: pd.Series) -> float:
     """Spearman as Pearson on ranks, which is its definition.
 

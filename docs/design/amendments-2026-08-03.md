@@ -585,3 +585,89 @@ inference, so neither is load-bearing:
 
 Neither propagates the "removing it is cheap" conclusion, which is the thing §5 asked about.
 The workspace `CLAUDE.md` is already corrected and is the authority.
+
+---
+
+## C10. Three of the swept values reorder the weight table, which is a second reason the band is not one scale
+
+**Extends `§C6`, and was measured independently of it**, on the branch that became
+crowdmon#44 while §C6-C8 were in flight on `claude/b-series-reconcile`. Kept rather than
+folded in, because the two findings are about different properties of the same band and
+neither implies the other.
+
+`§C6` establishes that the band is not on one **scale**: at `w_SD = 0.067` swap becomes the
+smallest weight in the table, so `max(w)/min(w)` goes from 10.0 to 14.925 and every raw ratio
+gains 49% of headroom before anything about the data changes. Scale by the ceiling before
+comparing.
+
+**This section is about ORDER, and it bites at the other end of the band.** The ceiling is
+`max/min`, so it is blind to anything that happens strictly between `producer_merchant` at
+0.1 and `managed_money` at 1.0. Both 0.55 and 0.7 sit inside that interval, leave the ceiling
+at exactly 10.0, and still reorder the table:
+
+| `w_SD` | ceiling | order | what moved |
+|---|---|---|---|
+| 0.067 | **14.925** | violated | now below `producer_merchant` (this is §C6's case) |
+| 0.100 | 10.000 | **collapsed** | **ties** `producer_merchant` |
+| 0.200 | 10.000 | intact | |
+| 0.305 | 10.000 | intact | the routine-turnover reading |
+| 0.400 | 10.000 | intact | shipped |
+| 0.550 | 10.000 | **violated** | now above `other_reportable` (0.5) |
+| 0.700 | 10.000 | **violated** | now above `other_reportable` and `nonreportable` (0.6) |
+
+`2026-08-01 §A22` is why this matters rather than being bookkeeping: §6.3's judgement is an
+**ordering** before it is a set of values, order-preserving jitter keeps at least 7 of the
+`Q_sell/OI` top 10, and **inverting the ordering destroys the ranking outright** (0 of 10
+survive, rank correlation -0.045). A value that reorders the table is a different claim about
+holder behaviour, not a rival value for the same claim. At 0.7 it asserts that a swap dealer
+is more forceable than a retail account, which nobody in this project has argued.
+
+**Consequence for `§C3`'s headline.** §C3 swept 0.2 to 0.7 and quoted a **42.0%** swing in
+median `A_directional` on the Supplemental 13. Restricted to the order-preserving values,
+`w_SD` spans `[0.2, 0.4]` and the same statistic moves:
+
+| population | order-preserving `[0.2, 0.4]` | as §C3 quoted it |
+|---|---|---|
+| all 346 markets | 0.9869 to 1.0213, **3.5%** | 0.6% |
+| the 13 Supplemental markets | 2.1845 to 2.5750, **17.9%** | 42.0% |
+
+Not wrong arithmetic, the wrong band. **§C3's direction survives and its force does not.** The
+shipped 0.4 sits 7.1% from the routine-turnover reading of 0.305.
+
+**§C6's U-shape warning applies here too and is the stronger caveat.** §C6 measured
+`A_agnostic` as U-shaped in `w_SD` with its minimum near the shipped weight, so the band's
+endpoints do not bracket the interior and quoting a min and a max understates it. The 17.9%
+above is an endpoint span on `A_directional` and inherits that: read it as "the plausible
+range is a third of what §C3 implied", not as a bound.
+
+### The tie at 0.1 is invisible to the obvious check
+
+Setting `w_SD` to exactly `producer_merchant`'s 0.1 leaves the sorted category list
+**unchanged**, because Python's sort is stable and the insertion order already puts `swap`
+first. A naive order check therefore reports the ordering intact when it has been
+**collapsed**: the table has stopped distinguishing a swap dealer from a producer hedging
+physical, which is the single distinction §6.3 is most confident about, and it is a different
+object from a re-weighting.
+
+`weight_sensitivity.single_weight_sweep` reports `ties_with` and fails `preserves_order` on a
+tie for that reason, and
+`tests/test_supplemental_live.py::test_c10_the_plausible_band_is_narrower_than_c3_swept`
+asserts the classification rather than the swing, since the classification is what makes the
+smaller number the honest one and it is a property of the weight table rather than of any
+week's data.
+
+**This closes the floor on the weight decision's option (b).** "Cut it toward 0.1" stops at
+0.1 exclusive: 0.1 itself is the boundary of the plausible class rather than a point inside
+it, and the stress reading of 0.067 is unreachable without asserting something §6.3
+contradicts. That is a constraint on the option, not an argument against it.
+
+### `single_weight_sweep`, and why `sweep` could not answer this
+
+`sweep` jitters **every** weight at once and reports rank *stability* (`top_n_overlap`,
+`rank_corr`), which is the right shape for "does a published ranking survive the table being
+wrong" and the wrong shape for "how far does the headline move when this one weight moves",
+because a rank correlation is invariant to exactly the monotone rescaling a single weight
+induces. The question had been asked three times by then and answered ad-hoc every time:
+`2026-08-01 §A22` for `producer_merchant`, `§C3` and `§C6` for `swap`.
+
+Reproducer: [`../analysis/reproduce_w_sd_band.py`](../analysis/reproduce_w_sd_band.py).
