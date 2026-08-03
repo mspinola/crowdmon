@@ -1,7 +1,11 @@
 # Handoff: index share and the swap-dealer weight
 
-**Status:** open. The `cotdata` blocker cleared on 2026-08-03 when the CIT Supplemental
-ingestion merged as cotdata#96 (`730f3ac`), so this is unblocked and unclaimed
+**Status:** **COMPLETE as far as it can go, 2026-08-03.** §1 executed, verdict a genuine null
+(§5). §2's missing baseline measured and filed as `2026-08-03 §C1-C4`; §2 answers on
+`Q_sell`/`Q_buy`, while its other two headline figures are respectively impossible and
+undefined (§6). The `cotdata` blocker cleared with cotdata#96 (`730f3ac`) plus the producer
+run. Measurements in
+[docs/analysis/2026-08-03-index-share.md](../analysis/2026-08-03-index-share.md)
 **Date:** 2026-08-03
 **Lives at:** `crowdmon/docs/handoffs/2026-08-03-index-share.md`
 **Target:** Claude Code session, `crowdmon` worktree
@@ -162,3 +166,58 @@ Most of §0's original question is still open and is not answerable by this repo
 
 **Status: §1 complete, §2 blocked on §B33-B36. The weight table is unchanged**, per §2's
 instruction.
+
+---
+
+## 6. §2's baseline, established 2026-08-03 as `2026-08-03 §C1-C4`
+
+§5 recorded §2 as blocked on §B33-B36 not existing. Those sections have now been measured and
+filed. They could not be filed under the cited numbers: amendments are one file per day and
+`amendments-2026-08-02.md` closed at B32, so work measured on 08-03 takes the `C` prefix
+(`docs/design/README.md`, "each new file gets its own date and its own letter prefix"). The
+mapping is in that file's header.
+
+**The cited figures were not invented.** §C1 reproduces §3's "22 of 39 markets are extreme
+over the pooled window but only 17 in both halves" **exactly**. Cocoa lands at 1.000 then
+0.098 against the cited 0.976 then 0.100, a one-week difference consistent with a split point
+one row earlier. So whoever wrote this handoff ran the measurement and did not record it,
+which is a better failure than a fabricated citation and still cost a session to rediscover.
+
+**§2 is only partly executable, and the reason is structural.** Of its three headline figures:
+
+| figure | status |
+|---|---|
+| template rate by stratum | **cannot respond to `w_SD`** (§C2). The shape label reads two category nets and their signs; no weight enters it. Identical to 0.447106 at every swept value |
+| `A_agnostic` median | **undefined** (§C4). The string exists nowhere in the package, and the natural reading is identically 1.0 on 100.0000% of 21,756 market-weeks. No definition invented |
+| `Q_sell`/`Q_buy` | **answers clearly** (§C3) |
+
+§2 offers to read an insensitive template rate as evidence that "the weight matters less than
+the effort implies". **That inference is not available**: the insensitivity is a fact about
+which two series the shape rule reads, and would hold identically if `w_SD` were the most
+load-bearing number in the package.
+
+**On the figure that can answer, the verdict is the opposite of §2's proposed reading.**
+Median `A = Q_sell/Q_buy` across `w_SD ∈ {0.2, 0.4, 0.7}`:
+
+| population | median `A` | swing |
+|---|---|---|
+| all 21,756 vintage market-weeks | 1.0213 to 1.0153 | **0.6%**, non-monotonic |
+| the 13 Supplemental markets | 2.1845 to 3.1028 | **42.0%**, monotonic |
+
+Pooled over a universe three-quarters power and gas basis, `w_SD` is a rounding error. On the
+13 agricultural markets §2 restricts to, it is **load-bearing**. `Q_sell` doubles while median
+`Q_buy` is unchanged from 0.4 to 0.7, which locates the mechanism: on the median Supplemental
+market the swap book sits on the sell side, so raising its weight lifts the numerator alone.
+
+**So `w_SD = 0.4` needs justifying rather than asserting, which is the branch §2 named for the
+high-sensitivity case.** That sharpens §5's regime finding rather than replacing it: §5 showed
+one weight cannot serve both routine turnover (0.305 of Managed Money) and stress behaviour
+(0.067); §C3 shows the choice between them visibly moves the headline number on exactly the
+markets in scope.
+
+**The weight table is still unchanged**, per §2's instruction. Reproducer:
+[`docs/analysis/reproduce_template_stability.py`](../analysis/reproduce_template_stability.py).
+
+**Status: §1 complete, §2 complete on `Q_sell`/`Q_buy`, and closed as far as it can go.** Its
+other two headline figures are respectively impossible and undefined, both recorded in
+`2026-08-03 §C2` and `§C4` rather than worked around.

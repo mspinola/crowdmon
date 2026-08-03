@@ -31,7 +31,8 @@ not about next week's return. Positioning extremes persist for quarters.
 | [`crowdmon_plain_language_summary.md`](docs/design/crowdmon_plain_language_summary.md) — the argument in prose, **and the authoritative appendix** | here |
 | [`crowdmon_futures_cot_module.md`](docs/design/crowdmon_futures_cot_module.md) — the primary spec, §13 build order | here |
 | [`amendments-2026-08-01.md`](docs/design/amendments-2026-08-01.md) — A1-A22, **closed** | here |
-| [`amendments-2026-08-02.md`](docs/design/amendments-2026-08-02.md) — B1 onward, commonality through the cocoa template on TFF. **The open file** | here |
+| [`amendments-2026-08-02.md`](docs/design/amendments-2026-08-02.md) — B1-B32, commonality through the cocoa template on TFF. **Closed** | here |
+| [`amendments-2026-08-03.md`](docs/design/amendments-2026-08-03.md) — C1 onward, template classification stability and the `w_SD` sweep. **The open file** | here |
 | `crowdmon_step2_normalisation.md` — layer 2, **accepted and shipped**. History, not instructions | `../cotdata/docs/design/` |
 | `cot_vintage.md` — the vintage store this reads | `../cotdata/docs/design/` |
 
