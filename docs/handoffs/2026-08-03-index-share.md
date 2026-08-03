@@ -1,7 +1,8 @@
 # Handoff: index share and the swap-dealer weight
 
-**Status:** open. The `cotdata` blocker cleared on 2026-08-03 when the CIT Supplemental
-ingestion merged as cotdata#96 (`730f3ac`), so this is unblocked and unclaimed
+**Status:** **§1 EXECUTED 2026-08-03, verdict a genuine null. §2 remains blocked** on
+§B33–B36, which do not exist. Outcome in §5; measurements in
+[docs/analysis/2026-08-03-index-share.md](../analysis/2026-08-03-index-share.md)
 **Date:** 2026-08-03
 **Lives at:** `crowdmon/docs/handoffs/2026-08-03-index-share.md`
 **Target:** Claude Code session, `crowdmon` worktree
