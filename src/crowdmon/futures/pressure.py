@@ -75,6 +75,37 @@ def exit_pressure(q: float, open_interest: float, *, volume: float | None = None
     }
 
 
+def _aligned(source: pd.Series, index: pd.Index, name: str) -> pd.Series:
+    """`source` reindexed onto `index`, raising rather than reindexing a stranger to null.
+
+    The whole point is that a *label* mismatch and a *value* gap look identical after
+    `reindex`, and only one of them is a real answer. So the check is on labels alone: every
+    entry of `index` must appear in `source.index`. Markets with no volume are then still
+    perfectly expressible, as `NaN` values under matching labels, which is exactly what
+    `frame["market_code"].map(adv)` emits.
+
+    The error names the overlap because the two failure modes want different fixes: zero
+    overlap is a wrong-index-type mistake (a `market_code` index against a `RangeIndex`),
+    while partial overlap is usually a frame that was filtered after the Series was built.
+    """
+    if not isinstance(source, pd.Series):
+        raise PressureError(
+            f"{name} must be a Series aligned to the frame's index, got "
+            f"{type(source).__name__}.")
+    missing = index.difference(source.index)
+    if len(missing):
+        overlap = len(index) - len(missing)
+        raise PressureError(
+            f"{name} is not aligned to the frame: {len(missing)} of {len(index)} index "
+            f"labels are absent from it ({overlap} overlap). Reindexing would make every "
+            f"dtl_* column null, which is indistinguishable from 'no volume was available' "
+            f"(2026-08-03 §C11). If {name} is keyed by market code, map it onto the frame "
+            f"first: frame['market_code'].map(series). A market with no volume belongs in "
+            f"the VALUES as NaN, never as a missing label. First missing: "
+            f"{list(missing[:3])}")
+    return pd.to_numeric(source, errors="coerce").reindex(index)
+
+
 def rank_markets(fragility: pd.DataFrame, *, volume: pd.Series | None = None,
                  stress_volume: pd.Series | None = None,
                  kappa: float = cfg.KAPPA) -> pd.DataFrame:
@@ -90,6 +121,21 @@ def rank_markets(fragility: pd.DataFrame, *, volume: pd.Series | None = None,
     and `dtl_sell_stress`/`dtl_buy_stress` are populated; when absent they are null columns
     rather than missing ones, so a downstream `.sort_values("dtl_sell")` fails loudly on
     nulls instead of silently ranking on something else.
+
+    **The alignment is checked rather than documented** (`2026-08-03 §C11`). "Aligned to
+    `fragility`'s index" means *positionally*, and the frame's index is a `RangeIndex`, so a
+    `market_code`-indexed Series is the natural thing to reach for and the wrong thing to
+    pass. It used to reindex to all-`NaN` and every `dtl_*` column came back null, which is
+    indistinguishable from "no volume was available", the failure that made a first attempt
+    at `§C5`'s count return **0 of 279** and read as confirmation of a claim that was false.
+    A source index that does not cover the frame's now raises. Map to the frame's own
+    `market_code` column first, which is what `volume.add_volume` produces anyway:
+
+        rank_markets(f, volume=f["market_code"].map(adv))
+
+    Note the distinction that makes this checkable: that idiom yields a Series with the
+    frame's index and `NaN` *values* for markets with no volume, which is legitimate and
+    stays legitimate. It is the *labels* that must line up, never the values.
 
     Neither denominator may be a spot volume. Both of `add_volume`'s outputs are trailing
     aggregates for that reason (§A.5's volume-spike trap), and passing today's reading here
@@ -107,7 +153,8 @@ def rank_markets(fragility: pd.DataFrame, *, volume: pd.Series | None = None,
             if source is None:
                 out[f"dtl_{side}{suffix}"] = pd.NA
             else:
-                v = pd.to_numeric(source, errors="coerce").reindex(out.index)
+                v = _aligned(source, out.index,
+                             "volume" if suffix == "" else "stress_volume")
                 out[f"dtl_{side}{suffix}"] = (q / (kappa * v)).where(v > 0)
     # The ratio of the two, which is the shape of the market in one number: above 1 the
     # long side is the fragile one, below 1 the short side is. Null where the denominator

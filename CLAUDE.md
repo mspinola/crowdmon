@@ -321,8 +321,8 @@ figures, the appendix's live-cattle arithmetic (`test_appendix_live.py`, `2026-0
 the volume and trigger measurements, or
 `2026-08-03 §C1-C8` (`test_supplemental_live.py`, the most exposed of the set: three of its
 assertions read `cot_supplemental`, a domain one release old). From the
-**main checkout**, against `~/code/cotdata_store`, the same suite is **535 passed / 5
-skipped** rather than **468 / 72**.
+**main checkout**, against `~/code/cotdata_store`, the same suite is **539 passed / 5
+skipped** rather than **472 / 72**.
 
 **These four numbers are measured, so re-measure them rather than adjusting them by hand.**
 Any PR that adds or removes a `tests/*_live.py` assertion moves all four, and two PRs in
@@ -330,7 +330,14 @@ flight at once each move them from a base that does not include the other. Which
 second re-runs both commands and updates this paragraph, `bin/check_skips.py`'s header and
 `bin/live-tests.sh`'s. This note exists because that has already happened once.
 
-> **From a worktree those two figures are 533 / 7 and 466 / 74**, because `test_boundaries`
+> **All four were stale by exactly +2 when `2026-08-03 §C11-C14` measured them** (they read
+> 535 / 468 / 533 / 466 against a measured 537 / 470 / 535 / 468), so a PR had already moved
+> them without updating this paragraph, which is the thing the paragraph above asks for. The
+> figures here now include that drift plus the two fixture tests §C11 adds. A **fixture**
+> test moves all four as surely as a live one does, and the paragraph above named only
+> `tests/*_live.py`; it is the total that is quoted, so any added test counts.
+
+> **From a worktree those two figures are 537 / 7 and 470 / 74**, because `test_boundaries`
 > resolves `../cotdata` and `../marketdata` relative to the test file and finds neither,
 > so the two producer-direction checks skip. Quote the main-checkout numbers: a worktree
 > reports two fewer passes and has one real seam unguarded. This note exists because an
