@@ -105,9 +105,36 @@ Work through at least these, because they differ in kind and the differences are
 - commonality, which `2026-08-02 §B2` says to read beside `D` and never inside it, and which
   spans milk and hogs near 0.07 against the wheats above 1.0
 - `2026-08-01 §A17`, that a falling `D` may be a market mid-exit rather than a market getting
-  safer, which is a statement about a *direction of change* and may have no per-row form at all
+  safer. **Test this one, do not pre-assign it.** A draft of this handoff filed it as having no
+  per-row form on the grounds that it is a statement about a direction of change. That was
+  wrong: a direction of change is a first difference, and both panels carry the weeks for one.
+  `ΔD` beside the flow state is assembly from two shipped modules
+  (`futures/composite.py` and `futures/flow.py`), and it separates exactly the two cases the
+  amendment says are confusable, a falling `D` under a long-liquidation flow state against a
+  falling `D` under a flat one. Whether that separation holds on the data is the test. If it
+  does not, that is a finding about `§A17` and worth more than the brief
 - `2026-08-01 §A21`, that `Phi` reduces exactly to `1 - spreading/OI` under flat weights, which
   is a statement about the whole construction and is certainly not a column
+
+### The decision rule, pre-registered here so it cannot be decided later
+
+Report a verdict per candidate, **row-computable** or not, naming the columns or modules that
+would produce it, before deciding whether §3 runs. Then apply this table. It is fixed in
+advance for the same reason the §10 pre-registration fixed `uninformative` in advance: a
+session that wants to build §3 will find almost any count useful, and "a useful number" is not
+a threshold.
+
+Of the seven candidates above, let **`R`** be how many are row-computable, and **`E`** how many
+of those `R` no existing per-engine output already exposes.
+
+| | outcome |
+|---|---|
+| `R >= 4` and `E >= 1` | gate **passes**. §3 runs |
+| `R <= 3` and `E == 0` | **negative #1** fires. Report and stop |
+| `R <= 3` and `E >= 1` | gate **fails**, and the finding is the exposure gap itself. Close it in the module that owns the quantity, not in a new artifact. Do **not** build §3 |
+| `R >= 4` and `E == 0` | gate **fails** into **negative #2** in advance: every row-computable caveat is already exposed, so a brief is assembly convenience rather than safety. §3 may ship only if labelled that way |
+
+Two of the four stop the work and a third narrows it. That asymmetry is deliberate.
 
 **The failure mode this gate exists to catch.** A brief that renders every caveat as fixed
 prose at the top of the page is a README with extra steps, and it goes stale by exactly the
@@ -134,6 +161,16 @@ in §3:
   where `Phi`'s ceiling collapses toward zero and a value read against 1.0 is meaningless
 - a panel holding one report week, where every trailing percentile is undefined by
   construction rather than by data quality
+- **for the `ΔD` test specifically, the wrong panel.** The two stores have different shapes and
+  the difference decides the test. Measured against `~/code/cotdata_store` on 2026-08-03: the
+  vintage panel is **82 report weeks** (2025-01-07 to 2026-07-28), the current-state panel is
+  **1,051** (2006-06-13 onward). `damage_sell_pct` takes 104 weekly observations as
+  `min_periods` (`README.md`), and 82 is below that, so **the vintage panel cannot produce
+  `pct(D)` at all** and a `ΔD` test that runs on whichever panel happened to be loaded is
+  silently measuring two different things. `futures.from_vintage` and
+  `futures.from_current_store` are separately named precisely so this is visible.
+  Reproducer: `from_vintage(report_type="disaggregated")["report_date"].nunique()`, and the
+  same on `from_current_store`
 - a panel mixing report types. `2026-08-02 §B21` shows PC1 is a different subject on
   Disaggregated and TFF, and the Supplemental is futures-and-options combined where the other
   three are futures-only, so an open-interest column pooled across reports is two quantities
@@ -143,12 +180,17 @@ in §3:
 
 ## 3. Task 2, conditional on the gate: the brief
 
-Only if §2 finds that a useful number of caveats are row-computable.
+Only on the `R >= 4` and `E >= 1` row of §2's pre-registered table. No other row reaches here.
 
 The intent is one artifact per market-week that a reader can act on without also holding the
-README, and which cannot silently drift from what the package measures. Not a new number. The
-brief's job is assembly and refusal, and every figure in it comes from a module that already
-computes it.
+README, and which cannot silently drift from what the package measures. Not a new measurement.
+The brief's job is assembly and refusal, and every figure in it comes from a module that
+already computes it or derives arithmetically from one (§6 draws that line).
+
+**Before building it, enumerate the misreadings it is supposed to prevent**, from `README.md`'s
+reading instructions: `2026-08-01 §A17`, `§A21`, `§A22`, `2026-08-02 §B2` and `2026-08-03 §C3`.
+That list is the denominator for §5's negative #4, and writing it afterwards would let the
+denominator be chosen to fit the result.
 
 The questions worth answering in the doing:
 
@@ -212,22 +254,35 @@ the way `cotdata-vintage coverage` does for Supplemental coverage.
 
 ## 5. What a negative result looks like, and it is an acceptable outcome
 
-Three distinct negatives are live here, and any of them closes this handoff honestly.
+Four distinct negatives are live here, and any of them closes this handoff honestly.
 
-1. **Most caveats are not row-computable.** §2 finds that `§A17`, `§A21` and `§A22` are
-   statements about the construction rather than about a market-week, and that what remains is
-   two or three nulls that the existing per-engine outputs already expose. Then the right
-   artifact is not a brief, and §3 does not run. Report the split and stop.
-2. **The brief adds nothing a reader would not get from the modules.** §3 builds it, the
-   readings-it-should-prevent check comes back showing the per-engine outputs already prevent
-   them, and the brief is decoration. Report that and either drop it or ship it labelled as
-   convenience rather than as safety.
+1. **Most caveats are not row-computable.** `R <= 3` and `E == 0` on §2's table: at most three
+   of the seven survive as row-computable, and the per-engine outputs already expose those.
+   Then the right artifact is not a brief, and §3 does not run. Report the split and stop. The
+   count is the pre-registered one, not a judgement made on the day.
+2. **The brief adds nothing a reader would not get from the modules.** Either `R >= 4` with
+   `E == 0`, which §2's table already routes here without building anything, or §3 builds it
+   and the misreading check shows the per-engine outputs prevent them all anyway. Report that
+   and either drop it or ship it labelled as convenience rather than as safety.
 3. **The caveats cannot be carried without going stale anyway.** Every candidate mechanism
    turns out to require a hand-maintained string somewhere. That is a real finding about this
    class of artifact and is worth more than a brief nobody trusts.
+4. **The brief carries some caveats and silently omits others.** The misreading check comes
+   back **partial**: it prevents two of the five and not the rest. **This is the most likely
+   outcome and it is the dangerous one**, because a partial brief is worse than no brief. A
+   bare frame announces that it is bare, so the reader goes and finds the README. A brief
+   carrying four warnings and omitting the fifth reads as complete, and the reader stops
+   looking. It is named here because an outcome that is neither success nor a listed negative
+   gets resolved as success by default, which is how a partial result ships as a finished one.
 
-None of these is a failure of the task. The handoff exists to find out which of the four
-outcomes is true, and three of them are negative. Precedent, and it is why this section is
+   **Pre-registered rule, and it is a hard gate.** Against the enumeration §3 requires *before*
+   building, the brief ships only if it either prevents every misreading on that list, or
+   **names in its own output** the ones it does not carry. A brief that cannot state its own
+   gaps does not ship, however well it does everything else. "Carries four of five, silently"
+   is not a partial success, it is negative #4.
+
+None of these is a failure of the task. The handoff exists to find out which of the five
+outcomes is true, and four of them are negative. Precedent, and it is why this section is
 here rather than implied: the §10 pre-registration named `uninformative` in advance as the most
 likely verdict and it was, and `2026-08-03-index-share.md` §4 named its own premise's retirement
 in advance and the premise was retired. Both are recorded as findings, not as failures. A
@@ -237,9 +292,19 @@ handoff that only anticipates success is a handoff that will report success.
 
 ## 6. What this must NOT do
 
-- **Must not compute a new statistic.** Every figure comes from a module that already produces
-  it. If the brief wants a number nothing computes, that is a finding to report, not a function
-  to add in `report.py`. A report layer that computes is a sixth engine wearing a report's name
+- **Must not compute a new MEASUREMENT.** The line is new measurement against derivation from
+  what is already measured, and the second is allowed. Read strictly the other way, §4 is dead
+  on arrival, because deriving a stratum label is computing something.
+  - **Forbidden:** a new formula, a new estimator, a new fitted or configured parameter, a new
+    threshold. That is a sixth engine wearing a report's name. If the brief needs one, that is
+    a finding to report rather than a function to add in `report.py`.
+  - **Allowed:** a first difference of a series a shipped module already returns (`ΔD`), a
+    percentile or rank of one, a classification of existing rows (§4's stratum).
+  - **The test:** if you can write it as a pure function of columns the shipped modules already
+    return, plus arithmetic, it is a derivation. If it needs a number that is not in those
+    columns and not in `core/config.py`, it is a measurement and it is not yours to add.
+  - Either way it lives in the module that owns the quantity, never in the rendering. A
+    derivation in `report.py` is how the next engine gets built by accident
 - **Must not be wired into `D`.** §A.9 has no term for a report, as it has none for §A.6, §A.8,
   §368 or §369
 - **Must not change `current/` output.** Additive only, per the working agreement
@@ -257,8 +322,20 @@ handoff that only anticipates success is a handoff that will report success.
 - **Must not restate a measured figure as a literal in a report string.** Cite by path plus
   reproducer, or derive it. A hardcoded `0.931` in a rendering is `README.md`'s failure mode
   moved into `src/`
-- **Must not slice a named historical window**, and in particular must not look at 2008. Three
-  engines can already reach it and the episode is spent the first time any of them is sliced
+- **Must not slice a named historical window, and in particular must not look at 2008.** The
+  reason is stated inline because a session that reads this as arbitrary will route around it.
+  **2008 is the last unspent episode in this package.** The §10 pre-registration spent Feb
+  2018, March 2020, silver 2021, the ags window, the invasion, the yen carry and gold 2025, and
+  its §9 records the clean episodes as gone
+  ([2026-08-02-validation-prereg.md](2026-08-02-validation-prereg.md)). 2008 survives only
+  because `C = pct(z)` stacks two three-year windows, so `D` structurally cannot reach it and
+  no session has ever had the option of looking (`2026-08-02 §B23`). Three engines that *can*
+  reach it, `alignment`, `macro_pca` and `clustering`, each declined while being built
+  (`2026-08-02 §B20`, and [2026-08-02-trend-alignment.md](2026-08-02-trend-alignment.md)).
+  **It is an out-of-sample reserve, and it is spent the first time anyone looks, for every
+  engine at once**, because the session that looks cannot un-see it and every later result is
+  then conditioned on a look nobody recorded. Whoever eventually specifies a 2008 test must be
+  a session that built none of this, on the same argument that made a cold session run §10
 - **Must not amend anything under `docs/analysis/`.** Point-in-time, never amended. A later
   week gets a new file
 - **Must not edit a sibling working tree.** If something in `../cotdata` or `../marketdata` is
