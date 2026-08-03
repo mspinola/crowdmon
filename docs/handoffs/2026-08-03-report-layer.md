@@ -396,17 +396,40 @@ claim invites the same thing from the other direction.
 **One finding from PR #47 is worth carrying into §2**, because it is about exactly the kind of
 inference the gate has to make. `2026-08-03 §C15` records an objection that session raised
 against its own work and withdrew on measurement: ICE Europe WTI and the four Henry Hub codes
-look like variants of covered `CL` and `NG`, and open interest agrees (WTI at 0.771). Managed
-Money net correlation is **negative in all five** (to −0.643) and week-to-week flow correlation
-is near zero, so they are a different holder base rather than a second copy. `§C14`'s advice
-narrows to: test positioning correlation before merging or excluding a variant code. Reproducer
-`docs/analysis/reproduce.py::variant_codes_are_not_duplicates`.
+look like variants of covered `CL` and `NG`, and open interest agrees (WTI at 0.771). **The
+statistic that carries the finding is `r(ΔMM)`, first-differenced Managed Money net**, which
+runs -0.054 to -0.234 across the five against a differenced noise band of median 0.095 and p90
+0.229 (`2026-08-03 §C16`). That is consistent with independence, so they are a different holder
+base rather than a second copy. Reproducers
+`docs/analysis/reproduce.py::variant_codes_are_not_duplicates` and
+`::positioning_levels_are_spurious`.
 
-The transferable part: **open interest is the series the eye reaches for when asking whether
-two things are the same market, and it is the wrong one, because crowding is a property of who
-holds.** §2 classifies caveats by whether a value exists that tells a reader the caveat applies.
-A value that correlates with the right answer is not the same as a value that carries it, and
-`§C15` is the worked example of that gap costing a session an objection.
+> **Corrected 2026-08-03, and the correction is the more useful half.** This paragraph
+> originally led with `§C15`'s **level** correlation of Managed Money net, "negative in all
+> five, to -0.643". `2026-08-03 §C16` measured those figures as noise: positioning levels are
+> near unit-root (lag-1 autocorrelation median 0.956), so an **independent random walk**
+> scanned against the covered 25 posts a maximum level correlation of **0.773** half the time.
+> 33.5% of cross-complex level pairs exceed 0.5 on levels against **0.0%** on differences. The
+> conclusion is unchanged because `§C15` printed the differenced figure second and it holds.
+> `§C15` is now marked in place.
+
+`§C14`'s advice narrows twice over: test positioning correlation before merging or excluding a
+variant code, and test it **on first differences against a noise band from the same panel**.
+
+The transferable part, and it now has two layers: **open interest is the series the eye reaches
+for when asking whether two things are the same market, and it is the wrong one, because
+crowding is a property of who holds.** Then the series that replaced it was read in the wrong
+form, and read that way it distinguishes nothing. §2 classifies caveats by whether a value
+exists that tells a reader the caveat applies. A value that *correlates* with the right answer
+is not a value that *carries* it, and a value read in a form where everything correlates with
+everything carries less still. `§C15` and `§C16` are the same lesson at two depths, and the
+second was found only because someone applied the first rule and got an absurd answer
+(palm oil against lean hogs at 0.741) instead of explaining it away.
+
+**One consequence for §2 as written.** Its `ΔD` test is already a first difference, which is
+the form `§C16` requires. `D` is built from positioning percentiles and inherits that
+persistence, so the same test on levels would have been spurious. That was not foresight and
+should not be recorded as any.
 
 **Nothing else in the body is affected.** §1.1's shipped inventory is unchanged: PR #47 was
 additive docs plus one reproducer function and touched no module. Both prohibitions in §6 that
