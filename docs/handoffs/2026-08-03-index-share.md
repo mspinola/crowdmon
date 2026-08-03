@@ -85,3 +85,80 @@ Report how much each conclusion moves. If the template rate is insensitive to `w
 - Anything contradicting this handoff, corrected in place
 
 A negative result is a real outcome. If index positioning turns out not to be meaningfully stickier than swap positioning generally, that retires the premise for a per-market weight and is worth reporting plainly.
+
+---
+
+## 5. Outcome, 2026-08-03. §1 executed, §2 blocked
+
+Appended per the append-never-edit rule; §0-§4 above are preserved as issued.
+
+Executed by a session that reached this handoff from the work order rather than from the
+repo, and so filed its own copy before noticing cotdata#97 had already been adopted here as
+PR #36. The body above is main's adopted copy. **That collision is itself the finding this
+directory's "a handoff can also be a claim" section exists to prevent**, and it cost two
+duplicate filings rather than two duplicate modules only because the second session checked
+the remote before merging.
+
+Full measurements: [docs/analysis/2026-08-03-index-share.md](../analysis/2026-08-03-index-share.md).
+Reproducer: [docs/analysis/reproduce_index_share.py](../analysis/reproduce_index_share.py).
+`cot_supplemental` was ingested into the real store on 2026-08-03 (13 markets, 1,074 weeks
+from 2006-01-03; soybean meal 696, having entered 2013).
+
+### The verdict is the negative result §4 named in advance
+
+§4's closing paragraph: "If index positioning turns out not to be meaningfully stickier than
+swap positioning generally, that retires the premise for a per-market weight." That is what
+happened.
+
+| measure | index | swap | reading |
+|---|---|---|---|
+| autocorrelation, 12 weeks (median) | 0.777 | **0.826** | swap is the more persistent |
+| `sd(Δnet/OI)` (median ratio index/swap) | **0.862** | | index 14% steadier |
+| stress-week mean `Δnet/OI` | -0.00336 | **-0.00167** | swap moves LESS when it matters |
+
+Index is more persistent than swap in **4 of 13** markets and steadier in 10 of 13, by 14%.
+The two statistics disagree on direction. Against Managed Money both agree emphatically
+(index 0.265 of MM turnover, swap 0.305), which is the distinction the weight table already
+draws.
+
+**The mechanism fails in the specific place the handoff put it.** Index flow was to be the
+sticky part of the swap book; in the worst 5% of weeks the swap book is steadier than the
+index book, and swap **adds** to net long in 3 of 13 markets where index never does.
+
+### What §1 turned up that §0 did not anticipate
+
+Relative to Managed Money at 1.0: routine turnover puts swap at **0.305**, close to the
+assigned 0.4; stress-week behaviour puts it at **0.067**, far closer to
+`producer_merchant: 0.1`. One weight cannot be both. **The incoherence in `swap: 0.4` is
+between regimes, not between markets**, which is the opposite of the per-market direction
+this handoff was built to explore, and it would show up in metals or anywhere else without
+needing the Supplemental report at all.
+
+### §2 was not run, and the reason is in this repo rather than in cotdata
+
+§2 asks for a recompute of the **§B33-B36** headline figures. Those sections **do not
+exist**: `docs/design/amendments-2026-08-02.md` ends at **§B32**, and `A_agnostic`,
+"template rate by stratum" and §3's cited "22 of 39 markets / cocoa 0.976 then 0.100" appear
+nowhere in `docs/design/`. Nothing in §2 was run and no substitute baseline was invented.
+
+The cited figures are not fabricated, which was worth checking before saying so: `2026-08-02
+§B31`'s classic-outright row gives 33.3% never plus 23.1% always over 39 markets, which is
+**22 of 39** exactly. The pooled half of §3's caveat is derivable from §B31; the half-split
+half is a measurement nobody has recorded.
+
+### Corrections, per §4's last bullet
+
+**§0's cocoa premise is read off one week.** "Swap Dealer holds the largest net long" is true
+on 2026-07-28 and holds in only **23.1%** of 1,051 Disaggregated weeks; Managed Money holds
+it 64.3%. Same failure as `2026-08-02 §B31` in mirror image, where cocoa did not show the
+shape the appendix draws from it.
+
+**§3's classification-instability caveat could not be checked**, per the section above. No
+conclusion here rests on template classification, so nothing was inherited from it.
+
+**Metals are exactly where they were.** §3 said this and it survives execution unchanged: the
+gold case, a swap dealer on the immovable side, is outside Supplemental coverage permanently.
+Most of §0's original question is still open and is not answerable by this report.
+
+**Status: §1 complete, §2 blocked on §B33-B36. The weight table is unchanged**, per §2's
+instruction.
