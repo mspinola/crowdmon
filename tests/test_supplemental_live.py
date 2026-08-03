@@ -1,10 +1,10 @@
-"""`2026-08-03 §C1-C4` against a REAL store. Skips when there is not one.
+"""`2026-08-03 §C1-C8` against a REAL store. Skips when there is not one.
 
-Pins the four figures the index-share handoff's §2 rests on, for the same reason
-`test_notional_live.py` pins the layer-2 trap table: a number quoted in a design doc and
-checked by nobody becomes folklore the moment its input changes. These four are more
-exposed than most, because three of them read `cot_supplemental`, a domain that arrived on
-2026-08-03 (cotdata#96) and has been parsed by exactly one release.
+Pins the figures the index-share handoff's §2 and the b-series-recovery handoff's §4 rest
+on, for the same reason `test_notional_live.py` pins the layer-2 trap table: a number
+quoted in a design doc and checked by nobody becomes folklore the moment its input changes.
+Several of these are more exposed than most, because they read `cot_supplemental`, a domain
+that arrived on 2026-08-03 (cotdata#96) and has been parsed by exactly one release.
 
 **What would break these, and what would not.** A change to the shape rule or the
 hand-drawn outright list moves the test and `docs/analysis/reproduce.py` together, because
@@ -12,9 +12,14 @@ the test imports both rather than restating them: two copies of a 39-entry list 
 maintenance problem this file exists to avoid, not solve twice. What these DO catch is the
 store drifting under a fixed rule, which is the actual risk and the one nothing else covers.
 
-§C2 and §C4 are structural rather than empirical, so they are asserted exactly. If either
-ever fails, the finding is wrong rather than stale, and the amendment needs rewriting rather
-than renumbering.
+§C2, §C4 and §C6 are structural rather than empirical, so they are asserted exactly. If
+any of them ever fails, the finding is wrong rather than stale, and the amendment needs
+rewriting rather than renumbering.
+
+**§C4 is here twice on purpose.** Its original reading (weight-agnostic, degenerate at 1.0)
+is a true statement about a quantity nobody asked for, and its corrected reading
+(direction-agnostic, `2026-08-02 §B34`, median 3.0237) is the one the handoff meant. Both
+are pinned side by side so the wrong reading cannot creep back in as a plausible guess.
 """
 from __future__ import annotations
 
@@ -230,11 +235,16 @@ def test_c3_w_sd_is_load_bearing_on_the_supplemental_13_and_not_pooled(vintage_p
 
 
 def test_c4_a_weight_agnostic_asymmetry_is_identically_one(vintage_panel):
-    """`§C4`. Not a tolerance: the claim is that the quantity is a constant.
+    """`§C4`, the half of it that survived. Not a tolerance: the claim is a constant.
 
     Since the gross net-long and net-short totals are equal, a single shared weight gives
     `Q_sell = Q_buy` exactly. This is `2026-08-01 §A21` at its sharpest: flatten the
     weights and the asymmetry does not lose signal, it stops being a variable.
+
+    **What this does NOT establish, and originally was read as establishing.** §C4 concluded
+    from this that `A_agnostic` is undefined and degenerate. It is neither: `A_agnostic` is
+    DIRECTION-agnostic, not WEIGHT-agnostic, and `2026-08-02 §B34` defines and measures it.
+    The test below pins that definition beside this one so the two cannot be confused again.
     """
     from crowdmon.core import config as cfg
     from crowdmon.futures import market_fragility
@@ -248,4 +258,141 @@ def test_c4_a_weight_agnostic_asymmetry_is_identically_one(vintage_panel):
         f"{int((a.sub(1.0).abs() >= 1e-9).sum())} market-weeks depart from A = 1 under "
         f"flat weights. §C4 says that cannot happen while sum_c P_c = 0 holds, so this "
         f"is a broken zero-sum identity rather than a stale figure."
+    )
+
+
+def test_c4_corrected_a_agnostic_is_direction_agnostic_and_not_degenerate(vintage_panel,
+                                                                          repro):
+    """`§C4 CORRECTED`, against `2026-08-02 §B34`.
+
+    The correction is worth a test rather than only a prose fix, because the failure it
+    guards is a definition drifting rather than a number: if a future session reads
+    "agnostic" as "weight-agnostic" again it will measure 1.0 and conclude the quantity is
+    dead. Asserting that the median is nowhere near 1 makes that reading fail loudly.
+    """
+    from crowdmon.core import config as cfg
+    from crowdmon.futures import market_fragility
+
+    w = cfg.weights_for("disaggregated")
+    ceiling = max(w.values()) / min(w.values())
+    f = market_fragility(vintage_panel, report_type="disaggregated", weights=w)
+    q = f[(f["q_sell"] > 0) & (f["q_buy"] > 0)]
+    a_agn = np.maximum(q["q_sell"], q["q_buy"]) / np.minimum(q["q_sell"], q["q_buy"])
+    classic = q["market_code"].isin(repro.CLASSIC_OUTRIGHTS)
+
+    assert a_agn.median() == pytest.approx(3.0237, abs=0.15), (
+        f"A_agnostic median {a_agn.median():.4f}; §B34 pins 3.0237 over 21,756 "
+        f"market-weeks. A value near 1.0 means the WEIGHT-agnostic reading has crept "
+        f"back in, which is the error §C4 made."
+    )
+    assert a_agn[classic].median() == pytest.approx(2.4974, abs=0.15), (
+        f"classic-outright A_agnostic median {a_agn[classic].median():.4f}; §B34 pins "
+        f"2.4974"
+    )
+    assert (a_agn > ceiling + 1e-9).sum() == 0, (
+        f"A_agnostic breaches max(w)/min(w) = {ceiling:.1f}. It is the same two sums with "
+        f"the larger on top, so it carries A_directional's bound exactly; a breach is a "
+        f"broken `market_fragility`, not a stale figure."
+    )
+
+
+def test_c6_the_measured_lower_bound_moves_the_ceiling_and_the_others_do_not(vintage_panel):
+    """`§C6`. `w_SD = 0.067` is below `producer_merchant`, so `max(w)/min(w)` changes.
+
+    This is the one thing about the reported band that is easy to get wrong quietly: the
+    three round values leave `swap` inside `[0.1, 1.0]` and the ceiling pinned at 10.0, so
+    raw ratios are comparable across them. The measured stress value is not inside that
+    interval, and a band whose members sit on different scales is not a band.
+    """
+    from crowdmon.core import config as cfg
+
+    ceilings = {}
+    for w_sd in (0.067, 0.2, 0.4, 0.7):
+        ww = dict(cfg.DISAGGREGATED_WEIGHTS, swap=w_sd)
+        ceilings[w_sd] = max(ww.values()) / min(ww.values())
+
+    assert ceilings[0.2] == ceilings[0.4] == ceilings[0.7] == pytest.approx(10.0), (
+        f"the three round values no longer share a ceiling: {ceilings}. Either "
+        f"`managed_money` or `producer_merchant` moved, and §C3's 'none of this is a "
+        f"ceiling artifact' no longer holds."
+    )
+    assert ceilings[0.067] == pytest.approx(1.0 / 0.067, rel=1e-9)
+    assert ceilings[0.067] > ceilings[0.4] * 1.4, (
+        f"ceiling at the stress weight is {ceilings[0.067]:.3f} against "
+        f"{ceilings[0.4]:.1f}. §C6's point is that this is a 49% change in headroom, so "
+        f"raw A at 0.067 must be scaled by its own ceiling before comparison."
+    )
+
+
+def test_c7_w_sd_04_overstates_fragile_capital_and_gold_worse_than_cocoa(vintage_panel):
+    """`§C7`. The shipped weight against the measured stress weight, market by market.
+
+    Two claims, and the second is the one worth a test. That `Phi` rises with `w_SD` is
+    arithmetic. That it rises 2.3x more on GOLD than on COCOA is a fact about where the
+    swap dealer sits, and it is the prediction §4 of the handoff made in advance.
+    """
+    from crowdmon.core import config as cfg
+    from crowdmon.futures import market_fragility
+
+    def phi(w_sd):
+        f = market_fragility(vintage_panel, report_type="disaggregated",
+                             weights=dict(cfg.DISAGGREGATED_WEIGHTS, swap=w_sd))
+        return f.set_index(["report_date", "market_code"])["phi"]
+
+    d = pd.DataFrame({"live": phi(0.4), "stress": phi(0.067)}).dropna()
+    infl = (d["live"] / d["stress"] - 1.0)
+
+    assert (infl >= -1e-12).all(), (
+        f"{int((infl < -1e-12).sum())} market-weeks see Phi FALL when a weight rises. "
+        f"Phi is a weighted sum of gross positions, so that is impossible."
+    )
+    assert infl.median() == pytest.approx(0.196, abs=0.05), (
+        f"median Phi inflation {infl.median():.2%}; §C7 pins +19.60%"
+    )
+
+    per = infl.groupby(level="market_code").mean()
+    gold, cocoa = per["088691"], per["073732"]
+    assert gold == pytest.approx(0.2778, abs=0.05), f"gold inflation {gold:.2%}, §C7 pins +27.78%"
+    assert cocoa == pytest.approx(0.1208, abs=0.05), f"cocoa inflation {cocoa:.2%}, §C7 pins +12.08%"
+    assert gold > cocoa * 1.5, (
+        f"gold {gold:.2%} against cocoa {cocoa:.2%}. §4 of the b-series-recovery handoff "
+        f"predicted gold would be worse affected, because swap sits on gold's immovable "
+        f"side. If this reverses, the prediction failed and §C7 needs rewriting."
+    )
+
+
+def test_c8_the_band_reaches_the_composite_through_the_percentile(vintage_panel):
+    """`§C8`. The composite consumes `pct(Phi)`, so a level shift may vanish. Mostly it does.
+
+    The number that matters is not the median shift, which is small, but how often the two
+    weight tables put a market's own weeks in a DIFFERENT order. A level change is invisible
+    to a percentile; a reordering is not, and it is what would move `D`.
+    """
+    from crowdmon.core import config as cfg
+    from crowdmon.futures import market_fragility
+
+    def phi(w_sd):
+        f = market_fragility(vintage_panel, report_type="disaggregated",
+                             weights=dict(cfg.DISAGGREGATED_WEIGHTS, swap=w_sd))
+        return f.set_index(["report_date", "market_code"])["phi"]
+
+    d = pd.DataFrame({"live": phi(0.4), "stress": phi(0.067)}).dropna().reset_index()
+    counts = d.groupby("market_code").size()
+    d = d[d["market_code"].isin(counts[counts >= 40].index)]
+    for col in ("live", "stress"):
+        d[f"pct_{col}"] = d.groupby("market_code")[col].rank(pct=True)
+    shift = (d["pct_live"] - d["pct_stress"]).abs()
+
+    assert shift.median() < 0.10, (
+        f"median percentile shift {shift.median():.4f}; §C8 pins 0.0588 and the finding "
+        f"is that the composite mostly does not see the level change"
+    )
+    assert (shift > 0.25).mean() == pytest.approx(0.098, abs=0.04), (
+        f"{(shift > 0.25).mean():.2%} of market-weeks move more than a quarter of a "
+        f"percentile; §C8 pins 9.79%. This is the tail the reported band exists to show, "
+        f"so it failing means the band is either wider or narrower than documented."
+    )
+    assert shift.max() > 0.5, (
+        "§C8 records a maximum shift of 0.878. If no market-week moves more than half a "
+        "percentile, the weight has stopped mattering anywhere and the band is theatre."
     )

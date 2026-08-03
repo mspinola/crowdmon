@@ -221,3 +221,54 @@ markets in scope.
 **Status: §1 complete, §2 complete on `Q_sell`/`Q_buy`, and closed as far as it can go.** Its
 other two headline figures are respectively impossible and undefined, both recorded in
 `2026-08-03 §C2` and `§C4` rather than worked around.
+
+---
+
+## 7. Correction to §6, appended 2026-08-03. §B33-B37 existed the whole time
+
+Appended rather than edited, per the append-never-edit rule. §0-§6 above are preserved as
+issued and as executed, including the parts this section corrects.
+
+**§6 says "whoever wrote this handoff ran the measurement and did not record it, which is a
+better failure than a fabricated citation". That is wrong, and the truth is worse.** It
+**was** recorded, on 2026-08-02, as
+[`docs/design/amendments-2026-08-02.md`](../design/amendments-2026-08-02.md) §B33 through
+§B37, with reproducers in
+[`docs/analysis/reproduce.py`](../analysis/reproduce.py) (`template_conditional_magnitude`,
+`template_direction_agnostic`, `template_swap_share`, `template_stability`,
+`appendix_a2_worked_example`). It sat on `claude/template-followups-doc-corrections-45de1d`
+(`11b7c81`), a branch that was never pushed and had no PR, so no search anyone ran on `main`
+could reach it. **The failure was not a missing record. It was a record that no reachable
+search would find**, which is worse: a missing record announces itself, and this one produced
+a confident re-derivation instead.
+
+§6's second claim also goes: **the citation could be honoured literally.** §6 says the
+sections "could not be filed under the cited numbers" because 08-02 closed at B32. It did not
+close at B32; it closed at B37, on that branch. `amendments-2026-08-02.md` now carries B1-B37
+and every `§B33`-`§B37` citation in this repo resolves.
+
+Three things follow, and only one of them is bookkeeping:
+
+- **`A_agnostic` is not undefined.** §6's table records it as such, from `2026-08-03 §C4`.
+  §B34 defines it as `max(Q_sell, Q_buy) / min(Q_sell, Q_buy)`, the **direction**-agnostic
+  ratio rather than the weight-agnostic one §C4 guessed at, and measures a median of
+  **3.0237** over the same 21,756 market-weeks (classic outright 2.4974) with zero ceiling
+  breaches. §C4 is corrected in place; the wrong reading is kept beside the right one, and
+  both are pinned in `tests/test_supplemental_live.py`.
+- **All three of §2's headline figures were available**, so §6's "only partly executable" is
+  too pessimistic. §2 was in fact executed in full on 2026-08-02, a day before it was
+  recorded as blocked.
+- **Cocoa's 0.976 / 0.100 has a source.** §6 calls the difference against §C1's 1.000 / 0.098
+  "consistent with a split point one row earlier", which is right and is now measured: both
+  split on the same date, **2025-10-21**, and differ only on which half that week falls in.
+  Cocoa is not template that week, so §B36's inclusive rule reads 41/42 and 4/40 while §C1's
+  exclusive rule reads 41/41 and 4/41. Every other figure is identical under both rules,
+  including the same 17 market codes. `2026-08-03 §C1` carries the arithmetic.
+
+**What this handoff's status becomes: unchanged, COMPLETE.** Nothing here reopens it. §1's
+null stands, §2's answer stands, and the weight table is still untouched.
+
+Recorded by `2026-08-03-b-series-recovery.md` §2.
+[`docs/analysis/2026-08-03-index-share.md`](../analysis/2026-08-03-index-share.md) states
+that §B33-B36 "do not exist" and is **deliberately left alone**: `analysis/` is point-in-time
+and never amended, and it is a correct record of what a session could see on 2026-08-03.

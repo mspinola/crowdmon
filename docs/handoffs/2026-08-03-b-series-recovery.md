@@ -1,7 +1,6 @@
 # Handoff: B-series recovery, reference hygiene, weight sensitivity
 
-**Status:** open. **§1 is already done, see §7**: the branch is pushed and the data-loss window
-is closed. Start at §2.
+**Status:** **COMPLETE**, see §8. §1 closed separately, see §7.
 **Date:** 2026-08-03
 **Lives at:** `crowdmon/docs/handoffs/2026-08-03-b-series-recovery.md`
 **Target:** Claude Code session, `crowdmon` worktree
@@ -246,3 +245,122 @@ work now exists somewhere other than one disk, which was the whole of §1.
 **§1 is closed. A session executing this handoff starts at §2.** This section exists so that
 the branch is not pushed twice or, worse, "recovered" a second time by someone who reads §1
 and does not reach here.
+
+---
+
+## 8. Outcome, §2 through §5 executed 2026-08-03
+
+Appended per the append-never-edit rule; §0-§7 above are preserved as issued. §1 was closed
+before this session started and is recorded in §7.
+
+### §2. Reconciled, and the B-series is now on `main` rather than on one branch
+
+**Ported, not merged.** `11b7c81` predates six merges to `main` and is stale on files `main`
+has since moved: `flow.py`'s module docstring (cotdata#93 removed the duplicate `decompose`),
+`bin/check_skips.py`, `bin/live-tests.sh`, `tests/conftest.py`,
+`tests/test_supplemental_live.py` and the whole 08-03 index-share lineage. Merging it would
+have reverted all of that, so its own diff was cherry-picked instead: 2,070 insertions across
+17 files, three conflicts, all in index tables. **The branch itself is untouched**, per §1.
+
+That decision answers §1's open question. `claude/template-followups-doc-corrections-45de1d`
+should be **closed without merging**, its findings having landed here.
+
+Per row of §2's table:
+
+| row | disposition |
+|---|---|
+| §C1 vs **§B36**, classification stability | **Both correct, split point RESOLVED.** Both split on 2025-10-21; they differ only on which half that week falls in. Cocoa is not template that week, so §B36's inclusive rule reads 41/42 and 4/40 (0.976 / 0.100) and §C1's exclusive rule reads 41/41 and 4/41 (1.000 / 0.098). **§C1's is the better-specified rule** (41/41 rather than 42/40; §B36's median is over market-weeks and so is weighted by how many markets reported each week). **Every other figure is identical under both**, measured: 22 pooled, 18 either-side, 17 same-side, the same 17 codes |
+| §C2 vs §B33, §B35 | **No overlap, and the three are complementary.** §C2 is a fact about the code (the shape label reads two other categories' nets), §B35 a fact about the data (swap share does not predict template status, Spearman -0.114), §B33 about a third quantity. Together: the swap book is neither an **input** to the template label nor a **predictor** of it |
+| §C4 vs **§B34** | **§C4 SUPERSEDED and corrected in place.** It read "agnostic" as **weight**-agnostic; §B34 defines it as **direction**-agnostic, `max(Q_sell,Q_buy)/min(Q_sell,Q_buy)`, median **3.0237** over the same 21,756 market-weeks. The wrong reading is kept beside the right one and both are pinned |
+| §C3 | **Stands, genuinely new.** Extended to four values as §C6 |
+
+**Also corrected, as §2 directed.** `amendments-2026-08-03.md`'s header ("an accurate one
+with no home") is fixed in place, `design/` being living. The index-share handoff's §6 ("ran
+the measurement and did not record it") gets an appended §7 rather than an edit, `handoffs/`
+being append-only. `docs/analysis/2026-08-03-index-share.md` is **deliberately untouched**:
+`analysis/` is point-in-time, and it is a correct record of what a session could see.
+
+### §3. Convention changed, and the sweep came back cleaner than expected
+
+`CLAUDE.md` and `docs/design/README.md` now both carry **path plus reproducer**. The sweep
+found **368 bare `§X##` references across 42 files**, and rewriting prose is not the fix, so
+the bare form was made to **fail loudly** instead: `tests/test_references.py` resolves every
+one against the sections `docs/design/amendments-*.md` defines, and also checks each letter
+series for holes, which is the cheapest thing that would have caught B32 being followed by
+nothing while four documents cited B33.
+
+**Exactly one reference does not resolve**, and it is not a gap in this work: `§C5` belongs
+to crowdmon#42, unmerged. It is recorded in `KNOWN_UNRESOLVED` with a reason and a place to
+look, never deleted, and a fourth test fails once it becomes resolvable so the allowlist
+cannot rot.
+
+### §4. The band, and the prediction holds
+
+Filed as `2026-08-03 §C6-C8`. Reproducer
+`docs/analysis/reproduce_template_stability.py::c6_the_reported_band` onward; pinned by four
+new live assertions. **The static-weights decision is recorded, not relitigated**, in module
+spec §6.3, along with the reported-band convention and a note that §6.3's table is conceptual
+while `core/config.py` holds the live values. **No weight value changed.**
+
+`w_SD ∈ {0.067, 0.2, 0.4, 0.7}`, three round and one measured, pooled over 21,756
+market-weeks:
+
+| `w_SD` | median `Q_sell` | median `Q_buy` | median `A_dir` | median `A_agn` | ceiling | `A_agn` as % of ceiling |
+|---|---|---|---|---|---|---|
+| 0.067 (measured) | 2,651.1 | 2,558.7 | 1.0904 | 3.6316 | **14.925** | 24.3% |
+| 0.2 | 3,120.6 | 3,084.8 | 1.0213 | 2.9211 | 10.000 | 29.2% |
+| 0.4 (shipped) | 3,734.2 | 3,811.4 | 0.9933 | 3.0237 | 10.000 | 30.2% |
+| 0.7 | 4,340.6 | 4,670.3 | 1.0153 | 3.3642 | 10.000 | 33.6% |
+
+Template rate is 0.447106 at every value, as §C2 says it must be. Three findings the original
+three-value sweep could not produce:
+
+- **The fourth value is not on the same scale.** At 0.067 swap drops below
+  `producer_merchant` at 0.1 and becomes the table's minimum, so the ceiling rises 10.0 to
+  14.925 and every raw ratio gains 49% of headroom. Scale by the ceiling before comparing
+  across the band.
+- **`A_agnostic` is U-shaped with its minimum inside the band**, so the endpoints do not
+  bracket the answer. On the classic outrights it is monotonically decreasing instead, which
+  makes even the shape of the response a population fact.
+- **Direction of bias: `w_SD = 0.4` overstates fragile capital**, on 99.31% of market-weeks
+  and never the other way, median **+19.60%**, per market from **+0.9%** (rough rice) to
+  **+50.8%** (Henry Hub). **Gold at +27.8% is 2.30x cocoa at +12.1%, so §4's prediction
+  holds**, and the mechanism is the one it named: on gold the swap dealer is the immovable
+  physical-hedging side, on cocoa it holds the largest net long. The overstatement is worst
+  exactly where it is least deserved, and it bites during the weeks the monitor exists for.
+
+**And the qualification, which §4 did not ask for and which matters most.** The composite
+consumes `pct(Phi)`, not `Phi`, so a level shift mostly vanishes: median percentile shift
+**0.0588**. But 9.79% of market-weeks shift more than 0.25, and on **98 of 264 markets** the
+two weight tables **order that market's own weeks differently** (per-market Spearman median
+0.9316, minimum -0.4160). Cross-market the ranking survives on the outrights (0.9540, 18 of
+the top 20) and degrades over the full universe (0.8521). **The band is narrow where the
+package is usually read and wide where it is not.**
+
+**Relationship to `2026-08-03-swap-dealer-weight-decision.md`, which was filed in parallel
+and is still open.** These are two different questions and neither supersedes the other. That
+handoff asks **what number `swap` should take** and is explicitly the human's. §4 above is
+about **how weights are treated**, and that decision was already made. Static weights closes
+its option (c), regime-conditional weighting, and leaves (a), (b) and (d) open. §C6-C8 are
+evidence for its §2, not a substitute for it, and its §1 is cited rather than re-measured.
+
+### §5. Metals recorded, PyPI checked
+
+Module spec **§11 gains an eighth entry**: the Supplemental covers 13 agricultural markets
+and no metals, so gold, silver and copper are permanently outside this route. It names gold
+as the case that motivated half the original question and carries the two cross-report
+constraints (Index Traders does not nest inside Swap Dealer; combined against futures-only).
+
+**The stale PyPI inference did not propagate to `crowdmon`.** Filed as `2026-08-03 §C9`. Two
+stale **facts** survive in siblings (`cotdata/CHANGELOG.md`'s 0.3.0 entry and
+`npf/tests/test_sibling_floors.py`'s docstring), both recorded there rather than edited, per
+the working agreement on docs in another checkout. Neither carries the "removing it is cheap"
+conclusion, which is what §5 asked about.
+
+### Not done, deliberately
+
+The contract master (module spec §13 step 2) is **not started**. No verdict is rendered on the
+composite: §C6-C8 describe how a configured number moves an output, which is a statement about
+the code, not evidence that the output is right.
+
+**Status: COMPLETE.**

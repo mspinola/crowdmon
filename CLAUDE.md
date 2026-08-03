@@ -118,6 +118,28 @@ one out is what stops the same analysis being run twice with different results.
 - **Every quoted figure carries a reproducer.** `docs/analysis/reproduce.py` regenerates
   every number in the analysis documents; `tests/fixtures/build_fixtures.py` regenerates the
   committed test data.
+- **Cite results by PATH plus REPRODUCER, never by a bare section ID.** `§B34` names neither
+  a repo nor a file, so a session with no context cannot resolve it and cannot tell "does
+  not exist" from "exists somewhere I did not look". Write both halves:
+
+  ```
+  docs/design/amendments-2026-08-02.md §B34
+  docs/analysis/reproduce.py::template_direction_agnostic
+  ```
+
+  This is not a style preference. Three sessions in a row concluded `§B33-B36` did not exist
+  because nothing in the citation said where to look; they were one `git show` away on an
+  unpushed branch, and the second of those sessions re-derived the work and recorded a wrong
+  definition of `A_agnostic` from the guess (`2026-08-03 §C4`). The bare form is not banned,
+  because 368 of them already exist and rewriting prose is not the fix. Instead
+  [`tests/test_references.py`](tests/test_references.py) resolves every one against the
+  sections `docs/design/amendments-*.md` actually defines, so it **fails loudly** rather than
+  silently. **A reference that cannot be located is marked, never deleted**: it goes in that
+  file's `KNOWN_UNRESOLVED` with a reason and a place to look, and the entry itself fails
+  once the gap closes. Deleting an unresolvable citation is what made the last one invisible.
+- **Before concluding a thing does not exist, search all refs, not `main`.**
+  `git log --all --oneline -- <path>`, and grep for the reproducer FUNCTION name rather than
+  the section ID: the numbers are the asset and the prose is replaceable.
 - **House style: worked numbers over abstract restatement, everywhere.** Carry the numbers
   through each formula in sequence, show the arithmetic rather than only its result, end in
   prose. A formula whose inputs are never printed is one nobody has ever checked.
@@ -293,16 +315,22 @@ COTDATA_STORE=/tmp/crowdmon_test .venv/bin/python -m pytest tests/ -q -rs
 .venv/bin/python -m ruff check src tests bin
 ```
 
-**That fixture run skips 61 assertions, and they are the valuable ones.** Every
+**That fixture run skips 65 assertions, and they are the valuable ones.** Every
 `tests/*_live.py` needs the real store, so CI has never executed the layer-2 trap-table
 figures, the appendix's live-cattle arithmetic (`test_appendix_live.py`, `2026-08-02 §B37`),
 the volume and trigger measurements, or
-`2026-08-03 §C1-C4` (`test_supplemental_live.py`, the most exposed of the set: three of its
-five assertions read `cot_supplemental`, a domain one release old). From the
-**main checkout**, against `~/code/cotdata_store`, the same suite is **525 passed / 5
-skipped** rather than **464 / 66**.
+`2026-08-03 §C1-C8` (`test_supplemental_live.py`, the most exposed of the set: three of its
+assertions read `cot_supplemental`, a domain one release old). From the
+**main checkout**, against `~/code/cotdata_store`, the same suite is **533 passed / 5
+skipped** rather than **468 / 70**.
 
-> **From a worktree those two figures are 523 / 7 and 462 / 68**, because `test_boundaries`
+**These four numbers are measured, so re-measure them rather than adjusting them by hand.**
+Any PR that adds or removes a `tests/*_live.py` assertion moves all four, and two PRs in
+flight at once each move them from a base that does not include the other. Whichever merges
+second re-runs both commands and updates this paragraph, `bin/check_skips.py`'s header and
+`bin/live-tests.sh`'s. This note exists because that has already happened once.
+
+> **From a worktree those two figures are 531 / 7 and 466 / 72**, because `test_boundaries`
 > resolves `../cotdata` and `../marketdata` relative to the test file and finds neither,
 > so the two producer-direction checks skip. Quote the main-checkout numbers: a worktree
 > reports two fewer passes and has one real seam unguarded. This note exists because an
@@ -316,7 +344,7 @@ subscription and this repo is public, and the vintage store accumulates forward 
 2026-07-31 so no download reconstructs it. The split is therefore permanent:
 
 ```bash
-bin/live-tests.sh          # the 61, against the real store. Scheduled 09:15 daily
+bin/live-tests.sh          # the 65, against the real store. Scheduled 09:15 daily
 ```
 
 `--profile live` is the load-bearing part. A run whose store is missing or unsynced would

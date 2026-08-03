@@ -1,19 +1,36 @@
-"""Reproduce `amendments-2026-08-03.md` §C1-C4.
+"""Reproduce `amendments-2026-08-03.md` §C1-C4 and §C6-C8.
 
-The baseline the index-share handoff's §2 cites as "§B33-B36". Those sections were cited
-before they existed; this is the measurement that establishes them. Run from the repo root:
+C1-C4 were measured on 2026-08-03 as a blind re-derivation: the index-share handoff's §2
+cited "§B33-B36", which no reachable search found, so they were rebuilt from scratch. The
+originals turned out to exist on an unpushed branch and are now on main as
+`docs/design/amendments-2026-08-02.md` §B33-B37, reproduced by
+`docs/analysis/reproduce.py::template_conditional_magnitude`,
+`::template_direction_agnostic`, `::template_swap_share` and `::template_stability`.
+
+C6-C8 are the `w_SD` band that §4 of `docs/handoffs/2026-08-03-b-series-recovery.md` asks
+for, under a settled decision that the weights stay static. **§C5 is not here**: it belongs
+to crowdmon#42 (branch `claude/repo-hygiene-b33-b36-7e0c36`, `15a013a`) and is about a stale
+"there is no volume" claim, with its own live pin in `tests/test_volume_live.py`. The gap is
+deliberate and named rather than silent. Run from the repo root:
 
     COTDATA_STORE=$HOME/code/cotdata_store .venv/bin/python docs/analysis/reproduce_template_stability.py
 
-Four questions, in the order they have to be asked:
+Seven questions here, in the order they have to be asked:
 
-C1  Is template classification stable within its own window? §3 of the handoff asserts it is
-    not, citing figures that exist nowhere. Measured here by splitting the 82 weeks in half.
-C2  Does the template rate move with `w_SD` at all? §2 asks for it to be recomputed across
-    three values. It cannot move, and the reason is structural rather than empirical.
+C1  Is template classification stable within its own window? §3 of the index-share handoff
+    asserts it is not. Measured here by splitting the 82 weeks in half.
+C2  Does the template rate move with `w_SD` at all? It cannot move, and the reason is
+    structural rather than empirical.
 C3  What DOES move with `w_SD`: `Q_sell`, `Q_buy`, and their ratio.
-C4  `A_agnostic` has no definition in this package. What a defensible one would measure, and
-    why the obvious reading is degenerate.
+C4  Was `A_agnostic` undefined? No. It is `2026-08-02 §B34`'s DIRECTION-agnostic ratio, and
+    this section originally read "agnostic" as WEIGHT-agnostic and measured a different and
+    degenerate quantity. Corrected, with the degenerate measurement retained as the thing
+    the name does not mean.
+C6  The four-value band, `w_SD in {0.067, 0.2, 0.4, 0.7}`, with `A_agnostic` in it.
+C7  The DIRECTION of the bias: how much `w_SD = 0.4` overstates fragile capital against the
+    measured stress figure, and which markets carry it.
+C8  Whether any of that reaches the composite, which consumes a percentile of `Phi` rather
+    than `Phi`.
 """
 
 from __future__ import annotations
@@ -40,6 +57,14 @@ _spec.loader.exec_module(_repro)
 
 EXTREME_LO, EXTREME_HI = 0.10, 0.90
 W_SD_SWEEP = (0.2, 0.4, 0.7)
+
+#: The reported band, per §4 of `2026-08-03-b-series-recovery.md`. Three round numbers and
+#: one measured one: 0.067 is swap turnover as a fraction of Managed Money's in the worst
+#: 5% of weeks (`2026-08-03-index-share.md` §5), so it is the empirically motivated lower
+#: bound rather than a value chosen for spacing. Label it as such wherever the band is shown.
+W_SD_BAND = (0.067, 0.2, 0.4, 0.7)
+W_SD_LIVE = 0.4       # what `core/config.py` ships. Unchanged by this work.
+W_SD_STRESS = 0.067   # the measured stress-regime figure.
 
 # The 13 Supplemental markets, as 6-digit CFTC codes (the handoff's §2 restriction).
 SUPPLEMENTAL = {
@@ -126,6 +151,33 @@ def c1_classification_stability() -> None:
         print(f"    {r['name']:<28} ({code})  pooled {r['pooled']:.3f}   "
               f"h1 {r['h1']:.3f} -> h2 {r['h2']:.3f}")
 
+    # `2026-08-02 §B36` reports cocoa as 0.976 then 0.100 where this block reports 1.000
+    # then 0.098. Two lineages of one measurement, so the difference has to be located
+    # rather than averaged. It is one week's assignment on the boundary, printed here.
+    print()
+    print("  --- the §B36 discrepancy, located rather than smoothed ---")
+    is_t = classic["shape"].str.startswith("template")
+    b36_mid = classic["report_date"].median()
+    for label, mask, rule_txt in (
+        ("C1  (this block)", classic["report_date"] < mid, "dates[41], strictly BEFORE"),
+        ("B36 (reproduce.py)", classic["report_date"] <= b36_mid,
+         "median over MARKET-WEEKS, at or before"),
+    ):
+        h1 = is_t[mask].groupby(classic.loc[mask, "market_code"]).mean()
+        h2 = is_t[~mask].groupby(classic.loc[~mask, "market_code"]).mean()
+        n1 = classic.loc[mask, "report_date"].nunique()
+        n2 = classic.loc[~mask, "report_date"].nunique()
+        print(f"    {label:<19s} split {pd.Timestamp(b36_mid if 'B36' in label else mid).date()}"
+              f"  ({rule_txt})  h1 {n1} weeks / h2 {n2}")
+        print(f"                        cocoa  h1 {h1['073732']:.4f} -> h2 {h2['073732']:.4f}")
+    print("    Same DATE, 2025-10-21, on both. The rules differ only on which side that")
+    print("    week falls, and cocoa is NOT template that week, so putting it in h1 drags")
+    print("    41/41 down to 41/42 and putting it in h2 lifts 4/41's denominator to 40.")
+    print("    C1's rule is the better-specified one: 41/41 rather than 42/40, because a")
+    print("    median over market-weeks is weighted by how many markets report each week")
+    print("    and is not a property of the window. Every OTHER figure is identical under")
+    print("    both rules: 22 pooled, 18 either-side, 17 same-side, and the same 17 codes.")
+
 
 def c2_template_is_invariant_to_w_sd() -> None:
     rule("C2. Does the template rate move with w_SD?")
@@ -158,6 +210,48 @@ def _fragility_at(w_sd: float, codes: set[str] | None = None) -> pd.DataFrame:
     return market_fragility(panel, report_type="disaggregated", weights=weights)
 
 
+# The vintage panel is read once and reused: `from_vintage` is the expensive call here and
+# C5-C7 want eight passes over it at four weights.
+_PANEL = None
+
+
+def _panel() -> pd.DataFrame:
+    global _PANEL
+    if _PANEL is None:
+        _PANEL = from_vintage()
+    return _PANEL
+
+
+_MARKET_NAMES: pd.Series = pd.Series(dtype=object)
+
+
+def _phi_frame(w_sd: float) -> pd.Series:
+    """`Phi` indexed by (report_date, market_code), at one value of `w_SD`."""
+    global _MARKET_NAMES
+    f = market_fragility(_panel(), report_type="disaggregated",
+                         weights=dict(cfg.DISAGGREGATED_WEIGHTS, swap=w_sd))
+    if _MARKET_NAMES.empty:
+        _MARKET_NAMES = f.groupby("market_code")["market_name"].first()
+    return f.set_index(["report_date", "market_code"])["phi"]
+
+
+def _q_frame(w_sd: float) -> pd.DataFrame:
+    """`Q_sell`, `Q_buy` and both asymmetries per market-week, at one value of `w_SD`.
+
+    Both sides must be live: a market-week with `Q_buy == 0` has no ratio rather than an
+    infinite one, and dropping it is the same filter
+    `reproduce.py::template_direction_agnostic` applies, so the counts are comparable.
+    """
+    f = market_fragility(_panel(), report_type="disaggregated",
+                         weights=dict(cfg.DISAGGREGATED_WEIGHTS, swap=w_sd))
+    q = f[(f["q_sell"] > 0) & (f["q_buy"] > 0)].copy()
+    q = q.rename(columns={"q_sell": "sell", "q_buy": "buy"})
+    q["a_dir"] = q["sell"] / q["buy"]
+    q["a_agn"] = np.maximum(q["sell"], q["buy"]) / np.minimum(q["sell"], q["buy"])
+    q["classic"] = q["market_code"].isin(_repro.CLASSIC_OUTRIGHTS)
+    return q
+
+
 def c3_what_does_move() -> None:
     rule("C3. What DOES move with w_SD: Q_sell, Q_buy and their ratio")
     for label, codes in (("all vintage markets", None),
@@ -185,11 +279,42 @@ def c3_what_does_move() -> None:
               f"({abs(hi - lo) / lo * 100:.1f}% of the low end)")
 
 
-def c4_a_agnostic_is_undefined() -> None:
-    rule("C4. `A_agnostic` has no definition in this package")
-    print("Searched `src/`, `tests/` and `docs/design/`: the string appears only in the")
-    print("handoff that cites it. The obvious reading is degenerate, which is worth showing")
-    print("rather than asserting.")
+def c4_a_agnostic_is_direction_agnostic() -> None:
+    """C4, CORRECTED. `A_agnostic` is defined, and this block originally guessed wrong.
+
+    The guess was WEIGHT-agnostic (every category on one weight), which is degenerate at
+    exactly 1.0 and is measured below because the degeneracy is worth knowing. The actual
+    definition is DIRECTION-agnostic, `2026-08-02 §B34`:
+
+        A_directional = Q_sell / Q_buy
+        A_agnostic    = max(Q_sell, Q_buy) / min(Q_sell, Q_buy)
+
+    reproduced by `docs/analysis/reproduce.py::template_direction_agnostic` over the same
+    21,756 market-weeks. Both readings are printed here so the wrong one is visible as
+    wrong rather than deleted.
+    """
+    rule("C4 (CORRECTED). `A_agnostic` is DIRECTION-agnostic, not weight-agnostic")
+    w = cfg.weights_for("disaggregated")
+    ceiling = max(w.values()) / min(w.values())
+    q = _q_frame(W_SD_LIVE)
+    print("2026-08-02 §B34, reproduce.py::template_direction_agnostic:")
+    print("    A_directional = Q_sell / Q_buy")
+    print("    A_agnostic    = max(Q_sell, Q_buy) / min(Q_sell, Q_buy)")
+    print(f"  over {len(q):,} market-weeks at the shipped weights, ceiling {ceiling:.1f}:")
+    for label, sub in (("all", q), ("classic outright", q[q["classic"]]),
+                       ("everything else", q[~q["classic"]])):
+        print(f"    {label:<17s} A_dir median {sub['a_dir'].median():.4f}   "
+              f"A_agn median {sub['a_agn'].median():.4f}   "
+              f"({sub['a_agn'].median() / ceiling:.1%} of ceiling)")
+    print(f"  breaches of the ceiling: {int((q['a_agn'] > ceiling + 1e-9).sum())}")
+    print("  Not degenerate, not 1.0: the typical market-week has one side three times the")
+    print("  other, and what is a coin flip is WHICH side.")
+
+    print()
+    print("The original C4 reading, retained as the thing the name does not mean.")
+    print("Searched `src/`, `tests/` and `docs/design/` on 2026-08-03 and found the string")
+    print("only in the handoff citing it, because §B34 was on a branch that had never been")
+    print("pushed. Read as WEIGHT-agnostic the quantity really is degenerate:")
     print()
     print("Since sum_c P_c = 0, the gross net-long total G equals the gross net-short total")
     print("(2026-08-02 §B31). With one weight w shared by every category:")
@@ -204,13 +329,176 @@ def c4_a_agnostic_is_undefined() -> None:
     print(f"    min {a.min():.6f}   median {a.median():.6f}   max {a.max():.6f}")
     print(f"    share within 1e-9 of exactly 1.0: {(a.sub(1).abs() < 1e-9).mean() * 100:.4f}%")
     print()
-    print("  So a weight-agnostic asymmetry is identically 1 and measures nothing. Any")
-    print("  useful `A_agnostic` has to be a different quantity, and choosing one is a")
-    print("  design decision rather than a measurement. Not invented here.")
+    print("  So a WEIGHT-agnostic asymmetry is identically 1 and measures nothing. That is")
+    print("  a true statement about a quantity nobody asked for. The lesson is not about")
+    print("  weights: an unresolvable citation was answered by guessing at the definition,")
+    print("  and the guess was wrong in a way no amount of care about the arithmetic would")
+    print("  have caught. Cite the file, not the section number.")
+
+
+def c6_the_reported_band() -> None:
+    """C6: the four-value band §4 asks for, with `A_agnostic` now available.
+
+    Three round numbers and one measured one. The measured one changes the geometry, which
+    is the finding: at `w_SD = 0.067` swap becomes the SMALLEST weight in the table, below
+    `producer_merchant` at 0.1, so `max(w)/min(w)` rises from 10.0 to 14.9 and the raw
+    ratios stop being on one scale.
+    """
+    rule("C6. The reported band, w_SD in {0.067, 0.2, 0.4, 0.7}")
+    panel = _repro._shape_panel()
+    classic = panel[panel["market_code"].isin(_repro.CLASSIC_OUTRIGHTS)]
+    tmpl = classic["shape"].str.startswith("template").mean()
+    print(f"Template rate, classic outrights: {tmpl:.6f} at every value in the band. C2")
+    print("gives the reason and it is structural, so this line is a formality kept only so")
+    print("that the band is complete. Do not read it as evidence about the weight.")
+
+    rows = []
+    for w in W_SD_BAND:
+        ww = dict(cfg.DISAGGREGATED_WEIGHTS, swap=w)
+        ceiling = max(ww.values()) / min(ww.values())
+        q = _q_frame(w)
+        for label, sub in (("all", q), ("classic outright", q[q["classic"]]),
+                           ("supplemental 13", q[q["market_code"].isin(SUPPLEMENTAL)])):
+            rows.append({
+                "w_SD": w, "kind": "measured" if w == W_SD_STRESS else "round",
+                "stratum": label, "market-weeks": len(sub),
+                "median Q_sell": round(sub["sell"].median(), 1),
+                "median Q_buy": round(sub["buy"].median(), 1),
+                "median A_dir": round(sub["a_dir"].median(), 4),
+                "median A_agn": round(sub["a_agn"].median(), 4),
+                "ceiling": round(ceiling, 3),
+                "A_agn as % of ceiling": f"{sub['a_agn'].median() / ceiling:.1%}",
+                "breaches": int((sub["a_agn"] > ceiling + 1e-9).sum()),
+            })
+    t = pd.DataFrame(rows)
+    for label in ("all", "classic outright", "supplemental 13"):
+        print(f"\n--- {label} ---")
+        print(t[t["stratum"] == label].drop(columns=["stratum"]).to_string(index=False))
+
+    allrows = t[t["stratum"] == "all"].set_index("w_SD")
+    print("\n  A_directional and A_agnostic do not behave alike under the band.")
+    print(f"    A_dir  {allrows['median A_dir'].min():.4f} to "
+          f"{allrows['median A_dir'].max():.4f}, no order")
+    print(f"    A_agn  {allrows['median A_agn'].min():.4f} to "
+          f"{allrows['median A_agn'].max():.4f}, U-shaped with its MINIMUM inside the band")
+    print("  A_agnostic is minimised near the shipped weight and rises at both ends: pushed")
+    print("  down, the swap book stops opposing anything and the residual MM-vs-PM book is")
+    print("  more lopsided; pushed up, swap dominates whichever side it sits on. So the")
+    print("  band is not an interval whose endpoints bracket the answer.")
+    print("\n  And 0.067 is not on the same scale as the other three. Compare within a")
+    print("  weight table, never across one, which is 2026-07-28 §2.3's rule arriving from")
+    print("  a new direction: swap at 0.067 is BELOW producer_merchant at 0.1, so it becomes")
+    print("  the denominator of the ceiling and every raw ratio gains 49% of headroom.")
+
+
+def c7_direction_of_the_bias() -> None:
+    """C7: `w_SD = 0.4` overstates fragile capital, and by how much, per market.
+
+    §4's claim to test: swap dealers get stickier under stress, so the shipped weight
+    overstates forced capital exactly when the composite is supposed to be informative. And
+    its prediction: gold should be worse affected than cocoa, because swap sits on gold's
+    immovable physical-hedging side while on cocoa it holds the largest net long.
+    """
+    rule("C7. The direction of the bias: Phi at 0.4 against Phi at the measured 0.067")
+    hi = _phi_frame(W_SD_LIVE)
+    lo = _phi_frame(W_SD_STRESS)
+    d = pd.DataFrame({"phi_live": hi, "phi_stress": lo}).dropna().reset_index()
+    d["inflation"] = d["phi_live"] / d["phi_stress"] - 1.0
+    print(f"{len(d):,} market-weeks. Phi is the fragility-weighted share of a randomly")
+    print("chosen position-side, so a higher Phi is literally 'more of this book can be")
+    print("forced out'. Not one market-week moves the other way:")
+    print(f"    inflation > 0  on {(d['inflation'] > 1e-12).mean():.4%} of market-weeks")
+    print(f"    inflation == 0 on {(d['inflation'].abs() <= 1e-12).mean():.4%}, which is "
+          f"a swap book of exactly zero gross")
+    print(f"    inflation < 0  on {(d['inflation'] < -1e-12).mean():.4%}")
+    print(f"    mean {d['inflation'].mean():+.2%}   median {d['inflation'].median():+.2%}   "
+          f"p90 {d['inflation'].quantile(.9):+.2%}   max {d['inflation'].max():+.2%}")
+    print("  The sign is not a finding (raising a weight raises a weighted sum). The SIZE")
+    print("  is, and so is how unevenly it lands.")
+
+    per = d.groupby("market_code").agg(weeks=("inflation", "size"),
+                                       phi_live=("phi_live", "mean"),
+                                       phi_stress=("phi_stress", "mean"),
+                                       inflation=("inflation", "mean"))
+    per = per[per["weeks"] >= 40]
+    per["name"] = _MARKET_NAMES.reindex(per.index)
+    cl = per[per.index.isin(_repro.CLASSIC_OUTRIGHTS)].sort_values("inflation",
+                                                                  ascending=False)
+    print(f"\n--- classic outrights with >=40 weeks ({len(cl)}), most affected first ---")
+    print(cl.head(10).round(4).to_string())
+    print("\n--- least affected ---")
+    print(cl.tail(5).round(4).to_string())
+
+    print("\n--- §4's named prediction ---")
+    for code, label in (("088691", "GOLD"), ("073732", "COCOA")):
+        r = per.loc[code]
+        print(f"    {label:<6s} ({code})  Phi {r['phi_stress']:.4f} -> {r['phi_live']:.4f}"
+              f"   {r['inflation']:+.2%}")
+    g, c = per.loc["088691", "inflation"], per.loc["073732", "inflation"]
+    print(f"  Gold is affected {g / c:.2f}x as much as cocoa. THE PREDICTION HOLDS, and the")
+    print("  mechanism is the one §4 named: on gold the swap dealer IS the immovable")
+    print("  physical-hedging side, so weighting it at 0.4 books robust capital as fragile;")
+    print("  on cocoa it holds the largest net long and is closer to what 0.4 describes.")
+    print("  The overstatement is therefore worst exactly where it is least deserved.")
+
+
+def c8_does_the_composite_care() -> None:
+    """C8: the composite consumes pct(Phi), not Phi, so a level shift may not survive.
+
+    `A.9`'s `D = C x I x Phi` uses each term as a percentile of its own history. A weight
+    change that lifts a market's whole Phi series lifts nothing in the percentile. This
+    asks whether the band's effect is that benign, and on a tenth of market-weeks it is not.
+    """
+    rule("C8. Does any of it reach the composite, which consumes a percentile?")
+    frames = {w: _phi_frame(w) for w in W_SD_BAND}
+    d = pd.DataFrame(frames).dropna().reset_index()
+    counts = d.groupby("market_code").size()
+    d = d[d["market_code"].isin(counts[counts >= 40].index)]
+    for w in W_SD_BAND:
+        d[f"pct_{w}"] = d.groupby("market_code")[w].rank(pct=True)
+    shift = (d[f"pct_{W_SD_LIVE}"] - d[f"pct_{W_SD_STRESS}"]).abs()
+
+    print(f"{len(d):,} market-weeks over {d['market_code'].nunique()} markets with >=40 "
+          f"weeks.")
+    print("|pct(Phi) at 0.4  -  pct(Phi) at 0.067|, within each market's own history:")
+    print(f"    mean {shift.mean():.4f}   median {shift.median():.4f}   "
+          f"p90 {shift.quantile(.9):.4f}   max {shift.max():.4f}")
+    print(f"    moves more than 0.10 of a percentile: {(shift > 0.10).mean():.2%}")
+    print(f"    moves more than 0.25 of a percentile: {(shift > 0.25).mean():.2%}")
+
+    sp = d.groupby("market_code")[[W_SD_LIVE, W_SD_STRESS]].apply(
+        lambda g: _repro._spearman(g[W_SD_LIVE], g[W_SD_STRESS]))
+    print("\nper-market Spearman between the two Phi series, over that market's own weeks:")
+    print(f"    median {sp.median():.4f}   min {sp.min():.4f}   "
+          f"below 0.90: {int((sp < 0.90).sum())} of {len(sp)}")
+    print("    the five lowest:")
+    for code, v in sp.nsmallest(5).items():
+        print(f"      {str(_MARKET_NAMES.get(code, code))[:44]:<44s} {v:+.4f}")
+    print("  On 98 of 264 markets the two weight tables disagree about which of that")
+    print("  market's own weeks were the fragile ones, and on a handful they disagree")
+    print("  outright. That is the number the band exists to expose: not the level of Phi,")
+    print("  which no percentile ever sees, but the ORDER of a market's own history.")
+
+    m = d.groupby("market_code")[list(W_SD_BAND)].mean()
+    mc = m[m.index.isin(_repro.CLASSIC_OUTRIGHTS)]
+    print("\ncross-market ranking of mean Phi, 0.4 against 0.067:")
+    print(f"    all {len(m)} markets      Spearman {_repro._spearman(m[W_SD_LIVE], m[W_SD_STRESS]):.4f}")
+    print(f"    {len(mc)} classic outrights  Spearman "
+          f"{_repro._spearman(mc[W_SD_LIVE], mc[W_SD_STRESS]):.4f}")
+    for k in (10, 20):
+        common = len(set(mc[W_SD_LIVE].nlargest(k).index)
+                     & set(mc[W_SD_STRESS].nlargest(k).index))
+        print(f"    top-{k} classic outrights by mean Phi: {common} of {k} in common")
+    print("  Cross-market the ranking largely survives on the outrights and degrades over")
+    print("  the full universe, which is three-quarters power and gas basis. So the band")
+    print("  is narrow where the package is usually read and wide where it is not.")
 
 
 if __name__ == "__main__":
     c1_classification_stability()
     c2_template_is_invariant_to_w_sd()
     c3_what_does_move()
-    c4_a_agnostic_is_undefined()
+    c4_a_agnostic_is_direction_agnostic()
+    c6_the_reported_band()
+    c7_direction_of_the_bias()
+    c8_does_the_composite_care()

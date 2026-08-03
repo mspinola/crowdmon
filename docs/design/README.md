@@ -68,6 +68,30 @@ already dated and never amended for the same reason.
 Numbers already published stay put. They are cited from commit messages and module
 docstrings, so a section that has landed never moves again.
 
+### The letter prefix is not enough on its own: cite the PATH and the REPRODUCER
+
+The prefix removes ambiguity about **which file**; it does nothing about **which repo**, and
+a session with no context cannot tell "this section does not exist" from "this section exists
+somewhere I did not look". Both halves, every time:
+
+```
+docs/design/amendments-2026-08-02.md §B34
+docs/analysis/reproduce.py::template_direction_agnostic
+```
+
+Measured rather than theoretical, like the dating convention above. `§B33-B36` was cited by
+two handoffs and read by three sessions, each of which searched `git log` on `main`, found
+nothing, and concluded the sections had never been written. They had, on 2026-08-02, on a
+branch that was never pushed. The second of those sessions re-derived all four and, having no
+definition to work from, guessed `A_agnostic` wrong (`2026-08-03 §C4`, corrected).
+
+[`../../tests/test_references.py`](../../tests/test_references.py) resolves every bare
+`§X##` in the repo against the sections defined here and fails on any that does not land, so
+the old form breaks loudly instead of quietly. **An unresolvable reference is marked, never
+deleted**: it goes in that file's `KNOWN_UNRESOLVED` with a reason and a place to look. It
+also checks each letter series for holes, which is the cheapest thing that would have caught
+`B32` being followed by nothing while four documents cited `B33`.
+
 Amendments to the cotdata-resident specs are recorded here rather than edited into them,
 because that is a shared checkout and an edit from this repo would leave uncommitted changes
 on its `main`.
