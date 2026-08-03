@@ -18,6 +18,7 @@ import re
 
 import pandas as pd
 
+from crowdmon.core import config as cfg
 from crowdmon.core.report import to_markdown
 from crowdmon.futures import (
     contributions,
@@ -208,5 +209,127 @@ def main() -> None:
     print("  Phi near its ceiling, Q/OI near the floor. Different questions.")
 
 
+def _tff_shape_labels(stable: pd.Series, fragile: pd.Series) -> pd.Series:
+    """Six mutually exclusive outcomes of a (stable, fragile) category pair.
+
+    Same construction as `reproduce.template_shape_stratified`, and explicit rather than
+    fall-through for the same reason: a market with no position at all in one leg is a
+    distinct outcome, not a variety of "the other leg is flat".
+    """
+    out = pd.Series(pd.NA, index=stable.index, dtype=object)
+    out = out.mask((stable < 0) & (fragile > 0), "cocoa direction (stable short, fragile long)")
+    out = out.mask((stable > 0) & (fragile < 0), "MIRROR (stable long, fragile short)")
+    out = out.mask((stable < 0) & (fragile < 0), "same side (both short)")
+    out = out.mask((stable > 0) & (fragile > 0), "same side (both long)")
+    out = out.mask((stable != 0) & (fragile == 0), "fragile flat")
+    out = out.mask(stable == 0, "no stable side")
+    if out.isna().any():
+        raise ValueError(f"{int(out.isna().sum())} market-weeks fell through every mask.")
+    return out
+
+
+def template_shape_tff() -> None:
+    """Amendment B32: the cocoa template on TFF, where it cannot exist in the same form.
+
+    B31 answered "do real markets show the cocoa shape" for Disaggregated. TFF is the other
+    half of the COT universe and the half the macro book lives in, and the template is not
+    merely rare there: **there is no producer category at all**. The nearest structural
+    analogue is the lowest-weighted holder (Asset Manager, 0.3) opposed to the weight-1.0
+    holder (Leveraged Funds), and the question becomes which way round they sit.
+
+    Respects the three traps §2 of the TFF analysis establishes: the consolidated aggregates
+    are dropped, the identity is not re-litigated here, and every figure is stratified by
+    asset class because crypto is a third of the market COUNT and 2% of the open interest.
+    """
+    rule("THE COCOA TEMPLATE ON TFF, WHERE IT CANNOT EXIST IN THE SAME FORM (B32)")
+
+    full = from_vintage(report_type="tff")
+    full = full[~full["market_code"].isin(CONSOLIDATED)]
+    full = full.assign(net=full["long_contracts"] - full["short_contracts"])
+    n = (full.groupby(["report_date", "market_code", "category"])["net"].sum()
+             .unstack("category").reset_index())
+    nm = full.groupby("market_code")["market_name"].first()
+    n["market_name"] = n["market_code"].map(nm)
+    n["asset_class"] = n["market_name"].map(asset_class)
+    oi = (full.groupby(["report_date", "market_code"])["open_interest"].max()
+              .rename("open_interest"))
+    n = n.merge(oi, on=["report_date", "market_code"], how="left")
+
+    weeks = n["report_date"].nunique()
+    print(f"\n{weeks} report weeks, {n['market_code'].nunique()} markets "
+          f"(3 consolidated aggregates dropped), {len(n):,} market-weeks")
+
+    print("\n  Disaggregated weights: producer_merchant 0.1 is the floor, and it is a")
+    print("  PHYSICAL hedger. TFF has no such category. Its floor is asset_manager at 0.3,")
+    print("  a pension or insurance book: unlevered and slow, but not standing for")
+    print("  delivery. The analogue is structural, not exact, and that is the finding.")
+
+    for stable, label in [("asset_manager", "asset_manager (w=0.3, the TFF floor)"),
+                          ("dealer", "dealer (w=0.4)")]:
+        n["shape"] = _tff_shape_labels(n[stable], n["leveraged"])
+        print(f"\n--- {label} against leveraged (w=1.0), all {weeks} weeks, by asset class ---")
+        ct = pd.crosstab(n["asset_class"], n["shape"])
+        pct = (ct.div(ct.sum(axis=1), axis=0) * 100).map(lambda v: f"{v:.1f}%")
+        print(to_markdown(pct.assign(**{"market-weeks": ct.sum(axis=1)}).reset_index()))
+
+        # By count the report is a third crypto and by open interest it is 2%, so the
+        # unweighted row above is not the whole story (§2 of the TFF analysis).
+        w = (n.assign(_oi=n["open_interest"])
+              .groupby("shape")["_oi"].sum().pipe(lambda s: s / s.sum()))
+        print("  same table weighted by open interest rather than market count:")
+        for k, v in w.sort_values(ascending=False).items():
+            print(f"    {k:<46s} {v:6.1%}")
+
+    n["shape"] = _tff_shape_labels(n["asset_manager"], n["leveraged"])
+    print("\n--- the rates complex specifically, all weeks ---")
+    r = n[n["market_code"].isin(RATES_COMPLEX)]
+    print(f"  {r['market_code'].nunique()} contracts, {len(r):,} market-weeks: "
+          f"{r['shape'].value_counts().to_dict()}")
+    print(f"  leveraged net SHORT in {(r['leveraged'] < 0).mean():.1%} of them, "
+          f"asset_manager net LONG in {(r['asset_manager'] > 0).mean():.1%}")
+
+    print("\n--- is the shape a property of the market, as on Disaggregated? ---")
+    g = n.groupby("market_code")
+    mkt = pd.DataFrame({
+        "asset_class": g["asset_class"].first(), "weeks": g.size(),
+        "mirror": g["shape"].apply(
+            lambda s: (s == "MIRROR (stable long, fragile short)").mean()),
+        "cocoa": g["shape"].apply(
+            lambda s: (s == "cocoa direction (stable short, fragile long)").mean())})
+    mkt = mkt[mkt["weeks"] >= 40]
+    extreme = ((mkt["mirror"] <= .1) | (mkt["mirror"] >= .9)).mean()
+    print(f"  {len(mkt)} markets with >=40 weeks; {extreme:.1%} sit at one extreme of the")
+    print("  mirror share (never or always), against 64.0% on Disaggregated.")
+    print(f"  markets always MIRROR (>=90% of weeks): {int((mkt['mirror'] >= .9).sum())}")
+    print(f"  markets always cocoa-direction (>=90%): {int((mkt['cocoa'] >= .9).sum())}")
+
+    print("\n--- the asymmetry ceiling is TIGHTER on TFF, and by a factor of three ---")
+    w_tff = cfg.weights_for("tff")
+    w_dis = cfg.weights_for("disaggregated")
+    c_tff = max(w_tff.values()) / min(w_tff.values())
+    c_dis = max(w_dis.values()) / min(w_dis.values())
+    print(f"  TFF            max/min = {max(w_tff.values())}/{min(w_tff.values())} "
+          f"= {c_tff:.3f}")
+    print(f"  Disaggregated  max/min = {max(w_dis.values())}/{min(w_dis.values())} "
+          f"= {c_dis:.3f}")
+    con = contributions(full, report_type="tff")
+    q = (con.groupby(["report_date", "market_code", "q_side"])["q_contribution"].sum()
+           .unstack("q_side").fillna(0.0))
+    sell_over_buy = (q["sell"] / q["buy"].replace(0, pd.NA)).dropna().astype(float)
+    buy_over_sell = (q["buy"] / q["sell"].replace(0, pd.NA)).dropna().astype(float)
+    print(f"  {len(sell_over_buy):,} market-weeks with both sides live")
+    print(f"    Q_sell/Q_buy: max {sell_over_buy.max():.4f}, "
+          f"breaches of {c_tff:.3f}: {int((sell_over_buy > c_tff + 1e-9).sum())}")
+    print(f"    Q_buy/Q_sell: max {buy_over_sell.max():.4f}, "
+          f"breaches of {c_tff:.3f}: {int((buy_over_sell > c_tff + 1e-9).sum())}")
+    print(f"    median Q_sell/Q_buy {sell_over_buy.median():.3f} "
+          f"(Disaggregated median is 0.993)")
+    print(f"\n  §A.2's cocoa asymmetry is 9.05x. On TFF the arithmetic maximum is "
+          f"{c_tff:.2f}x,")
+    print("  so no TFF market can reach it in any state of the world. The example is not")
+    print("  merely unrepresentative of financial futures, it is out of their range.")
+
+
 if __name__ == "__main__":
     main()
+    template_shape_tff()
