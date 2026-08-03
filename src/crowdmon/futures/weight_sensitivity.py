@@ -198,6 +198,13 @@ def single_weight_sweep(panel: pd.DataFrame, category: str, values,
     values = [float(v) for v in values]
     if not values:
         raise SensitivityError("no values to sweep")
+    if bad := sorted(v for v in values if not v > 0):
+        raise SensitivityError(
+            f"weights must be positive; got {bad}. Zero is not a small weight, it deletes "
+            f"the category from `Q_sell` while leaving it in `2·OI`, and it makes "
+            f"`weight_ceiling` undefined rather than large. A negative weight asserts that "
+            f"a category ABSORBS forced flow, which is not a claim this table can express. "
+            f"Both slip past `preserves_order`, which reports position and not sign.")
 
     others = {k: v for k, v in base.items() if k != category}
     order = [k for k, _ in sorted(base.items(), key=lambda kv: -kv[1])]
