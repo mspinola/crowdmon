@@ -34,6 +34,8 @@ Prints, in order:
   B37. the real market behind the appendix's replacement worked example
   B29. the two flow decompositions, and the oats rationale that does not hold
   B30. whether the lumber code split is what makes lumber unscoreable
+  C12-C14. the contract-spec inventory: what is covered, whether it is usable, and what
+       the 254 uncovered codes are actually made of
 
 The leading ordinals above are the order the blocks were added and have drifted: 17 and 18
 each appear twice and there is no 19. Not renumbered here, because these numbers are quoted
@@ -2066,6 +2068,136 @@ def lumber_is_one_instrument() -> None:
     print("  moves from '2 of 27' to '1 of 26' purely by counting rows correctly.")
 
 
+# ── C12-C14: the contract-spec inventory ────────────────────────────────────
+#: A code is a differential when its name states two legs. Whole-word tokens plus the `/`
+#: that separates two quoted legs. Deliberately NOT a fuzzy matcher: the point is that the
+#: seven it selects are checkable by eye against the printed list, and `2026-08-02 §B30`'s
+#: heating-oil case (`NY HARBOR ULSD` against `NY HARBOR USLD`, a transposition in the CFTC
+#: source) is why nothing here tries to normalise a market name.
+DIFF_TOKENS = (" VS ", " VS.", "/", " SPR", "CRACK", "BALMO", " PL ")
+CERT_VENUES = ("ICE FUTURES ENERGY DIV", "NODAL EXCHANGE")
+
+
+def _spec_class(name: str) -> str:
+    """The three populations of `§C14`, from the market name alone."""
+    if any(v in name for v in CERT_VENUES):
+        return "environmental/power certificate"
+    head = name.rsplit(" - ", 1)[0]
+    return ("differential/spread/crack" if any(t in head for t in DIFF_TOKENS)
+            else "real outright")
+
+
+def contract_spec_inventory() -> None:
+    """Amendments C12-C14: what the contract-spec table actually covers.
+
+    Executes tasks 1a-1c of `docs/handoffs/2026-08-03-step2-contract-master.md`, and
+    contradicts its §0 on the size of the covered universe: 45 markets in the latest week
+    across two report types, not the 25 the handoff scopes to.
+
+    Every figure the three amendments quote is printed here. The three that matter:
+
+    - the spec table is fully consumed (26 Disaggregated + 21 TFF union = 47 symbols)
+    - the covered set is 25 of 25 classic outright, so the gate the handoff sets passes
+    - "no contract spec" is three populations, and only 34 of 254 are a backlog
+    """
+    from crowdmon.futures import ContractMaster, add_volume, rank_markets
+
+    rule("CONTRACT SPEC INVENTORY (2026-08-03 C12-C14)")
+    cm = ContractMaster.load()
+
+    # ── C12: the covered universe spans two report types, and moves by week ──
+    print("\n  C12. spec'd markets by report type\n")
+    print(f"  {'report type':<16}{'on panel':>10}{'spec, union':>13}{'spec, latest':>14}")
+    totals = [0, 0]
+    for rt in ("disaggregated", "tff"):
+        vp = cm.annotate(from_vintage(report_type=rt))
+        ok = vp[vp["symbol"].notna()]
+        last = ok["report_date"].max()
+        union = ok["market_code"].nunique()
+        latest_n = ok[ok["report_date"] == last]["market_code"].nunique()
+        totals[0] += union
+        totals[1] += latest_n
+        print(f"  {rt:<16}{vp['market_code'].nunique():>10}{union:>13}{latest_n:>14}")
+        if rt == "disaggregated":
+            absent = set(ok["market_code"]) - set(
+                ok[ok["report_date"] == last]["market_code"])
+            for code in sorted(absent):
+                rows = ok[ok["market_code"] == code]
+                print(f"    spec'd but absent from the latest week: {code} "
+                      f"{rows['market_name'].iloc[0]} ({rows['symbol'].iloc[0]}), present in "
+                      f"{rows['report_date'].nunique()} of {ok['report_date'].nunique()} weeks")
+    print(f"  {'TOTAL':<16}{'':>10}{totals[0]:>13}{totals[1]:>14}")
+    print("\n  26 + 21 = 47 is the whole contract_specs table, so nothing in it is")
+    print("  stranded. The handoff's '25 of 279' counted one report type: CFTC does not")
+    print("  publish financials on Disaggregated, and they are scored on TFF today.")
+
+    # ── the covered cross-section, and the gate ──────────────────────────────
+    p = cm.annotate(latest())
+    adv = (add_volume(p)[["market_code", "adv"]].dropna()
+           .drop_duplicates("market_code").set_index("market_code")["adv"])
+    f = fragility_frame(p)
+    r = rank_markets(f, volume=f["market_code"].map(adv))     # per §C11, map first
+    spec = (p[["market_code", "market_name", "symbol", "exchange", "asset_class"]]
+            .drop_duplicates("market_code").set_index("market_code"))
+    vp = from_vintage()
+    oi = (vp[["report_date", "market_code", "open_interest"]]
+          .drop_duplicates(["report_date", "market_code"])
+          .groupby("market_code")["open_interest"].mean())
+    inv = r.set_index("market_code")[["dtl_sell"]].join(spec).join(oi.rename("mean_oi"))
+    covered = inv[inv["dtl_sell"].notna()].sort_values("mean_oi", ascending=False)
+    uncov = inv[inv["dtl_sell"].isna()].copy()
+    print(f"\n  covered (real dtl_sell) {len(covered)}, uncovered {len(uncov)}"
+          f"  [§C5 pinned 25 / 254]")
+
+    print("\n  C13. the gate: stratum, complex, Managed Money prominence\n")
+    covered_class = covered["market_name"].map(_spec_class)
+    print("  covered stratum:", dict(covered_class.value_counts()))
+    print("  covered complex:", dict(covered["asset_class"].value_counts()))
+
+    mm = vp[vp["category"] == "managed_money"].copy()
+    mm = mm[mm["open_interest"] > 0]
+    mm["share"] = (mm["long_contracts"] - mm["short_contracts"]).abs() / mm["open_interest"]
+    med = mm.groupby("market_code")["share"].median()
+    print(f"\n  median |P_MM|/OI  covered {med.reindex(covered.index).median():.4f}"
+          f"   uncovered {med.reindex(uncov.index).median():.4f}")
+    energy = covered.index[covered["asset_class"] == "Energies"]
+    e = mm[mm["market_code"].isin(energy)]
+    ne = mm[mm["market_code"].isin(covered.index.difference(energy))]
+    print(f"  market-weeks with MM under 5% of OI:"
+          f"  covered energy {(e['share'] < 0.05).mean():.3f} (n={len(e)}),"
+          f"  other covered {(ne['share'] < 0.05).mean():.3f} (n={len(ne)})")
+    template = {"088691": "gold", "084691": "silver", "085692": "copper",
+                "057642": "live cattle", "061641": "feeder cattle",
+                "083731": "coffee", "111659": "RBOB"}
+    inside = [v for k, v in template.items() if k in covered.index]
+    print(f"  always-template set (2026-08-02 B36) inside coverage: "
+          f"{len(inside)} of {len(template)}")
+    print("\n  The gate PASSES. 25 of 25 are classic outright and 0 are power/gas/carbon,")
+    print("  against a panel that 2026-08-02 B31 measured as 76% power. Energy is thin on")
+    print("  the fragility term wherever it appears, which is B33's finding arriving")
+    print("  inside coverage rather than a defect in the scoping rule.")
+
+    # ── C14: the three populations of the uncovered ──────────────────────────
+    uncov["klass"] = uncov["market_name"].map(_spec_class)
+    print("\n  C14. what 'no contract spec' is made of\n")
+    for k, n in uncov["klass"].value_counts().items():
+        print(f"    {k:<34}{n:>5}")
+    for k in ("differential/spread/crack", "real outright"):
+        sel = uncov[uncov["klass"] == k].sort_values("mean_oi", ascending=False)
+        print(f"\n  {k} ({len(sel)}):")
+        for code, row in sel.iterrows():
+            print(f"    {code}  {row['market_name'][:52]:<52}{row['mean_oi']:>12,.0f}")
+    out = uncov[uncov["klass"] == "real outright"]
+    fam = {"Henry Hub": out.index.isin(["023A55", "023A56", "03565B", "03565C"]).sum(),
+           "WTI/Brent": out.index.isin(["067411", "06765A", "06765T"]).sum(),
+           "Mt Belvieu/propane/NGL": out.index.str.startswith("06665").sum()}
+    print(f"\n  families inside the backlog: {fam}, leaving "
+          f"{len(out) - sum(fam.values())} one-instrument codes.")
+    print("  So the analytical gain is nearer 23 instruments than 34. Micro gold (088695)")
+    print("  is the case to settle first: same underlying as the covered 088691 at a tenth")
+    print("  the size, and 2026-08-02 B30 is the precedent for merging before ranking.")
+
+
 if __name__ == "__main__":
     main()
     normalisation()
@@ -2091,3 +2223,4 @@ if __name__ == "__main__":
     appendix_a2_worked_example()
     flow_equivalence()
     lumber_is_one_instrument()
+    contract_spec_inventory()

@@ -115,6 +115,46 @@ def test_rank_markets_keeps_the_two_directions_apart(vintage_panel):
     assert ranked["sell_to_buy"].nunique() > 1
 
 
+def test_a_mislabelled_volume_index_raises_rather_than_nulling_every_duration(vintage_panel):
+    """`2026-08-03 §C11`, closing `§C5`'s trap structurally rather than in a docstring.
+
+    A `market_code`-indexed Series is the natural thing to reach for, because the frame
+    carries market codes; it is the wrong thing to pass, because the alignment is positional.
+    It used to reindex to all-`NaN`, and "every duration is null" is exactly what "no volume
+    was available" looks like, so the mistake reads as a result. §C5 records a first attempt
+    at the covered-market count returning 0 of 279 for this reason and looking like a
+    confirmation of a claim that was in fact false.
+    """
+    from crowdmon.futures import market_fragility
+
+    frag = market_fragility(vintage_panel)
+    by_code = pd.Series(1_000.0, index=frag["market_code"])
+    with pytest.raises(PressureError, match="not aligned"):
+        rank_markets(frag, volume=by_code)
+    # stress_volume goes through the same gate, and the message must name the right argument
+    with pytest.raises(PressureError, match="stress_volume is not aligned"):
+        rank_markets(frag, stress_volume=by_code)
+
+
+def test_a_market_with_no_volume_is_a_null_value_not_a_missing_label(vintage_panel):
+    """The check is on labels, never on values, and that distinction is the whole design.
+
+    Partial volume coverage is the normal case (25 of 279 markets on the real panel), so it
+    has to stay expressible. `frame["market_code"].map(series)` is the documented idiom and
+    it produces exactly this shape: the frame's own index, `NaN` where the market has no
+    volume. Were the guard to look at nullity instead of labels it would reject the ordinary
+    case and force callers back to the unchecked path.
+    """
+    from crowdmon.futures import market_fragility
+
+    frag = market_fragility(vintage_panel)
+    adv = pd.Series(float("nan"), index=frag.index)
+    adv.iloc[0] = 1_000.0
+    ranked = rank_markets(frag, volume=adv)
+    assert ranked["dtl_sell"].notna().sum() == 1, "the one market with a volume scores"
+    assert ranked["dtl_sell"].isna().sum() == len(frag) - 1
+
+
 def test_the_open_interest_floor_is_an_argument_not_a_default(vintage_panel):
     """`Q/OI` is a ratio, so an unfiltered ranking of a wide universe tends to rank the
     smallest markets. The floor exists, defaults to 0, and its effect on any published

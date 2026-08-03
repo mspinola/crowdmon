@@ -671,3 +671,237 @@ induces. The question had been asked three times by then and answered ad-hoc eve
 `2026-08-01 §A22` for `producer_merchant`, `§C3` and `§C6` for `swap`.
 
 Reproducer: [`../analysis/reproduce_w_sd_band.py`](../analysis/reproduce_w_sd_band.py).
+
+---
+
+## C11. `rank_markets` now checks alignment instead of documenting it
+
+**Closes `§C5`'s trap**, which was recorded and left open. `§C5` found it while writing a
+reproducer, wrote it down, and changed nothing in code, so the next caller to reach for the
+obvious Series was owed the same hour.
+
+Reproducer: [`../analysis/reproduce.py`](../analysis/reproduce.py)`::contract_spec_inventory`,
+which uses the corrected idiom and would return 0 of 279 under the old behaviour.
+
+`rank_markets(fragility, volume=...)` documents `volume` as "aligned to `fragility`'s index".
+That index is a `RangeIndex`, so the alignment is **positional**, while the frame carries a
+`market_code` column that makes a `market_code`-indexed Series the natural thing to pass. It
+was silently `reindex`ed to all-`NaN`, and every `dtl_*` column came back null.
+
+**The reason this is worth a `raise` rather than a warning is that its output is a valid
+answer to a different question.** "Every duration is null" is exactly what a panel with no
+volume join looks like, which the package produced for months and which `README.md` and
+`core/config.py` both still asserted at the time. `§C5` records the actual cost: a first
+attempt at the covered-market count returned **0 of 279** and read as confirmation of the
+stale claim, rather than as a broken call.
+
+| call | before | now |
+|---|---|---|
+| `volume=f["market_code"].map(adv)` | 25 of 279 | 25 of 279, unchanged |
+| `volume=adv` (indexed by `market_code`) | **0 of 279, silently** | `PressureError` |
+| `volume=None` | all null | all null, unchanged |
+
+**The check is on labels, never on values, and that is the whole design.** Partial volume
+coverage is the *ordinary* case (25 of 279), so it has to stay expressible; a guard that
+looked at nullity would reject the normal panel and push callers back onto the unchecked
+path. `frame["market_code"].map(series)` produces the frame's own index with `NaN` values,
+which passes, while a foreign index fails. The error reports the overlap because zero
+overlap and partial overlap want different fixes: the first is a wrong index type, the second
+is usually a frame filtered after the Series was built.
+
+Guarded by `tests/test_panel.py::test_a_mislabelled_volume_index_raises_rather_than_nulling_every_duration`
+and its companion `::test_a_market_with_no_volume_is_a_null_value_not_a_missing_label`, which
+pins the ordinary case so the guard cannot later be tightened into rejecting it.
+
+---
+
+## C12. The covered universe is 45 markets across two report types, not 25
+
+**Contradicts** [`../handoffs/2026-08-03-step2-contract-master.md`](../handoffs/2026-08-03-step2-contract-master.md)
+§0 and §1a, which scope the monitored universe as "25 of 279 Disaggregated codes" and ask for
+an inventory of 25. The 25 is correct and is not the universe.
+
+The contract-spec table holds **47 symbols**, and every one of them has a price series
+(`spec symbols without price: []`, and the converse is empty too). They reach the panels like
+this, counting a market as covered when `ContractMaster.annotate` resolves a symbol for it:
+
+| report type | markets on panel | spec'd, union over 82 weeks | spec'd in the latest week |
+|---|---|---|---|
+| Disaggregated | 346 | 26 | **25** |
+| TFF | 111 | 21 | **20** |
+| | | **47** | **45** |
+
+26 + 21 = 47 exactly, so the spec table is fully consumed and nothing in it is stranded. The
+handoff counted one report type. The 22 symbols missing from its list are not missing specs:
+they are currencies (`6A 6B 6C 6E 6J 6M 6N 6S`, `DX`), equity indices (`ES NQ RTY YM EMD
+NKD`), rates (`ZB ZF ZN ZT`) and crypto (`BTC ETH`), and they are absent from Disaggregated
+because **CFTC does not publish financials there**. They are on TFF, where `fragility_frame`
+scores them today.
+
+`legacy` is a third report type and is deliberately refused rather than empty:
+`ConfigError: no fragility weights configured for report_type 'legacy' ... its
+'noncommercial' bucket merges levered funds with everything else non-commercial, which is the
+distinction these weights exist to make.`
+
+**Consequence for the handoff's §0, and it survives.** The scoping decision was "scope by
+where contract specs exist, not by where the cocoa shape holds", and that decision is
+unaffected: it is the *count* under it that was understated, by a factor of 1.8. Anything
+sized against "25 markets" (a roll-calendar backlog, a coverage table, a published universe)
+should be sized against 45.
+
+### The count is report-week dependent, which no coverage figure in this package said
+
+The union column above exceeds the latest-week column by exactly one on each panel, and the
+Disaggregated case is oats (`004603`, `ZO`), which is **spec'd, priced, and simply not in the
+latest report**. It appears in **23 of 82** vintage weeks. `2026-08-02 §B29` already recorded
+oats as "intermittent reporting, and it recurs" for the flow work, so this is the same fact
+arriving at the coverage layer.
+
+So "25" is a statement about report week 2026-07-28 and not a property of the store, and a
+count taken on a different week is legitimately 26 without anything having changed. Any
+inventory published from one week carries its week, which is why the companion document is in
+[`../analysis/`](../analysis/) (point-in-time, never amended) rather than in `design/`.
+
+
+Reproducer: [`../analysis/reproduce.py`](../analysis/reproduce.py)`::contract_spec_inventory`, and the full covered-set table is in [`../analysis/2026-07-28-contract-spec-inventory.md`](../analysis/2026-07-28-contract-spec-inventory.md).
+
+---
+
+## C13. The gate passes, and the failure mode it screens for is absent rather than rare
+
+**Executes** the handoff's §1b, whose stated purpose is to catch the case where "the 25 are
+mostly ICE basis contracts rather than the metals and livestock where the shape holds", making
+the coverage "technically real and analytically empty".
+
+**Stratum is 25 of 25 real outright, and 0 of 25 power/gas/carbon venue.** Not a majority,
+all of them. Read against the 76%-power universe `2026-08-02 §B31` measured, the covered set
+is not a sample of the panel at all: it is the complement of the thing that made the panel
+hard to reason about.
+
+The stratum column uses `§C14`'s three classes, so the two sections are the same partition
+counted from opposite ends:
+
+| complex | covered | | class | covered | uncovered |
+|---|---|---|---|---|---|
+| Grains | 6 | | real outright | **25** | 34 |
+| Softs | 6 | | differential / spread / crack | 0 | 7 |
+| Metals | 5 | | environmental / power certificate | 0 | 213 |
+| Energies | 4 | | | | |
+| Live Stock | 3 | | | | |
+| Dairy | 1 | | | | |
+
+The 213 certificates are 145 ICE Futures Energy Div and 68 Nodal Exchange.
+
+**Overlap with the always-template set is 7 of 7.** Gold, silver, copper, live cattle, feeder
+cattle, coffee and RBOB, the markets `2026-08-02 §B36` found extreme in *both* halves of its
+window, are all inside coverage. The set the handoff worried might be excluded is entirely
+included.
+
+**Managed Money prominence, median `|P_MM| / OI`: covered 0.1371, uncovered 0.0370.** The
+covered markets carry 3.7x the levered-holder prominence of the ones that drop out, which is
+the direction the fragility argument needs and is not something the spec table was selected
+to produce.
+
+### The one real qualification, and it was predicted
+
+`§B33`'s energy finding reproduces and applies *inside* coverage: pooled over the four covered
+energy outrights, **51.2%** of market-weeks have Managed Money under 5% of open interest
+(n=328), against **13.9%** for the other 21 covered markets (n=1,722). Per market it is Nat
+Gas 70.7%, WTI 69.5%, ULSD 54.9%, RBOB 9.8%.
+
+So energy is thin on the fragility term wherever it appears, and being spec'd does not fix
+that. This is a **known property of four named markets**, not a defect in the scoping rule,
+and it is the opposite of the failure the gate screens for: the gate asks whether coverage is
+full of markets the thesis cannot speak about, and the answer is that it contains four where
+it speaks quietly and 21 where it speaks normally.
+
+**Verdict: the gate passes.** Proceed rather than stop.
+
+
+Reproducer: [`../analysis/reproduce.py`](../analysis/reproduce.py)`::contract_spec_inventory`, and the full covered-set table is in [`../analysis/2026-07-28-contract-spec-inventory.md`](../analysis/2026-07-28-contract-spec-inventory.md).
+
+---
+
+## C14. "No contract spec" is three populations, and only 34 of 254 are a backlog
+
+**Executes** the handoff's §1c, which anticipates two populations (`missing` = a real
+tradeable contract whose spec we have not entered; `inapplicable` = no meaningful spec to
+have). Measured, there is a third, and it is the one that would have been mis-filed.
+
+| class | n | disposition |
+|---|---|---|
+| environmental / power certificate | 213 | **inapplicable, permanent.** RECs, carbon allowances, PJM and ERCOT zones |
+| differential, spread or crack | 7 | **inapplicable, and not for the same reason** |
+| real outright | **34** | **missing. This is the backlog** |
+
+**The middle row is the correction.** A venue-based split (the obvious one, and the one the
+handoff's framing invites) puts 41 codes in "classic outright" because they trade on NYMEX and
+COMEX rather than on Nodal. Seven of those are differentials, and they are the complete list
+rather than examples:
+
+| code | name |
+|---|---|
+| `0676A5` | WTI HOUSTON ARGUS/WTI TR MO |
+| `067A71` | WTI MIDLAND ARGUS VS WTI TRADE |
+| `022A13` | UP DOWN GC ULSD VS HO SPR |
+| `0676A6` | WTI HOUSTON ARGUS/WTI BALMO |
+| `111A34` | GULF COAST CBOB GAS A2 PL RBOB |
+| `86465A` | GULF JET NY HEAT OIL SPR |
+| `86565A` | GULF # 6 FUEL OIL CRACK |
+
+These have a multiplier and a tick size, so they are not "no meaningful spec to have" in the
+handoff's sense, and they are still permanent exclusions, for a reason the handoff's binary
+cannot express: **the normalisation ladder computes a position value, and a differential does
+not have one.** `P · M · F` on a spread whose `F` oscillates around zero is not a smaller
+notional, it is not a notional. This is the same class of error as the `backadj` trap in
+`CLAUDE.md`'s table, where a number is produced, is finite, and means nothing.
+
+The 34 genuine backlog items, largest first by mean open interest over the vintage panel:
+
+| market | mean OI | | market | mean OI |
+|---|---|---|---|---|
+| `067411` WTI, ICE Europe | 798,670 | | `191693` Aluminum MWP | 28,838 |
+| `023A55` Henry Hub last-day fin | 420,336 | | `005603` Mini soybeans | 27,891 |
+| `03565B` Henry Hub | 362,655 | | `189691` Lithium hydroxide | 27,847 |
+| `135731` Canola | 271,205 | | `037021` USD Malaysian palm oil | 27,355 |
+| `023A56` Henry Hub penultimate fin | 253,028 | | `063642` Cheese | 25,601 |
+| `06765T` Brent last day | 217,269 | | `191696` Aluminium Euro prem | 24,299 |
+| `06765A` WTI financial | 175,418 | | `06665T` Conway propane | 22,351 |
+| `03565C` Henry Hub penult nat gas | 153,896 | | `188691` Cobalt | 15,233 |
+| `06665O` Propane | 139,138 | | `050642` Butter | 14,789 |
+| `001626` Wheat-HRSpring, MIAX | 77,384 | | `039601` Rough rice | 12,374 |
+| `088695` Micro gold | 55,579 | | `052642` Non fat dry milk | 11,022 |
+| `06665Q` Mt Belv normal butane | 51,235 | | `192691` N Euro HRC steel | 10,973 |
+| `06665P` Mt Belvieu ethane | 49,818 | | `052644` CME Milk IV | 10,019 |
+| `06665R` Mt Belv nat gasoline | 40,672 | | `406651` PGP propylene | 7,367 |
+| `025651` Ethanol | 39,668 | | `025608` Ethanol T2 FOB | 5,647 |
+| `192651` Steel HRC | 33,298 | | `06665B` Argus propane Far East | 5,264 |
+| `06665G` Propane non-LDH Mt Bel | 29,972 | | `052645` Dry whey | 3,968 |
+
+Two observations that change how the backlog should be read, rather than only its length.
+
+**It is not 34 independent markets.** Fourteen of the 34 are variants within three families:
+
+| family | codes | |
+|---|---|---|
+| Henry Hub natural gas | 4 | `023A55` `023A56` `03565B` `03565C` |
+| WTI and Brent | 3 | `067411` `06765A` `06765T` |
+| Mt Belvieu / propane / NGL grades | 7 | `06665B` `06665G` `06665O` `06665P` `06665Q` `06665R` `06665T` |
+| everything else, one instrument each | 20 | |
+
+Adding specs is per-code work, but the *analytical* gain is nearer **23 new instruments than
+34**, and `continuity.py` already exists because a market code is not an instrument.
+
+**Micro gold (`088695`) is the case to think about before the large ones.** It is the same
+underlying as `088691`, which is already covered, at a tenth the contract size. Adding it
+without a view on aggregation would put gold into every cross-market ranking twice, at two
+scales, and `2026-08-02 §B30` is the precedent: two lumber codes were one instrument, and
+merging them end to end lifted every rung. A spec is necessary and not sufficient.
+
+**Adding any of these needs the Norgate producer**, which runs on the Windows box only
+(`manifests/prices.json` records `"source": "norgate"` for both bars and `contract_specs`).
+So the backlog is not a code change here, which is what the handoff's §0 means by "spec
+coverage is a build backlog, not a boundary": it is something we control, and not something
+this repo can execute alone.
+
+Reproducer: [`../analysis/reproduce.py`](../analysis/reproduce.py)`::contract_spec_inventory`, and the full covered-set table is in [`../analysis/2026-07-28-contract-spec-inventory.md`](../analysis/2026-07-28-contract-spec-inventory.md).
