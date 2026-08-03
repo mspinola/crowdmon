@@ -1,6 +1,6 @@
 # Handoff: the Swap Dealer weight decision
 
-**Status:** **complete, 2026-08-03 (PR #NN).** Decided by the human as **option (a)**:
+**Status:** **complete, 2026-08-03 (PR #44).** Decided by the human as **option (a)**:
 `swap: 0.4` stands, examined and deliberately kept. See §7. §6 corrects §1's headline figure
 before the decision was taken, and `single_weight_sweep` (the one item §4 released) is built.
 **Date:** 2026-08-03
