@@ -18,6 +18,10 @@ Market selection, and why each is here:
   Disaggregated universe exercises that path.
 - `0063CU` CALIF LOW CARBON, `02339S` CIG ROCKIES FINANCIAL INDEX — the two markets the
   latest-week ranking selected, so the walkthroughs' arithmetic is checkable offline.
+- `057642` LIVE CATTLE, the real market appendix §A.2 now works through, so
+  `test_appendix.py` can assert the published figures without a store. The appendix is a
+  living document quoting real values, and a document quoting real values that nothing
+  recomputes is a document that drifts.
 
 The history fixture spans 2006-06-13 to 2026-07-28, which is what makes the Phi-bound test
 a claim about twenty years rather than about one capture.
@@ -41,7 +45,7 @@ def main() -> None:
           f"{history['report_date'].min().date()} to {history['report_date'].max().date()}")
 
     vintage = from_vintage()
-    vintage = vintage[vintage["market_code"].isin(["0063CU", "02339S", "088691"])]
+    vintage = vintage[vintage["market_code"].isin(["0063CU", "02339S", "088691", "057642"])]
     vintage = vintage[[c for c in vintage.columns if c not in VINTAGE_DROP]]
     vintage.to_parquet(HERE / "panel_disagg_vintage.parquet", index=False)
     print(f"vintage: {len(vintage):,} rows, "

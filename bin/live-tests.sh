@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# crowdmon live-test run — the 57 assertions CI structurally cannot make.
+# crowdmon live-test run, the 61 assertions CI structurally cannot make.
 #
 # CI runs against a two-panel fixture store, so every `tests/*_live.py` assertion skips
 # there: the layer-2 trap-table figures, the appendix's cocoa arithmetic, the volume and

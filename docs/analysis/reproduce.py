@@ -27,6 +27,11 @@ Prints, in order:
  20. the macro-book PCA and what PC1 actually is, per report type (B21)
   B28. the cocoa template measured as a joint shape rather than two margins
   B31. the same template stratified by population and followed through all 82 weeks
+  B33. Managed Money magnitude conditional on sign: absence, or symmetric swing?
+  B34. the same asymmetry measured without a direction
+  B35. swap-dealer share as a predictor of non-template status (it is not one)
+  B36. stability, per-complex ordering, and whether the ag month profile repeats
+  B37. the real market behind the appendix's replacement worked example
   B29. the two flow decompositions, and the oats rationale that does not hold
   B30. whether the lumber code split is what makes lumber unscoreable
 
@@ -37,6 +42,7 @@ by the analysis documents. New blocks are labelled by their amendment ID instead
 import numpy as np
 import pandas as pd
 
+from crowdmon.core import config as cfg
 from crowdmon.futures import (
     contributions,
     decompose,
@@ -47,6 +53,7 @@ from crowdmon.futures import (
     latest,
     oi_identity_summary,
     report,
+    shape_labels,
     tolerance_sensitivity,
 )
 
@@ -1196,34 +1203,48 @@ AG_METAL_VENUES = {"CHICAGO BOARD OF TRADE", "CHICAGO MERCANTILE EXCHANGE",
                    "MIAX FUTURES EXCHANGE"}
 
 
-def _shape_labels(pm: pd.Series, mm: pd.Series) -> pd.Series:
-    """The six mutually exclusive outcomes of the Producer/Merchant x Managed Money pair.
+#: Display names for `fragility.SHAPE_KEYS` on the Disaggregated pair, as B28 and B31 quote
+#: them. The classification itself lives in the package: it was written twice, here and in
+#: `reproduce_tff.py`, which is the duplication B29 is about, so it is now one function with
+#: two label maps.
+DISAGG_SHAPE_LABELS = {
+    "fragile_long": "template (PM short, MM long)",
+    "fragile_short": "inverted (PM long, MM short)",
+    "both_short": "same side (both short)",
+    "both_long": "same side (both long)",
+    "fragile_flat": "MM net flat",
+    "no_stable_side": "no hedger side (PM flat)",
+}
 
-    B28 counts five, and the sixth is not a refinement of a rounding error: `PM == 0` is a
-    market with **no hedger side at all**, where the template is not false but
-    inexpressible. Labelling by fall-through instead of by explicit mask silently folds it
-    into "MM flat", which is how a first pass at this block reported MICRO GOLD as an
-    MM-flat market when Managed Money is in fact net long in 84% of its weeks.
-    """
-    out = pd.Series(pd.NA, index=pm.index, dtype=object)
-    out = out.mask((pm < 0) & (mm > 0), "template (PM short, MM long)")
-    out = out.mask((pm > 0) & (mm < 0), "inverted (PM long, MM short)")
-    out = out.mask((pm < 0) & (mm < 0), "same side (both short)")
-    out = out.mask((pm > 0) & (mm > 0), "same side (both long)")
-    out = out.mask((pm != 0) & (mm == 0), "MM net flat")
-    out = out.mask(pm == 0, "no hedger side (PM flat)")
-    if out.isna().any():
-        raise ValueError(f"{int(out.isna().sum())} market-weeks fell through every shape "
-                         f"mask; the six labels are meant to be exhaustive.")
-    return out
+
+def _shape_labels(pm: pd.Series, mm: pd.Series) -> pd.Series:
+    """The six outcomes of the Producer/Merchant x Managed Money pair, named as B28 does."""
+    return shape_labels(pm, mm, labels=DISAGG_SHAPE_LABELS)
 
 
 def _shape_panel() -> pd.DataFrame:
-    """One row per (report_date, market_code): category nets, stratum, and shape."""
+    """One row per (report_date, market_code): category nets, stratum, and shape.
+
+    Also carries per-category GROSS (`gross_<category>`), the market's open interest, and
+    the two directional Q totals, because the B33-B36 blocks need magnitudes rather than
+    only signs. Open interest is taken with `max` and never `sum`: it is the market total
+    repeated on every category row, so summing it multiplies it by five and silently
+    divides every ratio built on it.
+    """
     full = from_vintage()
-    full = full.assign(net=full["long_contracts"] - full["short_contracts"])
+    full = full.assign(net=full["long_contracts"] - full["short_contracts"],
+                       gross=full["long_contracts"] + full["short_contracts"])
     n = (full.groupby(["report_date", "market_code", "category"])["net"].sum()
              .unstack("category").reset_index())
+    gross = (full.groupby(["report_date", "market_code", "category"])["gross"].sum()
+                 .unstack("category").rename(columns=lambda c: f"gross_{c}").reset_index())
+    n = n.merge(gross, on=["report_date", "market_code"], how="left")
+    n = n.merge(full.groupby(["report_date", "market_code"])["open_interest"].max()
+                    .rename("oi").reset_index(),
+                on=["report_date", "market_code"], how="left")
+    w = cfg.weights_for("disaggregated")
+    n["q_sell"] = sum(w[c] * n[c].clip(lower=0) for c in w)
+    n["q_buy"] = sum(w[c] * (-n[c]).clip(lower=0) for c in w)
     n["market_name"] = n["market_code"].map(full.groupby("market_code")["market_name"].first())
     n["venue"] = n["market_name"].str.rsplit(" - ", n=1).str[-1]
     n["complex"] = n["market_code"].map(lambda c: CLASSIC_OUTRIGHTS.get(c, (None, None))[1])
@@ -1354,8 +1375,6 @@ def template_shape_stratified() -> None:
     print("  long side is an index/swap book, not a levered fund.")
 
     print("\n--- 8. the asymmetry is bounded by the WEIGHT TABLE, not by the data ---")
-    from crowdmon.core import config as cfg
-
     w = cfg.weights_for("disaggregated")
     ceiling = max(w.values()) / min(w.values())
     print(f"  weights {w}")
@@ -1374,6 +1393,508 @@ def template_shape_stratified() -> None:
     print(f"    at or above the appendix's 9.045: {int((ratio >= 9.045).sum())} market-weeks")
     print(f"\n  So §A.2's 9.05x is {9.045 / ceiling:.1%} of the mechanical ceiling, not an")
     print("  empirical extreme, and the median market-week is 0.993 — no asymmetry at all.")
+
+
+def _spearman(a: pd.Series, b: pd.Series) -> float:
+    """Rank correlation, computed as Pearson on ranks.
+
+    Not `Series.corr(method="spearman")`, which imports `scipy`. `tests/test_boundaries.py`
+    allowlists `pandas`, `numpy` and `pyarrow` only, so a reproducer that needed scipy would
+    be printing figures the package itself is forbidden to compute.
+    """
+    return float(a.rank().corr(b.rank()))
+
+
+def template_conditional_magnitude() -> None:
+    """Amendment B33: the Managed Money coin flip is a coin flip in SIGN, not in size.
+
+    B31 measured Managed Money net long in 50.0% of classic-outright market-weeks and read
+    it as the half of the template that fails. A frequency admits two opposite readings:
+    the fund is small and directionless (the fragility argument genuinely fails), or it
+    swings between large long and large short (the market is fragile and the template
+    merely names the wrong direction half the time). Magnitude conditional on sign is what
+    separates them, and B31 did not measure it.
+    """
+    rule("MANAGED MONEY MAGNITUDE, CONDITIONAL ON SIGN (2026-08-02 B33)")
+
+    n = _shape_panel()
+    cl = n[n["stratum"] == "1 classic outright"].copy()
+    w = cfg.weights_for("disaggregated")
+    cl["abs_over_oi"] = cl["managed_money"].abs() / cl["oi"]
+    cl["q_gross"] = cl["q_sell"] + cl["q_buy"]
+    cl["mm_over_q"] = w["managed_money"] * cl["managed_money"].abs() / cl["q_gross"]
+    print(f"\n{len(cl):,} classic-outright market-weeks, "
+          f"{cl['market_code'].nunique()} markets, {cl['report_date'].nunique()} weeks")
+    print("  `Q_total` here is `q_gross = Q_sell + Q_buy`, the name the code already gives")
+    print("  the combined figure. It is a DENOMINATOR and never a flow: forced longs sell")
+    print("  and forced shorts buy, so the sum describes an event that cannot happen.")
+
+    rows = []
+    for label, sub in [("P_MM > 0 (net long)", cl[cl["managed_money"] > 0]),
+                       ("P_MM < 0 (net short)", cl[cl["managed_money"] < 0]),
+                       ("P_MM = 0 (net flat)", cl[cl["managed_money"] == 0]),
+                       ("unconditional", cl)]:
+        a, m = sub["abs_over_oi"], sub["mm_over_q"]
+        rows.append({
+            "conditional on": label, "market-weeks": len(sub),
+            "|P|/OI median": f"{a.median():.4f}",
+            "|P|/OI IQR": f"{a.quantile(.25):.4f} - {a.quantile(.75):.4f}",
+            "w|P|/Q_total median": f"{m.median():.4f}",
+            "w|P|/Q_total IQR": f"{m.quantile(.25):.4f} - {m.quantile(.75):.4f}"})
+    print("\n--- 1. |P_MM| / OI and the fragility contribution, by sign ---")
+    print(report.to_markdown(pd.DataFrame(rows)))
+
+    print("\n--- 2. how much of the book is 'directionless', at three thresholds ---")
+    print("  The 0.05 cut is a judgement. It is stated rather than hidden, and the two")
+    print("  neighbouring cuts are printed so the reading does not rest on it.")
+    for thr in (0.02, 0.05, 0.10):
+        hit = cl["abs_over_oi"] < thr
+        print(f"    |P_MM|/OI < {thr:.2f}: {hit.mean():>6.1%}  ({int(hit.sum()):,} of "
+              f"{len(cl):,})")
+
+    print("\n--- 3. the same by complex, since the template rate already varies sharply ---")
+    rows = []
+    for cx, sub in cl.groupby("complex"):
+        lo = sub[sub["managed_money"] > 0]["abs_over_oi"]
+        sh = sub[sub["managed_money"] < 0]["abs_over_oi"]
+        rows.append({"complex": cx, "market-weeks": len(sub),
+                     "MM net long": f"{(sub['managed_money'] > 0).mean():.1%}",
+                     "|P|/OI med, long": f"{lo.median():.4f}",
+                     "|P|/OI med, short": f"{sh.median():.4f}",
+                     "< 5% of OI": f"{(sub['abs_over_oi'] < .05).mean():.1%}",
+                     "w|P|/Q_total med": f"{sub['mm_over_q'].median():.4f}"})
+    print(report.to_markdown(pd.DataFrame(rows)))
+
+    print("\n--- 4. the verdict: absence, or symmetric swing? Neither, exactly ---")
+    for label, sub in [("classic outright", cl),
+                       ("power/gas venue", n[n["venue"].isin(POWER_VENUES)])]:
+        lo = sub.loc[sub["managed_money"] > 0, "managed_money"]
+        sh = sub.loc[sub["managed_money"] < 0, "managed_money"].abs()
+        print(f"    {label:<18s} weeks net long {(sub['managed_money'] > 0).mean():>6.1%}   "
+              f"CONTRACTS on the long side {lo.sum() / (lo.sum() + sh.sum()):>6.1%}")
+    print("  Half the weeks, but nearly two thirds of the contracts. The sign is a coin")
+    print("  flip and the size is not.")
+
+    per = cl.groupby("market_code")["managed_money"].apply(lambda s: (s > 0).mean())
+    print(f"\n    per-market net-long rate over 82 weeks, {len(per)} markets: "
+          f"<=10% {int((per <= .1).sum())}, middle {int(((per > .1) & (per < .9)).sum())}, "
+          f">=90% {int((per >= .9).sum())}")
+    print("  So the 50.0% is not a market that flips; it is a universe of markets that")
+    print("  mostly do not, split roughly evenly between the two directions. Same mixture")
+    print("  structure B31 found for the template itself, one level down.")
+
+
+def template_direction_agnostic() -> None:
+    """Amendment B34: the median asymmetry of 0.993 is direction cancelling, not symmetry.
+
+    The template as specified encodes a direction. What the thesis needs is a levered
+    concentration on SOME side that can be forced out, opposed by one that cannot; which
+    side is incidental. Measured direction-agnostically, both B31's headline figures move.
+    """
+    rule("DIRECTION-AGNOSTIC ASYMMETRY (2026-08-02 B34)")
+
+    w = cfg.weights_for("disaggregated")
+    ceiling = max(w.values()) / min(w.values())
+    con = contributions(from_vintage())
+    q = (con.groupby(["report_date", "market_code", "q_side"])["q_contribution"].sum()
+           .unstack("q_side").fillna(0.0))
+    q = q[(q["sell"] > 0) & (q["buy"] > 0)].reset_index()
+    q["a_dir"] = q["sell"] / q["buy"]
+    q["a_agn"] = (np.maximum(q["sell"], q["buy"]) / np.minimum(q["sell"], q["buy"]))
+    q["classic"] = q["market_code"].isin(CLASSIC_OUTRIGHTS)
+    print(f"\n{len(q):,} market-weeks with both sides live. Ceiling max(w)/min(w) = "
+          f"{ceiling:.1f}")
+    print("    A_directional = Q_sell / Q_buy")
+    print("    A_agnostic    = max(Q_sell, Q_buy) / min(Q_sell, Q_buy)")
+
+    rows = []
+    for label, sub in [("classic outright", q[q["classic"]]),
+                       ("everything else", q[~q["classic"]]),
+                       ("all", q)]:
+        rows.append({
+            "stratum": label, "market-weeks": len(sub),
+            "A_dir median": f"{sub['a_dir'].median():.4f}",
+            "A_agn median": f"{sub['a_agn'].median():.4f}",
+            "A_agn p90": f"{sub['a_agn'].quantile(.9):.3f}",
+            "A_agn max": f"{sub['a_agn'].max():.4f}",
+            "of ceiling (median)": f"{sub['a_agn'].median() / ceiling:.1%}",
+            "breaches": int((sub["a_agn"] > ceiling + 1e-9).sum())})
+    print("\n--- 1. the two ratios side by side ---")
+    print(report.to_markdown(pd.DataFrame(rows)))
+
+    print("\n--- 2. why the directional median sits at 1, and it is not symmetry ---")
+    print(f"    Q_sell is the larger side in {(q['sell'] > q['buy']).mean():.1%} of all "
+          f"market-weeks,")
+    print(f"    and in {(q[q['classic']]['sell'] > q[q['classic']]['buy']).mean():.1%} of "
+          f"classic outrights.")
+    print(f"    market-weeks that are genuinely near-symmetric (A_agn < 1.1): "
+          f"{(q['a_agn'] < 1.1).mean():.1%} of all, "
+          f"{(q[q['classic']]['a_agn'] < 1.1).mean():.1%} of classic outrights.")
+    print("  A median of 0.993 on the SIGNED ratio is a coin flip about which side is")
+    print("  bigger, landing on 1 the way a mean of two opposite numbers does. Under 5% of")
+    print("  market-weeks actually have the two sides within 10% of each other.")
+
+    print("\n--- 3. the shape table, and what reclassifies ---")
+    n = _shape_panel()
+    cl = n[n["stratum"] == "1 classic outright"]
+    share = cl["shape"].value_counts(normalize=True)
+    # Formatted as strings for the same reason `_share_table` does it: `to_markdown` picks
+    # a format per column for contract counts, and a column of shares reads as `44.7000`.
+    print(report.to_markdown(share.map(lambda v: f"{v:.1%}")
+                                  .rename("% of market-weeks").reset_index()))
+    opposed = cl["shape"].isin(["template (PM short, MM long)",
+                                "inverted (PM long, MM short)"])
+    tmpl = (cl["shape"] == "template (PM short, MM long)").mean()
+    print(f"\n    directional template          {tmpl:.1%}")
+    print(f"    + inverted, which reclassifies {share.get('inverted (PM long, MM short)', 0):.1%}")
+    print(f"    = opposed, either direction    {opposed.mean():.1%}")
+    print("  Every inverted market-week reclassifies: it is the same configuration with")
+    print("  the fragile fund short and the hedger long, so the forced flow is buying")
+    print("  rather than selling. That is B32's TFF finding appearing inside Disaggregated.")
+
+    print("\n--- 4. the ceiling caveat, carried as B31 carried it ---")
+    print(f"    appendix §A.2 sits at 9.045 = {9.045 / ceiling:.1%} of the ceiling.")
+    print(f"    percentile of 9.045 within classic outrights: "
+          f"{(q[q['classic']]['a_dir'] <= 9.045).mean():.2%}, "
+          f"whole universe {(q['a_dir'] <= 9.045).mean():.3%}")
+    print("  A_agnostic carries exactly the same bound, since it is the same two sums with")
+    print("  the larger on top, so nothing here escapes the weight table.")
+
+    # B31 says the market-weeks reaching 9.045 are "all gas basis, power or
+    # crude-differential markets rather than outrights". Enumerated rather than glanced at.
+    print("\n--- 5. WHICH market-weeks reach the appendix's 9.045, enumerated ---")
+    hi = q[q["a_dir"] >= 9.045].copy()
+    hi["market_name"] = hi["market_code"].map(
+        from_vintage().groupby("market_code")["market_name"].first())
+    tally = (hi.groupby(["classic", "market_code", "market_name"]).size()
+               .rename("market-weeks").reset_index()
+               .sort_values(["classic", "market-weeks"], ascending=[True, False]))
+    print(report.to_markdown(tally))
+    print(f"\n    {len(hi)} market-weeks in {hi['market_code'].nunique()} markets; "
+          f"{int(hi['classic'].sum())} of them are CLASSIC OUTRIGHTS.")
+    print("  B31 says all of them are gas basis, power or crude differentials. The count is")
+    print("  right and the characterisation is not: copper, RBOB, canola, coffee and spring")
+    print("  wheat all reach it, and so does COMEX steel, which is none of the three.")
+
+
+def template_swap_share() -> None:
+    """Amendment B35: swap-dealer prominence does not predict non-template status.
+
+    The hypothesis, from the handoff and worth testing rather than assuming: cocoa's largest
+    net long is the Swap Dealer, crude and gas have heavy swap intermediation and are never
+    template, so swap books may be displacing Managed Money on the long side and suppressing
+    the shape. It is a clean hypothesis and the data does not support it.
+    """
+    rule("SWAP-DEALER SHARE AS A PREDICTOR OF NON-TEMPLATE STATUS (2026-08-02 B35)")
+
+    n = _shape_panel()
+    n["is_template"] = n["shape"] == "template (PM short, MM long)"
+    n["swap_share"] = n["gross_swap"] / (2 * n["oi"])
+    cl = n[n["stratum"] == "1 classic outright"]
+    print("\n    swap_share = (L_SD + S_SD) / (2 . OI), the same gross-over-2.OI form Phi")
+    print("    uses, averaged over each market's weeks.")
+
+    mkt = cl.groupby("market_code").agg(
+        swap_share=("swap_share", "mean"), template=("is_template", "mean"),
+        weeks=("is_template", "size"), complex=("complex", "first"))
+    mkt = mkt[mkt["weeks"] >= 40]
+    print(f"\n--- 1. across {len(mkt)} classic-outright markets with >= 40 weeks ---")
+    print(f"    pearson  {mkt['swap_share'].corr(mkt['template']):+.3f}")
+    print(f"    spearman {_spearman(mkt['swap_share'], mkt['template']):+.3f}")
+
+    print("\n--- 2. within complex, since complex is the obvious confound ---")
+    rows = []
+    for cx, sub in mkt.groupby("complex"):
+        rows.append({"complex": cx, "markets": len(sub),
+                     "swap_share mean": f"{sub['swap_share'].mean():.3f}",
+                     "template mean": f"{sub['template'].mean():.3f}",
+                     "pearson": "n/a" if len(sub) < 4
+                     else f"{sub['swap_share'].corr(sub['template']):+.3f}",
+                     "spearman": "n/a" if len(sub) < 4
+                     else f"{_spearman(sub['swap_share'], sub['template']):+.3f}"})
+    print(report.to_markdown(pd.DataFrame(rows)))
+    print("  The sign is not stable across complexes: metals positive, livestock and energy")
+    print("  negative. A relationship that reverses inside the strata is not a relationship.")
+
+    print("\n--- 3. does it separate the always-template set from the never-template set? ---")
+    always = ["088691", "084691", "085692", "057642", "061641", "083731", "111659"]
+    never = ["03565B", "067651", "06765A", "067411", "052642", "052644", "001602", "039601"]
+    rows = []
+    for label, codes in [("always template", always), ("never template", never)]:
+        for code in codes:
+            if code in mkt.index:
+                rows.append({"set": label, "market": CLASSIC_OUTRIGHTS[code][0],
+                             "complex": CLASSIC_OUTRIGHTS[code][1],
+                             "swap_share": f"{mkt.loc[code, 'swap_share']:.3f}",
+                             "template rate": f"{mkt.loc[code, 'template']:.3f}"})
+    print(report.to_markdown(pd.DataFrame(rows)))
+    a = mkt.loc[[c for c in always if c in mkt.index], "swap_share"]
+    b = mkt.loc[[c for c in never if c in mkt.index], "swap_share"]
+    print(f"\n    always-template swap share: mean {a.mean():.3f}, "
+          f"range {a.min():.3f} to {a.max():.3f}")
+    print(f"    never-template  swap share: mean {b.mean():.3f}, "
+          f"range {b.min():.3f} to {b.max():.3f}")
+    print("  The two means are the same to three decimals and the ranges nest. The single")
+    print("  heaviest swap book in the classic universe is HENRY HUB (never template) and")
+    print("  the second is GOLD (always template).")
+
+    print("\n--- 4. two robustness checks the hypothesis could still have survived ---")
+    allm = n.groupby("market_code").agg(
+        swap_share=("swap_share", "mean"), template=("is_template", "mean"),
+        weeks=("is_template", "size"), stratum=("stratum", "first"))
+    allm = allm[allm["weeks"] >= 40]
+    print(f"    (a) all {len(allm)} markets with >= 40 weeks, not only the 39 outrights:")
+    print(f"        pooled spearman {_spearman(allm['swap_share'], allm['template']):+.3f}")
+    for st, sub in allm.groupby("stratum"):
+        print(f"          {st:<26s} n={len(sub):>3}  "
+              f"spearman {_spearman(sub['swap_share'], sub['template']):+.3f}")
+    d = cl.copy()
+    d["sw"] = d["swap_share"] - d.groupby("market_code")["swap_share"].transform("mean")
+    d["tp"] = (d["is_template"].astype(float)
+               - d.groupby("market_code")["is_template"].transform("mean"))
+    print("    (b) within market, week to week (both series demeaned per market):")
+    print(f"        pearson {d['sw'].corr(d['tp']):+.3f} over {len(d):,} market-weeks")
+    print("  A high-swap WEEK is no less template than that market's own average either.")
+
+    print("\n--- 5. the CIT supplemental report, which would test the index-flow reading ---")
+    import os
+    import pathlib
+
+    root = pathlib.Path(os.environ["COTDATA_STORE"])
+    domains = sorted(p.name for p in root.iterdir()
+                     if p.is_dir() and p.name.startswith("cot_"))
+    print(f"    store COT domains: {domains}")
+    print("    No CIT / supplemental domain is ingested, so whether the swap book in the")
+    print("    ags is index flow rather than levered flow cannot be tested here. Not")
+    print("    fetched in this session, per the handoff. It would sharpen the weighting")
+    print("    question and it cannot rescue the hypothesis: the correlation is absent")
+    print("    before any question about what the swap book contains.")
+
+
+def template_stability() -> None:
+    """Amendment B36: the level is stable, the per-market classification is not, and the
+    apparent ag seasonality does not repeat across the only two years available.
+
+    B31's 82-of-82 consistency is about the GAP between ag/metal and power/gas venues. That
+    is a different claim from stability of the level, of the per-complex ordering, or of a
+    market's own classification, and 82 weeks is 1.6 years: enough to observe a seasonal
+    pattern, not enough to separate one from a trend. This block says which of those the
+    data supports.
+    """
+    rule("STABILITY AND SEASONALITY ACROSS THE 82 WEEKS (2026-08-02 B36)")
+
+    n = _shape_panel()
+    n["is_template"] = n["shape"] == "template (PM short, MM long)"
+    cl = n[n["stratum"] == "1 classic outright"].copy()
+
+    print("\n--- 1. the classic-outright template rate as a weekly series ---")
+    wk = cl.groupby("report_date")["is_template"].mean()
+    x = np.arange(len(wk))
+    slope, _ = np.polyfit(x, wk.to_numpy(), 1)
+    r2 = float(np.corrcoef(x, wk.to_numpy())[0, 1] ** 2)
+    print(f"    {len(wk)} weeks: mean {wk.mean():.3f}, sd {wk.std():.4f}, "
+          f"range {wk.min():.3f} to {wk.max():.3f}")
+    print(f"    linear fit {slope:+.5f}/week = {slope * 52:+.3f}/year, R^2 {r2:.3f}")
+    print(f"    first half {wk.iloc[:41].mean():.3f}  ->  second half {wk.iloc[41:].mean():.3f}")
+    print("    every fourth week, so the series can be eyeballed rather than trusted:")
+    for i, (d, v) in enumerate(wk.items()):
+        if i % 4 == 0:
+            print(f"      {pd.Timestamp(d).date()}  {v:.3f}")
+    print("  A flat level with no trend worth naming. 82 points do not support more model")
+    print("  than a straight line, and the straight line explains 2.6% of the variation.")
+
+    print("\n--- 2. per-complex weekly rates, and whether the ordering holds ---")
+    cw = cl.pivot_table(index="report_date", columns="complex", values="is_template",
+                        aggfunc="mean")
+    rows = [{"complex": c, "mean": f"{cw[c].mean():.3f}", "min": f"{cw[c].min():.3f}",
+             "max": f"{cw[c].max():.3f}",
+             "weeks ranked top": int((cw.rank(axis=1, ascending=False)[c] == 1).sum())}
+            for c in cw.columns]
+    print(report.to_markdown(pd.DataFrame(rows)))
+    print(f"\n    metals > livestock/dairy in "
+          f"{int((cw['metals'] > cw['livestock/dairy']).sum())} of {len(cw)} weeks")
+    print(f"    metals > grains/oilseeds in "
+          f"{int((cw['metals'] > cw['grains/oilseeds']).sum())} of {len(cw)} weeks")
+    print("  B31's metals-first ordering holds against livestock every week and against")
+    print("  grains in about four weeks in five. It is not a ranking that inverts.")
+
+    print("\n--- 3. seasonality, which is the way this ordering could be misleading ---")
+    ag = cl[cl["complex"].isin(["grains/oilseeds", "livestock/dairy", "softs"])].copy()
+    nag = cl[cl["complex"].isin(["metals", "energy outright"])].copy()
+    for frame in (ag, nag):
+        frame["month"] = pd.to_datetime(frame["report_date"]).dt.month
+        frame["year"] = pd.to_datetime(frame["report_date"]).dt.year
+    bym = ag.groupby("month")["is_template"].agg(["mean", "size"])
+    bym["non-ag control"] = nag.groupby("month")["is_template"].mean()
+    print("    Calendar month, not week of year: B6 measured that a fixed point in the crop")
+    print("    calendar drifts +/-1 week against any weekly index, so a weekly profile is")
+    print("    smeared by construction. Month is the finest bucket 82 weeks can support.")
+    print(report.to_markdown(
+        bym.rename(columns={"mean": "ag+softs+livestock", "size": "market-weeks"})
+           .round(3).reset_index()))
+    print(f"    ag spread max-min {bym['mean'].max() - bym['mean'].min():.3f} "
+          f"(peak month {bym['mean'].idxmax()}, trough {bym['mean'].idxmin()}), "
+          f"non-ag control "
+          f"{bym['non-ag control'].max() - bym['non-ag control'].min():.3f}")
+
+    print("\n--- 4. and the check that settles it: does the profile REPEAT? ---")
+    piv = ag.pivot_table(index="month", columns="year", values="is_template",
+                         aggfunc="mean")
+    both = piv.dropna()
+    piv2 = nag.pivot_table(index="month", columns="year", values="is_template",
+                           aggfunc="mean").dropna()
+    print(report.to_markdown(both.round(3).rename(columns=str).reset_index()))
+    print(f"    correlation across the {len(both)} months present in BOTH years: "
+          f"{both[2025].corr(both[2026]):+.3f}   (non-ag control "
+          f"{piv2[2025].corr(piv2[2026]):+.3f})")
+    print(f"    2025 range over those months {both[2025].max() - both[2025].min():.3f}, "
+          f"2026 range {both[2026].max() - both[2026].min():.3f}")
+    print(f"    mean level 2025 {both[2025].mean():.3f} vs 2026 {both[2026].mean():.3f}")
+    weeks = (cl.assign(month=pd.to_datetime(cl["report_date"]).dt.month,
+                       year=pd.to_datetime(cl["report_date"]).dt.year)
+               .pivot_table(index="month", columns="year", values="report_date",
+                            aggfunc="nunique").fillna(0).astype(int))
+    print("\n    report weeks per month, by year:")
+    print(report.to_markdown(weeks.rename(columns=str).reset_index()))
+    print("  Months 8 to 12 exist in ONE year. The apparent trough is five months of 2025")
+    print("  with nothing to compare against, and where the two years do overlap they")
+    print("  disagree: the correlation is negative and the whole amplitude comes from 2026.")
+    print("  So the monthly profile is a single year's path wearing month labels. This is")
+    print("  the coverage limit stated, not a seasonal estimate.")
+
+    print("\n--- 5. does a market's own classification hold across the window? ---")
+    mid = cl["report_date"].median()
+    h1 = cl[cl["report_date"] <= mid].groupby("market_code")["is_template"].mean()
+    h2 = cl[cl["report_date"] > mid].groupby("market_code")["is_template"].mean()
+    per = cl.groupby("market_code")["is_template"].agg(["mean", "size"])
+    per = per[per["size"] >= 40]
+    halves = pd.DataFrame({"h1": h1, "h2": h2}).loc[per.index].dropna()
+    halves["move"] = (halves["h2"] - halves["h1"]).abs()
+    print(f"    |second half - first half| over {len(halves)} markets: "
+          f"median {halves['move'].median():.3f}")
+    for thr in (0.10, 0.25, 0.50):
+        print(f"      moves more than {thr:.2f}: {int((halves['move'] > thr).sum())}")
+    print("\n    the ten largest moves:")
+    for code, row in halves.sort_values("move", ascending=False).head(10).iterrows():
+        print(f"      {CLASSIC_OUTRIGHTS[code][0]:<18s} {row['h1']:.3f} -> {row['h2']:.3f} "
+              f"({row['h2'] - row['h1']:+.3f})")
+    stable = halves[((halves["h1"] <= .1) & (halves["h2"] <= .1))
+                    | ((halves["h1"] >= .9) & (halves["h2"] >= .9))]
+    full = int(((per["mean"] <= .1) | (per["mean"] >= .9)).sum())
+    print(f"\n    extreme over the FULL window: {full} of {len(per)} markets")
+    print(f"    extreme in BOTH halves separately: {len(stable)} of {len(halves)}")
+    print("    the stable core, which is what B31's mixture reading is entitled to:")
+    for code, row in stable.sort_values("h1").iterrows():
+        print(f"      {CLASSIC_OUTRIGHTS[code][0]:<18s} {row['h1']:.3f} / {row['h2']:.3f}")
+    print("  B31's mixture survives, smaller than it looked. Pooling 82 weeks pushes a")
+    print("  market that was extreme in one half and middling in the other into an extreme")
+    print("  bucket, and cocoa is the clearest case: 0.976 then 0.100.")
+
+
+def appendix_a2_worked_example() -> None:
+    """Amendment B37: the numbers behind §A.2's replacement worked example.
+
+    The appendix's constructed cocoa table is retained there as an explicit extreme. This
+    prints the real market that now carries the worked thread through §A.2, §A.5, §A.7 and
+    §A.9, and the two measurements behind choosing it.
+    """
+    from crowdmon.core import impact as core_impact
+    from crowdmon.futures import (
+        ContractMaster,
+        VintageCotSource,
+        add_volume,
+        exit_pressure,
+        trigger_block,
+    )
+    from crowdmon.futures import trigger as trig
+
+    rule("THE REAL MARKET BEHIND APPENDIX §A.2 (2026-08-02 B37)")
+
+    code, symbol = "057642", "LE"
+    panel = ContractMaster.load().annotate(
+        VintageCotSource(report_type="disaggregated").load("2026-07-31"))
+    week = panel["report_date"].max()
+    cur = panel[panel["report_date"] == week]
+    market = cur[cur["market_code"] == code]
+
+    print("\n--- 1. why LIVE CATTLE and not GOLD, which the handoff also offered ---")
+    for c, label in [("088691", "GOLD"), ("057642", "LIVE CATTLE")]:
+        sub = cur[cur["market_code"] == c]
+        con = contributions(sub).sort_values("q_contribution", ascending=False)
+        buy = con[con["q_side"] == "buy"].iloc[0]
+        print(f"    {label:<12s} largest Q_buy contributor: {buy['category']:<18s} "
+              f"net {int(buy['net']):>+9,}  w {buy['weight']:.1f}")
+    print("  Gold's immovable side is the SWAP DEALER at w=0.4, not the producer. The")
+    print("  appendix's argument is a physical hedger who can stand for delivery, and gold")
+    print("  does not have one of any size. Live cattle does, and its Producer/Merchant is")
+    print("  net short in 82 of 82 weeks with Managed Money net long in all 82.")
+
+    print(f"\n--- 2. §A.2, report week {week.date()} (released 2026-07-31) ---")
+    print(report.to_markdown(report.category_table(cur, code)))
+    arith = report.q_arithmetic(cur, code)
+    print()
+    print(report.format_q_block(arith))
+    print(f"\n    Q_sell / Q_buy = {arith['q_sell'] / arith['q_buy']:.4f}")
+
+    con = contributions(market)
+    num = float((con["weight"] * con["gross"]).sum())
+    mm = con[con["category"] == "managed_money"].iloc[0]
+    print(f"    Phi numerator {num:,.1f}; Managed Money carries "
+          f"{mm['weight'] * mm['gross'] / num:.1%} of it")
+    buy = con[con["q_side"] == "buy"].sort_values("q_contribution", ascending=False)
+    print("\n    the Q_buy side, largest contribution first. Note it is NOT the largest net:")
+    print(report.to_markdown(buy[["category", "net", "weight", "q_contribution"]]))
+
+    print("\n--- 3. §A.5 continued: T = Q / (kappa V) ---")
+    frag = add_volume(fragility_frame(market).merge(
+        market[["market_code", "symbol"]].drop_duplicates(), on="market_code", how="left"))
+    row = frag.iloc[0]
+    for side in ("sell", "buy"):
+        out = exit_pressure(row[f"q_{side}"], row["open_interest"], volume=row["adv"])
+        stress = exit_pressure(row[f"q_{side}"], row["open_interest"],
+                              volume=row["adv_stress"])
+        print(f"    T_{side:<5s} = {out['q']:>10,.1f} / (0.2 x {out['volume']:>10,.2f}) = "
+              f"{out['days_to_liquidate']:>5.2f} days   "
+              f"(stress volume {stress['volume']:,.0f} -> "
+              f"{stress['days_to_liquidate']:.2f} days)")
+    print("    Live cattle is one of the markets that trades MORE in its worst decile, so")
+    print("    the stress figure is the SHORTER one. A10's caution, on the example market.")
+
+    import cotdata
+    sigma = float(cotdata.get_prices(symbol, adjustment="propadj")["Close"]
+                  .pct_change().dropna().tail(63).std())
+    for y in (0.5, 0.75, 1.0):
+        i = core_impact.square_root_impact(sigma, row["q_sell"], row["adv"], y=y)
+        print(f"    impact on Q_sell at Y={y:.2f}: {i * 1e4:.0f} bps")
+
+    print("\n--- 4. §A.7 continued: the trigger block ---")
+    block = trigger_block(symbol, market_row=row, sigma_daily=sigma, adv=row["adv"],
+                          pool_contracts=float(
+                              con[con["category"] == "managed_money"]["net"].iloc[0]))
+    print(trig.format_block(block))
+    print(f"    vol shock forces {block['vol_shock_reduction'] * 100:.0f}% of "
+          f"{block['pool_contracts']:,.0f} = "
+          f"{block['vol_shock_reduction'] * block['pool_contracts']:,.0f} contracts")
+
+    print("\n--- 5. §A.9 continued: all three terms, and the product ---")
+    print("    C and I need a three-year window stacked under a percentile, so they come")
+    print("    from the CURRENT-state panel (27 markets back to 2006), not the vintage")
+    print("    store's 82 weeks. Descriptive only: it is not point-in-time.")
+    import reproduce_composite
+
+    scored = reproduce_composite.build()
+    le = scored[scored["market_code"] == code].sort_values("report_date")
+    last = le.iloc[-1]
+    print(f"    history {le['report_date'].min().date()} to "
+          f"{le['report_date'].max().date()}, {len(le):,} weeks")
+    print(f"      C  crowding_long    {last['crowding_long']:.4f}")
+    print(f"      I  illiquidity_sell {last['illiquidity_sell']:.4f}")
+    print(f"      Phi fragility (pct) {last['fragility']:.4f}   (raw Phi {last['phi']:.4f})")
+    print(f"      D = C x I x Phi   = {last['damage_sell']:.6f}, which is the "
+          f"{last['damage_sell_pct']:.1%} percentile of its own history")
+    print("  The market has the template SHAPE and a low D, because the shape is about who")
+    print("  holds and D is about how much. §A.9's multiplicative form is exactly what")
+    print("  produces that: C near zero takes the product with it whatever Phi says.")
 
 
 def flow_equivalence() -> None:
@@ -1563,5 +2084,10 @@ if __name__ == "__main__":
     macro_book_pca()
     template_shape()
     template_shape_stratified()
+    template_conditional_magnitude()
+    template_direction_agnostic()
+    template_swap_share()
+    template_stability()
+    appendix_a2_worked_example()
     flow_equivalence()
     lumber_is_one_instrument()

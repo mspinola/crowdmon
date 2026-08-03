@@ -10,16 +10,18 @@ file it means; the next file takes `C`. Cross-file references still carry the da
 `2026-08-01 §A15`.
 
 > **Filed under 08-02, measured on 08-01.** The 08-01 file was closed to new sections partway
-> through that day, which leaves a few hours with no home. Everything below was measured on
-> 2026-08-01 against `COTDATA_STORE=~/code/cotdata_store`.
+> through that day, which leaves a few hours with no home. B1 through B16 were measured on
+> 2026-08-01 against `COTDATA_STORE=~/code/cotdata_store`; everything from B17 on was
+> measured on 2026-08-02 against the same store.
 >
 > **B1 and B2 were originally filed as A1 and A2** in this file, by the commonality session,
 > before the `B` prefix landed. They are renumbered here so that "A1" means exactly one thing
 > across the whole directory. `6c2b488`'s commit message refers to them by the old labels.
 
-Figures below are reproduced by `docs/analysis/reproduce.py` (B1-B2, B9-B12),
-`docs/analysis/reproduce_seasonal.py` (B3-B7), or asserted in `tests/test_commonality_live.py`
-and `tests/test_trigger_live.py`.
+Figures below are reproduced by `docs/analysis/reproduce.py` (B1-B2, B9-B12, B28-B31,
+B33-B37), `docs/analysis/reproduce_seasonal.py` (B3-B7), `docs/analysis/reproduce_tff.py`
+(B32), or asserted in `tests/test_commonality_live.py`, `tests/test_trigger_live.py` and
+`tests/test_appendix_live.py`.
 
 ---
 
@@ -1823,3 +1825,475 @@ metals and livestock; on TFF the same configuration is 3.8% of open interest, it
 carrying "fragile longs facing immovable shorts" as a default mental model of a crowded
 futures market is holding a picture that is wrong about the largest part of the COT universe
 by open interest, and wrong in the direction that matters: the forced flow there is buying.
+
+---
+
+## B33. Managed Money's coin flip is in the SIGN, not in the size, and it is a mixture too
+
+**Refines** [B31](#b31-the-template-is-a-metals-and-livestock-shape-not-a-harvest-shape-and-b28s-272-is-a-population-average),
+which measured Managed Money net long in 50.0% of classic-outright market-weeks and read it
+as "the fragile levered long side is a coin flip", "the half of the template that fails".
+The frequency is right and the reading needs a second measurement, because a 50% sign
+frequency is consistent with two opposite worlds: the fund is small and directionless there
+(the fragility argument genuinely fails), or it swings between large long and large short
+(the market is fragile and the template merely names the wrong direction half the time).
+B31 could not tell them apart, and neither is what the data says.
+
+Reproducer: `docs/analysis/reproduce.py`, the `template_conditional_magnitude` block, all 82
+vintage weeks, 3,214 classic-outright market-weeks.
+
+### Magnitude conditional on sign
+
+| conditional on | market-weeks | `abs(P_MM)/OI` median | IQR | `w·abs(P_MM)/Q_total` median | IQR |
+|---|---|---|---|---|---|
+| `P_MM > 0` | 1,606 | **0.1387** | 0.0568 - 0.2349 | 0.5148 | 0.3025 - 0.6865 |
+| `P_MM < 0` | 1,544 | **0.0718** | 0.0259 - 0.1850 | 0.3815 | 0.1418 - 0.6530 |
+| `P_MM = 0` | 64 | 0 | | 0 | |
+| unconditional | 3,214 | 0.1022 | 0.0351 - 0.2105 | 0.4474 | 0.2153 - 0.6759 |
+
+`Q_total` is `q_gross = Q_sell + Q_buy`, the name the code already gives the combined figure.
+It is used here as a **denominator and never as a flow**, which is the standing rule: forced
+longs sell and forced shorts buy, so their sum describes an event that cannot happen.
+
+**Neither reading is right, and the answer is a third thing.** The fund is not absent: its
+median position is 13.9% of open interest when long and 7.2% when short, and it carries a
+median 51% of the entire fragility-weighted book when long. Nor is it symmetric: the long
+positions are about twice the size of the short ones. Stated the way it matters,
+
+| | classic outright | power/gas venue |
+|---|---|---|
+| share of WEEKS net long | 50.0% | 43.6% |
+| share of CONTRACTS on the long side | **64.9%** | **63.6%** |
+
+Half the weeks, nearly two thirds of the contracts. **The sign is a coin flip and the size is
+not**, so B31's "the half that fails" overstates the failure: weighted by the quantity that
+would actually have to leave, the fragile long side is the larger one by roughly 2:1.
+
+### The directionless share, at a threshold stated rather than hidden
+
+`abs(P_MM)/OI` below 0.02, 0.05, 0.10: **16.0%, 33.3%, 49.4%** of market-weeks. A third of
+the classic universe does have a Managed Money book under a twentieth of open interest, which
+is a real qualification and is not what the pooled medians above show. The 0.05 cut is a
+judgement; the two neighbours are printed so nothing rests on it.
+
+### By complex, where the pooled figure hides two different markets
+
+| complex | market-weeks | MM net long | med long | med short | < 5% of OI |
+|---|---|---|---|---|---|
+| metals | 540 | **78.9%** | 0.1564 | 0.2062 | 23.0% |
+| softs | 410 | 52.4% | 0.1614 | 0.1518 | 13.4% |
+| energy outright | 738 | 51.4% | 0.0664 | 0.0315 | **58.1%** |
+| livestock/dairy | 670 | 40.1% | **0.3087** | 0.0274 | 42.4% |
+| grains/oilseeds | 774 | 38.9% | 0.1071 | 0.1681 | 22.2% |
+| lumber | 82 | 19.5% | 0.1300 | 0.4745 | 6.1% |
+
+**Livestock is the clearest case of the asymmetry**: when the fund is long there it holds a
+median 30.9% of open interest, and when short 2.7%, a factor of eleven. **Energy outright is
+the clearest case of absence**: 58.1% of its market-weeks carry a fund book under 5% of open
+interest, so the crude and gas complex is never-template (B31) partly because there is not
+much of a fund to be on either side.
+
+### And the 50.0% is not a market that flips
+
+Per market over its own 82 weeks, 44 classic outrights: **12 are net long in at most 10% of
+weeks, 11 in at least 90%, and 21 sit in between.** The universe is not a fund that changes
+its mind; it is a set of markets that mostly do not, split roughly evenly between the two
+directions. That is the same mixture structure B31 found for the template itself, one level
+down, and it means "Managed Money is long half the time" invites a per-week probability
+reading that the data does not support either.
+
+### What this changes
+
+**No code change.** What changes is how B31's second bullet should be quoted. The
+producer-hedged short side is still the robust half and the fund side still fails half the
+time by count, but "the half the thesis needs" is doing more work in that sentence than the
+data supports: the thesis is about forced quantity, and by quantity the long side is nearly
+two thirds. Anyone quoting the 50.0% should quote the 64.9% beside it.
+
+---
+
+## B34. The median asymmetry of 0.993 is direction cancelling, not symmetry
+
+**Corrects a reading in**
+[B31](#b31-the-template-is-a-metals-and-livestock-shape-not-a-harvest-shape-and-b28s-272-is-a-population-average):
+"The median market-week ratio is 0.993 (p90 5.162, p99 8.197), so the typical market has
+`Q_sell` and `Q_buy` within a percent of each other: no asymmetry whatsoever. The cocoa
+example is not a typical market dressed up, it is one tail of a distribution whose centre is
+symmetric."
+
+The median is correct. **The inference from it is wrong**, and the error is the one B31
+itself warns about in a different place: a signed ratio whose direction is a coin flip has a
+median near 1 whether or not the two sides are close in size.
+
+Reproducer: `docs/analysis/reproduce.py`, the `template_direction_agnostic` block, the same
+21,756 market-weeks.
+
+### The same book measured without a direction
+
+    A_directional = Q_sell / Q_buy
+    A_agnostic    = max(Q_sell, Q_buy) / min(Q_sell, Q_buy)
+
+| stratum | market-weeks | `A_dir` median | `A_agn` median | `A_agn` p90 | `A_agn` max | median as % of the 10.0 ceiling |
+|---|---|---|---|---|---|---|
+| classic outright | 3,214 | 1.4894 | **2.4974** | 6.477 | 9.3787 | 25.0% |
+| everything else | 18,542 | 0.9041 | **3.1000** | 5.729 | 9.9613 | 31.0% |
+| all | 21,756 | **0.9933** | **3.0237** | 5.855 | 9.9613 | 30.2% |
+
+Zero breaches of the ceiling on either ratio, which is the check B31 introduced and it
+carries over unchanged: `A_agnostic` is the same two sums with the larger on top.
+
+**The typical market-week has one side three times the other.** What is a coin flip is which
+side: `Q_sell` is the larger in **49.8%** of all market-weeks. Only **4.8%** of market-weeks
+are genuinely balanced in the sense B31's sentence implies, taking "within 10%" as the test
+(6.1% among classic outrights). So the centre of the distribution is not symmetric; it is
+symmetric *in direction*, which is a different and much weaker statement.
+
+The corrected reading: the constructed example is a tail in **magnitude**, at 90.5% of a
+config-set ceiling against a typical 30%, and it is not unusual at all in having a lopsided
+book. Lopsided is the norm. Lopsided by nine to one is not.
+
+### A second B31 sentence that does not survive being enumerated
+
+B31: "54 market-weeks reach or exceed it, though **all of them are gas basis, power or
+crude-differential markets rather than outrights**." The count is right and the
+characterisation is not. Enumerated, the 54 sit in 14 markets:
+
+| | market-weeks |
+|---|---|
+| ICE Energy Div gas basis, power and crude differentials | 35 |
+| NORTH EURO HOT-ROLL COIL STEEL (COMEX, an outright and not any of the three named) | 11 |
+| **classic outrights** | **8** |
+
+The eight are COPPER (2), GASOLINE RBOB (2), CANOLA (2), COFFEE C (1) and WHEAT-HRSpring (1).
+Four of those five are in the always-template set. It is a rare configuration, not one the
+outright markets are excluded from, and the sentence was written from a glance at the venue
+column rather than from a count. This does not change B31's argument, which is that 9.045 is
+near-maximal by construction rather than empirically extreme, and that argument is if anything
+slightly weakened by the level being reachable in copper.
+
+### What reclassifies, and why it should
+
+The template as specified encodes a direction. What the thesis needs is a levered
+concentration on **some** side that can be forced out, opposed by one that cannot; which side
+is incidental, because the mechanism is identical and only the sign of the flow changes.
+
+| shape, classic outrights | share |
+|---|---|
+| template (PM short, MM long) | 44.7% |
+| **inverted (PM long, MM short)** | **25.0%** |
+| same side (both short) | 22.8% |
+| same side (both long) | 3.7% |
+| no hedger side (PM flat) | 2.0% |
+| MM net flat | 1.7% |
+
+**All 25.0% of the inverted market-weeks reclassify**, taking the direction-agnostic template
+from 44.7% to **69.7%** of classic-outright market-weeks. Seven in ten, not four in ten. The
+same-side cases do not reclassify and remain the genuine miss: there, the fragile side has no
+immovable counterparty in either direction, which is B28's finding and is untouched by this.
+
+This is [B32](#b32-on-tff-the-cocoa-shape-is-not-rare-it-is-out-of-range-and-the-mirror-image-is-the-market)
+appearing inside Disaggregated. B32 found the mirror configuration to be 77.3% of TFF open
+interest and drew the consequence that the forced flow there is buying rather than selling.
+A quarter of the classic commodity universe is in that state too, week by week.
+
+**And the same measurement on TFF reverses which report looks more lopsided.** Signed, TFF's
+median is 0.582 against Disaggregated's 0.993, which reads as TFF being the skewed one.
+Direction-agnostic and scaled by each report's own ceiling, TFF's median 1.866 is **56.0% of
+its 3.333 bound** against Disaggregated's 3.024 at **30.2% of 10.0**. Relative to what its
+weight table permits, the financial report is the more consistently one-sided of the two.
+Which is [2026-07-28 §2.3](../analysis/2026-07-28-tff-financial-futures.md)'s
+compare-within-a-report rule again: the raw ratios are not on the same scale, and the two
+comparisons disagree about the ranking.
+
+### What this changes
+
+**No code change**, for the third amendment running: `fragility` computes both directions by
+sign and has never needed to know which one the template expects.
+
+What changes is which number to quote. **Quote `A_agnostic` when the question is whether a
+market has a forceable side, and `A_directional` only when the question is which way the flow
+goes.** B31's 0.993 answers the second question and was read as answering the first. Module
+spec §6.3 now states the ceiling property for both.
+
+---
+
+## B35. Swap-dealer share does not predict non-template status, and the hypothesis is retired
+
+**Tests and rejects** a hypothesis offered in
+[`2026-08-02-template-followups.md`](../handoffs/2026-08-02-template-followups.md) §3, from
+[B31](#b31-the-template-is-a-metals-and-livestock-shape-not-a-harvest-shape-and-b28s-272-is-a-population-average)'s
+observation that cocoa's largest net long is the Swap Dealer and that crude and natural gas,
+which carry heavy swap intermediation, are never template in any code in the store. The
+hypothesis: swap-dealer prominence displaces Managed Money on the long side and thereby
+suppresses the template, which would put the would-be fragile capital at `w = 0.4` instead of
+`1.0`.
+
+Reproducer: `docs/analysis/reproduce.py`, the `template_swap_share` block.
+`swap_share = (L_SD + S_SD) / (2·OI)`, the same gross-over-`2·OI` form `Phi` uses, averaged
+over each market's weeks.
+
+### It does not predict, at any level of aggregation
+
+Across 39 classic-outright markets with at least 40 weeks: **pearson −0.060, spearman
+−0.114**. Nothing.
+
+| complex | markets | mean swap share | mean template rate | pearson | spearman |
+|---|---|---|---|---|---|
+| metals | 7 | 0.175 | 0.659 | **+0.566** | **+0.630** |
+| grains/oilseeds | 9 | 0.077 | 0.397 | +0.209 | +0.050 |
+| softs | 5 | 0.109 | 0.524 | −0.051 | +0.051 |
+| energy outright | 9 | 0.140 | 0.310 | **−0.543** | **−0.505** |
+| livestock/dairy | 8 | 0.133 | 0.380 | **−0.741** | **−0.691** |
+
+**The sign reverses inside the strata**, strongly in both directions, which is worse for the
+hypothesis than a flat pooled correlation would have been on its own. A relationship that is
++0.63 in metals and −0.69 in livestock is not a relationship being masked by a confound.
+
+### It does not separate the two extreme sets either, which was the sharpest form of the test
+
+| set | mean swap share | range |
+|---|---|---|
+| always template (7 markets) | **0.157** | 0.040 - 0.301 |
+| never template (8 markets) | **0.159** | 0.012 - 0.367 |
+
+Identical to three decimals, with ranges that nest. The individual cases make the point
+better than the summary: **HENRY HUB has the heaviest swap book in the classic universe at
+0.367 and is never template; GOLD has the second heaviest at 0.301 and is template in every
+week of the sample.** WTI ICE EUROPE is never template on a swap share of 0.061, and FEEDER
+CATTLE is always template on 0.040.
+
+### Two further checks it could still have survived, and did not
+
+- **All 264 markets with at least 40 weeks**, not only the 39 outrights: pooled spearman
+  **−0.100**; within power/gas −0.132, within classic −0.114, within spread/basis **+0.328**.
+- **Within market, week to week**, both series demeaned per market: pearson **+0.038** over
+  3,214 market-weeks. A market's high-swap weeks are no less template than its own average.
+
+### What this retires, and what it does not
+
+**The hypothesis is retired.** Swap-dealer prominence is not why crude and gas fail to show
+the template, and it is not why metals show it. B31 declined to guess at the generating
+mechanism and that discipline was correct; this is one candidate mechanism measured and
+eliminated, which narrows the question rather than answering it.
+
+**Cocoa's own case survives as an observation about cocoa**, unchanged: its largest net long
+really is the Swap Dealer in 47 of 82 weeks, and the `w = 0.4` consequence for that market is
+real. What fails is the generalisation from it.
+
+**The CIT supplemental report is not in the store.** The domains present are `cot_disagg`,
+`cot_legacy` and `cot_tff`. Whether the ag swap book is index flow rather than levered flow
+therefore cannot be tested here, and it was not fetched in this session. It would sharpen the
+weighting question in §6.3 and it cannot rescue this hypothesis, because the correlation is
+absent before any question about what the swap book contains.
+
+---
+
+## B36. The level is stable, the classification is not, and the ag month profile does not repeat
+
+**Qualifies** [B31](#b31-the-template-is-a-metals-and-livestock-shape-not-a-harvest-shape-and-b28s-272-is-a-population-average)
+on three separate claims. B31's "82 of 82 weeks" is about the **gap** between ag/metal and
+power/gas venues, which is a different and narrower claim than stability of the level, of the
+per-complex ordering, or of any individual market's classification. And 82 weeks is 1.6
+years: enough to observe a seasonal pattern, not enough to separate one from a trend.
+
+Reproducer: `docs/analysis/reproduce.py`, the `template_stability` block.
+
+### The level is stable, and there is no trend worth naming
+
+The classic-outright template rate over 82 weeks: **mean 0.447, sd 0.0656, range 0.282 to
+0.564**. Linear fit **+0.023 per year, R² 0.026**. First half 0.442, second half 0.452. B31's
+44.7% is a level the whole window supports rather than an average over a drift.
+
+### The per-complex ordering holds
+
+| complex | mean | min | max | weeks ranked top |
+|---|---|---|---|---|
+| metals | 0.666 | 0.429 | 0.857 | **40** |
+| softs | 0.524 | 0.200 | 0.800 | 15 |
+| energy outright | 0.409 | 0.222 | 0.444 | 0 |
+| grains/oilseeds | 0.382 | 0.000 | 0.889 | 11 |
+| livestock/dairy | 0.374 | 0.222 | 0.500 | 0 |
+| lumber | 0.195 | 0.000 | 1.000 | 16 |
+
+Metals exceeds livestock in **82 of 82** weeks and grains in **64 of 82**. It is not a
+ranking that inverts. Lumber and grains reach the top only through single-market weeks in
+very small complexes, which is why the "weeks ranked top" column is printed beside the mean
+rather than instead of it.
+
+### The seasonal pattern is a single year wearing month labels
+
+Calendar month, not week of year: [B6](#b6-no-week-of-year-scheme-pins-a-seasonal-moment)
+measured that a fixed point in the crop calendar drifts ±1 week against any weekly index, so
+a weekly profile is smeared by construction, and month is the finest bucket 82 weeks support.
+
+Pooled over ag, softs and livestock the profile looks exactly like a harvest story: **peak
+0.522 in May, trough 0.263 in December, spread 0.258**, against a metals-and-energy control
+spread of 0.144 with no pattern. That reading is wrong, and two facts kill it.
+
+**Months 8 to 12 exist in one year only.** The vintage store starts 2025-01-07 and ends
+2026-07-28, so the entire apparent second-half trough is five months of 2025 with nothing to
+compare against.
+
+**Where the two years do overlap, they disagree.**
+
+| month | 2025 | 2026 |
+|---|---|---|
+| 1 | 0.443 | 0.242 |
+| 2 | 0.489 | 0.303 |
+| 3 | 0.398 | 0.555 |
+| 4 | 0.455 | 0.584 |
+| 5 | 0.477 | 0.561 |
+| 6 | 0.443 | 0.438 |
+| 7 | 0.400 | 0.458 |
+
+Correlation across those seven months: **−0.232** (metals-and-energy control +0.278). The
+2025 profile has a range of 0.091 across them and the 2026 profile 0.343, so **the entire
+amplitude comes from one year**, while the mean levels are nearly identical (0.444 against
+0.449). A seasonal component that reverses between the only two years available is not a
+seasonal component that has been measured.
+
+**What the data can and cannot support.** It can support: the level is flat, the complex
+ordering is stable. It cannot support: any statement about seasonality of the template rate.
+The check that would settle it is a third year, no earlier than **2027-01**. This is the same
+conclusion [B3](#b3-nothing-is-dominated-by-seasonality-and-the-category-54-names-is-not-seasonal-at-all)
+reached for extremity `z` by a different route, and it is worth noting that B3 could measure
+twenty years and still found at most 1.4% of variance.
+
+### The mixture reading is smaller than 82 pooled weeks made it look
+
+B31: "64.0% of the 264 markets with at least 40 weeks sit at one extreme or the other."
+Measured on each half of the window separately, for the 39 classic outrights:
+
+| | markets |
+|---|---|
+| extreme (≤10% or ≥90%) over the pooled window | **22 of 39** |
+| extreme in BOTH halves separately | **17 of 39** |
+| moving more than 0.25 between halves | 11 |
+| moving more than 0.50 between halves | 3 |
+
+The stable core is 17 markets: WHEAT-SRW, all four crude and gas codes, CME MILK IV, NON FAT
+DRY MILK, CHEESE, BUTTER and MICRO GOLD at the never end; LIVE CATTLE, FEEDER CATTLE, COFFEE
+C, SILVER, COPPER, GOLD and GASOLINE RBOB at the always end.
+
+The largest moves are substantial rather than threshold artifacts:
+
+| market | first half | second half |
+|---|---|---|
+| **COCOA** | 0.976 | **0.100** |
+| SOYBEAN MEAL | 0.000 | 0.725 |
+| WHEAT-HRW | 0.000 | 0.525 |
+| ALUMINUM | 0.370 | 0.867 |
+| FCOJ | 0.905 | 0.450 |
+
+**Cocoa is the clearest case and the most pointed one.** B31 reported that cocoa does not
+currently show the cocoa shape; measured by half, it did show it in essentially every week of
+the first half and essentially none of the second. Pooling 82 weeks would have put it in the
+"always template" bucket on a 0.549 rate had the window ended a few months earlier.
+
+So B31's mixture survives and should be quoted at its stable core. A market classified from a
+pooled window may be one that changed, and "always template" is a claim that needs the window
+split before it is made.
+
+---
+
+## B37. §A.2's worked example is now a real market, and the one it replaces was near-maximal
+
+**Amends** the appendix of
+[`crowdmon_plain_language_summary.md`](crowdmon_plain_language_summary.md) §A.2, §A.5, §A.7
+and §A.9, on the instruction of
+[`2026-08-02-template-followups.md`](../handoffs/2026-08-02-template-followups.md) §5, and
+records the two measurements behind the choice.
+
+Reproducer: `docs/analysis/reproduce.py`, the `appendix_a2_worked_example` block. Asserted
+offline in [`tests/test_appendix.py`](../../tests/test_appendix.py) against the committed
+vintage fixture, and against the real store in
+[`tests/test_appendix_live.py`](../../tests/test_appendix_live.py).
+
+### What was wrong with the old example
+
+Two things, and only the second is serious.
+
+The constructed cocoa table put Managed Money at +90,000 beside Swap Dealer at +10,000, and
+[B31](#b31-the-template-is-a-metals-and-livestock-shape-not-a-harvest-shape-and-b28s-272-is-a-population-average)
+measured real cocoa as currently the reverse. That is a labelling problem: the example was
+always declared hypothetical.
+
+**It was presented as typical while sitting at 90.5% of a mechanical ceiling.** Its
+`Q_sell/Q_buy` of 9.045 is the 99.75th percentile of classic outrights, against a
+direction-agnostic median of 2.50 ([B34](#b34-the-median-asymmetry-of-0993-is-direction-cancelling-not-symmetry)),
+and the ceiling of 10.0 is a property of `core/config.py`. A reader calibrating intuition on
+it was calibrating on the corner of the parameter space.
+
+### Why LIVE CATTLE and not GOLD
+
+The handoff offered either. Measured, gold does not carry the appendix's argument:
+
+| market | largest `Q_buy` contributor | net | `w` |
+|---|---|---|---|
+| GOLD | **swap** | −191,760 | 0.4 |
+| LIVE CATTLE | **other_reportable** | −22,702 | 0.5 |
+
+Gold's immovable side is a swap dealer at `w = 0.4`; its Producer/Merchant net is −20,549,
+about a tenth of the swap book. The appendix's whole argument is a physical hedger who can
+stand for delivery, and gold does not have one of any size. Live cattle does: Producer/
+Merchant net short in **82 of 82** weeks, Managed Money net long in **82 of 82**, and extreme
+in both halves of the window per [B36](#b36-the-level-is-stable-the-classification-is-not-and-the-ag-month-profile-does-not-repeat).
+
+### The replacement, report week 2026-07-28
+
+`OI = 298,449`. `Q_sell = 1.0(67,025) + 0.4(61,596) = 91,663.4`,
+`Q_buy = 0.5(22,702) + 0.1(98,985) + 0.6(6,934) = 25,409.9`, ratio **3.607** (36.1% of the
+ceiling, 70th percentile of classic outrights). `Phi = 211,386.1 / 596,898 = 0.354`.
+
+**Two things a real market teaches that the constructed one cannot.**
+
+- **The weight decides, not the size.** Producer/Merchant carries by far the largest short net
+  at −98,985 and contributes **less** to `Q_buy` (9,898.5) than Other Reportable does
+  (11,351.0) on a net a quarter the size. That inversion is the entire content of the
+  weighting and it is invisible in the constructed table, where the hedger is the only
+  net-short category.
+- **The fragile side is not one category.** `Q_sell` is Managed Money plus a swap book 74% of
+  its size in gross terms, and Managed Money carries 48.6% of the `Phi` numerator
+  rather than the constructed example's 62.7%. This is
+  [2026-08-01 §A3](amendments-2026-08-01.md)'s measured 29% showing up in the worked example
+  instead of only in a caveat beneath it.
+
+### The thread through §A.5, §A.7 and §A.9, and where it ends up
+
+`T_sell = 91,663.4 / (0.2 × 75,328.6) = 6.08` days against `T_buy = 1.69`. Stress
+conditioning makes it **shorter**, 5.22 days, because live cattle's worst decile trades more
+than its average day, which is [2026-08-01 §A13](amendments-2026-08-01.md)'s caution landing on
+example market itself, which is why §A.5 now says so in place rather than leaving
+`V_stress` reading as automatically conservative.
+
+The trigger block prints three horizons that disagree: the 20d and 60d signals are already
+short and flip **up**, at +3.2% and +5.6%; only the 250d pool is long and flips down at
+−5.5%. Forced flow if that pool closes is 67,025 contracts, 4.4 days, 62 bp; if it reverses,
+double. A five-point vol shock forces 26%, about 17,700 contracts, with no reference to price.
+
+**And the composite comes out near the bottom of its range**: `C = 0.057`, `I = 0.204`,
+fragility percentile 0.146, `D = 0.0017`, the **9.6th percentile** of its own 2006-2026
+history. A market that carries the template shape in every week measured is, this week, one
+of the safest readings in its own history, because positioning is light. That is §A.9's
+multiplicative form working as specified, and it is a better closing illustration than the
+constructed "all three terms elevated" because it shows the measure declining to fire.
+
+### What is retained, and why
+
+The constructed table stays in §A.2 under **"The constructed extreme, retained"**, with its
+position relative to the ceiling stated, and the §A.5, §A.7 and §A.9 figures built on it stay
+as clearly labelled continuations. It is useful precisely because it is extreme; it was
+misleading only because it was presented as typical. The main text's cocoa narrative is
+unchanged and now carries one line saying the appendix works a real market.
+
+### The guard that keeps this honest
+
+A design document quoting live figures rots quietly, which is the failure mode the whole
+`docs/` lifecycle exists to manage: an **analysis** document is a record of a named week and
+must never be edited to match a later one, while a **design** document quoting real numbers
+must be. `test_appendix.py` asserts every published figure against the committed fixture, and
+`test_appendix_live.py` re-derives them from the store, splitting exact assertions (anything
+from the COT rows, which do not move unless restated) from banded ones (anything from a
+trailing price window, which moves every session). The band's failure message is an
+instruction to update the document, not a bug report.
+

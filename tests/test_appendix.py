@@ -1,18 +1,21 @@
-"""The appendix's own worked example, executed.
+"""The appendix's own worked examples, executed.
 
 `docs/design/crowdmon_plain_language_summary.md` §A.1-A.11 is the authoritative statement of
 every formula in this package: where a handoff and the appendix disagree, the appendix wins.
 An authoritative document whose worked example is never run is a document nobody has checked,
 so this file runs it.
 
-Every figure asserted below is transcribed from §A.2 and §A.5, not computed and then written
+Every figure asserted below is transcribed from the appendix, not computed and then written
 down. If one of these fails, the implementation has drifted from the specification and the
 implementation is what is wrong.
 
-The example is cocoa-shaped and deliberately synthetic: the appendix says it was constructed
-to be structurally realistic rather than drawn from data. Whether real markets share that
-shape is a separate question, measured in `docs/analysis/` and answered "about half of them"
-(`docs/design/amendments-2026-08-01.md` §A4).
+**Two examples, and they fail in opposite ways.** §A.2 carries a real market (LIVE CATTLE,
+report week 2026-07-28) through §A.2, §A.5, §A.7 and §A.9, and beside it retains a
+constructed near-maximal table that used to be presented as typical. The constructed one can
+only drift if the code changes. The real one can also drift because the *store* changed, and
+that is the more valuable guard: a design document quoting live figures rots silently. It is
+asserted here against the committed vintage fixture, and again against the real store in
+`test_appendix_live.py` so a restatement of that week is caught rather than absorbed.
 """
 import pandas as pd
 import pytest
@@ -24,7 +27,21 @@ from crowdmon.futures import (
     contributions,
     exit_pressure,
     market_fragility,
+    shape_labels,
 )
+
+#: §A.2's real example, transcribed from the appendix table: (category, long, short).
+#: Report week 2026-07-28, Disaggregated, released 2026-07-31.
+LIVE_CATTLE_ROWS = [
+    ("producer_merchant", 41_461, 140_446),
+    ("swap", 68_622, 7_026),
+    ("managed_money", 84_907, 17_882),
+    ("other_reportable", 13_899, 36_601),
+    ("nonreportable", 25_614, 32_548),
+]
+LIVE_CATTLE_OI = 298_449
+LIVE_CATTLE_CODE = "057642"
+LIVE_CATTLE_WEEK = pd.Timestamp("2026-07-28")
 
 #: §A.2, transcribed verbatim: (category, long, short). OI is 200,000 and there is no
 #: spreading, which is what makes the appendix's gross total exactly 2 x OI.
@@ -102,10 +119,10 @@ def test_phi_reproduces_the_appendix(cocoa):
 def test_managed_money_carries_the_numerator_as_the_appendix_says(cocoa):
     """§A.2: "Managed Money contributes 110,000 of the 175,500 fragility numerator".
 
-    True in the example. The appendix calls a single category dominating "typical", and that
-    part does NOT hold on real data: measured across the 279-market Disaggregated universe,
-    Managed Money is the top contributor in 81 markets (29%). See amendments §A3. This test
-    pins the example, not the generalisation.
+    True in the constructed example, and it used to be called "typical" there. It is not:
+    measured across the 279-market Disaggregated universe, Managed Money is the top
+    contributor in 81 markets (29%), see amendments §A3, and the appendix now says so. This
+    test pins the example, not the generalisation.
     """
     contrib = contributions(cocoa)
     mm = contrib[contrib["category"] == "managed_money"].iloc[0]
@@ -228,3 +245,118 @@ def test_the_unweighted_comparison_the_appendix_draws(cocoa):
     """
     unweighted = exit_pressure(90_000, COCOA_OI, volume=25_000)
     assert unweighted["days_to_liquidate"] == pytest.approx(18.0)
+
+
+# ── §A.2's real example: LIVE CATTLE, report week 2026-07-28 ─────────────────
+@pytest.fixture
+def live_cattle() -> pd.DataFrame:
+    """The appendix's table, transcribed. Cross-checked against the store fixture below."""
+    return pd.DataFrame([{
+        "report_date": LIVE_CATTLE_WEEK, "market_code": LIVE_CATTLE_CODE,
+        "market_name": "LIVE CATTLE - CHICAGO MERCANTILE EXCHANGE",
+        "report_type": "disaggregated", "combined": False, "category": category,
+        "long_contracts": long_, "short_contracts": short_,
+        "spread_contracts": 0, "open_interest": LIVE_CATTLE_OI,
+    } for category, long_, short_ in LIVE_CATTLE_ROWS])
+
+
+def test_the_appendix_table_matches_the_store(vintage_panel, live_cattle):
+    """The guard that makes §A.2 a real example rather than a plausible-looking one.
+
+    Every long and short in the appendix is checked against the committed vintage fixture,
+    which `tests/fixtures/build_fixtures.py` cuts straight from the store. If someone edits
+    a figure in the document, or the CFTC restates that week, this fails.
+    """
+    got = vintage_panel[(vintage_panel["market_code"] == LIVE_CATTLE_CODE)
+                        & (vintage_panel["report_date"] == LIVE_CATTLE_WEEK)]
+    assert not got.empty, "the vintage fixture no longer carries the appendix's market-week"
+    for category, long_, short_ in LIVE_CATTLE_ROWS:
+        row = got[got["category"] == category]
+        assert len(row) == 1, f"{category}: expected one row, got {len(row)}"
+        assert int(row["long_contracts"].iloc[0]) == long_, category
+        assert int(row["short_contracts"].iloc[0]) == short_, category
+    assert int(got["open_interest"].max()) == LIVE_CATTLE_OI
+
+
+def test_live_cattle_q_sell_reproduces_the_appendix(live_cattle):
+    """§A.2: `1.0(67,025) + 0.4(61,596) = 91,663.4`.
+
+    Two terms, not one. The fragile side of a real market is rarely a single category, and
+    the swap book here is two thirds the size of the fund book in gross terms.
+    """
+    assert market_fragility(live_cattle)["q_sell"].iloc[0] == pytest.approx(91_663.4)
+
+
+def test_live_cattle_q_buy_reproduces_the_appendix(live_cattle):
+    """§A.2: `0.5(22,702) + 0.1(98,985) + 0.6(6,934) = 25,409.9`."""
+    assert market_fragility(live_cattle)["q_buy"].iloc[0] == pytest.approx(25_409.9)
+
+
+def test_live_cattle_phi_reproduces_the_appendix(live_cattle):
+    """§A.2: `211,386.1 / 596,898 = 0.354`."""
+    phi = market_fragility(live_cattle)["phi"].iloc[0]
+    assert phi == pytest.approx(211_386.1 / 596_898)
+    assert round(phi, 3) == 0.354
+
+
+def test_live_cattle_asymmetry_ratio(live_cattle):
+    """§A.2: "a ratio of 3.61", and §A.2's retained extreme: "at 3.61, the 70th percentile".
+
+    Also the bound this ratio lives under, which module spec §6.3 now states: the weight
+    table caps it at `max(w)/min(w)` before any data is involved.
+    """
+    frag = market_fragility(live_cattle).iloc[0]
+    ratio = frag["q_sell"] / frag["q_buy"]
+    assert ratio == pytest.approx(3.6074, abs=1e-4)
+
+    w = cfg.DISAGGREGATED_WEIGHTS
+    assert ratio <= max(w.values()) / min(w.values())
+
+
+def test_the_weight_and_not_the_size_decides_the_q_buy_side(live_cattle):
+    """§A.2: Producer/Merchant carries the largest net and contributes LESS than Other
+    Reportable, whose net is a quarter of the size.
+
+    This is the inversion the whole weighting exists to produce, and it does not appear in
+    the constructed example, where the hedger is the only net-short category. A real example
+    was chosen partly for this.
+    """
+    con = contributions(live_cattle)
+    buy = con[con["q_side"] == "buy"].set_index("category")
+    assert buy.loc["producer_merchant", "net"] == -98_985
+    assert buy.loc["other_reportable", "net"] == -22_702
+    assert abs(buy.loc["producer_merchant", "net"]) > 4 * abs(buy.loc["other_reportable", "net"])
+    assert buy.loc["producer_merchant", "q_contribution"] == pytest.approx(9_898.5)
+    assert buy.loc["other_reportable", "q_contribution"] == pytest.approx(11_351.0)
+    assert (buy.loc["producer_merchant", "q_contribution"]
+            < buy.loc["other_reportable", "q_contribution"])
+
+
+def test_live_cattle_days_to_liquidate_reproduces_the_appendix(live_cattle):
+    """§A.5 continued: `T_sell = 91,663.4 / (0.2 x 75,328.6) = 6.08` and `T_buy = 1.69`.
+
+    The volume is the measured whole-market ADV, quoted in the appendix, and is passed in
+    rather than looked up so this runs offline. `test_appendix_live.py` recomputes it.
+    """
+    frag = market_fragility(live_cattle).iloc[0]
+    adv = 75_328.6
+    assert exit_pressure(frag["q_sell"], frag["open_interest"],
+                         volume=adv)["days_to_liquidate"] == pytest.approx(6.08, abs=0.01)
+    assert exit_pressure(frag["q_buy"], frag["open_interest"],
+                         volume=adv)["days_to_liquidate"] == pytest.approx(1.69, abs=0.01)
+    # §A.5's own argument for the weighting, on this market: the unweighted fund net.
+    assert exit_pressure(67_025, LIVE_CATTLE_OI,
+                         volume=adv)["days_to_liquidate"] == pytest.approx(4.45, abs=0.01)
+
+
+def test_live_cattle_is_the_template_shape(live_cattle):
+    """§A.2 reads this market as a fragile long side facing an immovable hedged short one.
+
+    Asserted through `shape_labels` rather than by eye, because that is the classifier every
+    amendment from B28 onward counts with.
+    """
+    net = (live_cattle.set_index("category")["long_contracts"]
+           - live_cattle.set_index("category")["short_contracts"])
+    got = shape_labels(pd.Series([net["producer_merchant"]]),
+                       pd.Series([net["managed_money"]]))
+    assert got.iloc[0] == "fragile_long"

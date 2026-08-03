@@ -15,8 +15,8 @@ keystroke (workspace governance: never drafted in an agent scratchpad).
 | [`crowdmon_plain_language_summary.md`](crowdmon_plain_language_summary.md) | **here** | the argument in prose, and the **authoritative appendix** (§A.1-A.11). Every formula in the package is defined here |
 | [`crowdmon_futures_cot_module.md`](crowdmon_futures_cot_module.md) | **here** | full system description v0.1, and the §13 build order. The primary spec |
 | [`amendments-2026-08-01.md`](amendments-2026-08-01.md) | **here** | A1-A22: what the layer-3 build measured that the two above get wrong. **Closed** |
-| [`amendments-2026-08-02.md`](amendments-2026-08-02.md) | **here** | B1-B32: commonality (why §A.6 is vacuous unless the own market is excluded, and why it cannot reach §A.9) through the cocoa template on TFF. **Closed** |
-| [`amendments-2026-08-03.md`](amendments-2026-08-03.md) | **here** | C1 onward: template classification stability (17 of 39 markets survive a half-split, and cocoa flips 1.000 to 0.098), and the `w_SD` sweep the index-share handoff asks for. **The open file** |
+| [`amendments-2026-08-02.md`](amendments-2026-08-02.md) | **here** | B1-B37: commonality (why §A.6 is vacuous unless the own market is excluded, and why it cannot reach §A.9) through the template follow-ups and §A.2's real worked example. **Closed** |
+| [`amendments-2026-08-03.md`](amendments-2026-08-03.md) | **here** | C1 onward: template classification stability (17 of 39 markets survive a half-split, and cocoa flips), and the `w_SD` sweep the index-share handoff asks for. **The open file** |
 | `crowdmon_step2_normalisation.md` | cotdata | contract master and normalisation: **accepted, and layer 2 shipped** as `futures/notional.py` and `futures/riskunits.py`. **History, not instructions**: it named `backadj` for volatility, corrected on cotdata `main` in `ff2b755`. The trap table in [`../../CLAUDE.md`](../../CLAUDE.md) is authoritative on the three price series |
 | `cot_vintage.md` | cotdata | the vintage store this package reads. §9 records two adversarial reviews and one deliberately unmet acceptance criterion |
 
@@ -38,10 +38,19 @@ the name merged PRs and `cotdata/docs/design/cot_vintage.md` link to, and it is 
 its own terms: the document describes the futures COT module, which is `crowdmon.futures`.
 
 **The appendix is authoritative and is also executed.**
-[`tests/test_appendix.py`](../../tests/test_appendix.py) runs §A.2's cocoa example and §A.5's
-days-to-liquidate against the implementation; every figure reproduces. It is written in
-LaTeX, which renders on GitHub and not in every viewer, but the source is plain text either
-way, so read the file rather than a rendering when the math matters.
+[`tests/test_appendix.py`](../../tests/test_appendix.py) runs the worked thread through §A.2,
+§A.5, §A.7 and §A.9 against the implementation; every figure reproduces. **That thread is now
+a real market** (live cattle, report week 2026-07-28) rather than a constructed one, which
+buys a second failure mode worth having: the figures can drift because the *store* changed,
+not only because the code did, so
+[`tests/test_appendix_live.py`](../../tests/test_appendix_live.py) re-derives them from the
+real store and fails with an instruction to update the document. The constructed near-maximal
+table is retained beside it, labelled, because it sits at 90.5% of a config-set ceiling and is
+useful precisely for that. See `amendments-2026-08-02.md` §B37.
+
+The appendix is written in LaTeX, which renders on GitHub and not in every viewer, but the
+source is plain text either way, so read the file rather than a rendering when the math
+matters.
 
 ## Amendments are one file per day
 

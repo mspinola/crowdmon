@@ -5,11 +5,11 @@
     python bin/check_skips.py --profile ci   skips.json
     python bin/check_skips.py --profile live skips.json
 
-**Why this exists.** 57 of this package's assertions live in `tests/*_live.py` and need the
+**Why this exists.** 61 of this package's assertions live in `tests/*_live.py` and need the
 real store: the layer-2 trap-table figures (gold notional wrong by +294% in 2002, soybean
-volatility 201x too high off `backadj`), the appendix's cocoa arithmetic, the volume and
-trigger measurements. Every one of them **skips silently** when the store is absent, and CI
-runs against a two-panel fixture, so those 57 have never run in CI and a green badge has
+volatility 201x too high off `backadj`), the appendix's live-cattle arithmetic, the volume
+and trigger measurements. Every one of them **skips silently** when the store is absent, and
+CI runs against a two-panel fixture, so those 61 have never run in CI and a green badge has
 never meant they passed. That is not a hypothetical failure mode; it is the current state,
 and it is what this script exists to make visible.
 
@@ -59,6 +59,12 @@ DATA_ABSENT = (
     "store not populated",
     "no readable store",
     "no readable TFF panel",
+    # test_appendix_live.py, added with 2026-08-02 §B37. Three distinct guards, because the
+    # appendix pins a NAMED market at a NAMED report week: the vintage panel may be
+    # unreadable, present but not carrying 2026-07-28, or carrying it with no LE volume.
+    "no readable vintage store",
+    "store does not carry the appendix's market-week",
+    "store has no LE volume",
 )
 
 PROFILES = {"ci": INTENTIONAL + DATA_ABSENT, "live": INTENTIONAL}

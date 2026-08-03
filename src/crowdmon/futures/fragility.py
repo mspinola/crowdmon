@@ -169,6 +169,61 @@ def contributions(panel: pd.DataFrame, *, report_type: str | None = None,
                             "q_side"]].reset_index(drop=True)
 
 
+#: The six mutually exclusive configurations of a (stable holder, fragile holder) pair.
+#: Six and not five: `stable == 0` is a market with **no immovable side at all**, where the
+#: question "is the fragile side opposed by a stable one" has no answer rather than the
+#: answer no. Module spec §6.3, and amendments 2026-08-02 §B31.
+SHAPE_KEYS = ("fragile_long", "fragile_short", "both_short", "both_long",
+              "fragile_flat", "no_stable_side")
+
+
+def shape_labels(stable: pd.Series, fragile: pd.Series, *,
+                 labels: dict[str, str] | None = None) -> pd.Series:
+    """Classify each market-week by the sign pair of two categories' NET positions.
+
+    `stable` is the low-weight holder the template expects to be immovable
+    (`producer_merchant` on Disaggregated, `asset_manager` on TFF); `fragile` is the
+    weight-1.0 one (`managed_money` / `leveraged`). Returns one of `SHAPE_KEYS`, or the
+    corresponding value from `labels` when a display mapping is supplied.
+
+    **Labelled by explicit mask, never by fall-through.** Five masks plus a default reads
+    as equivalent and is not: it silently folds `stable == 0` into whichever bucket is the
+    default. A first pass at this did exactly that and reported MICRO GOLD as a fund-flat
+    market, when Managed Money is net long there in 84% of weeks and it is the *hedger*
+    that is absent. The masks below are checked for exhaustiveness rather than assumed, so
+    a future sign convention that leaves a row unmatched raises instead of mislabelling it.
+
+    Note this is a statement about NETS, and a net is not a holding: a category with a real
+    gross book that happens to net to zero is `fragile_flat`, not absent. That distinction
+    is the reason `Phi` uses gross over `2·OI`, and it is why the two flat outcomes are
+    named for the net rather than for the participant.
+    """
+    stable = pd.to_numeric(stable, errors="coerce")
+    fragile = pd.to_numeric(fragile, errors="coerce")
+    out = pd.Series(pd.NA, index=stable.index, dtype=object)
+    out = out.mask((stable < 0) & (fragile > 0), "fragile_long")
+    out = out.mask((stable > 0) & (fragile < 0), "fragile_short")
+    out = out.mask((stable < 0) & (fragile < 0), "both_short")
+    out = out.mask((stable > 0) & (fragile > 0), "both_long")
+    out = out.mask((stable != 0) & (fragile == 0), "fragile_flat")
+    out = out.mask(stable == 0, "no_stable_side")
+    if out.isna().any():
+        raise FragilityError(
+            f"{int(out.isna().sum())} row(s) matched none of the {len(SHAPE_KEYS)} shape "
+            f"masks, which are meant to be exhaustive over the sign pair. A null net is "
+            f"the likely cause: it is a missing measurement, not a flat position, and it "
+            f"must be dropped by the caller rather than labelled here.")
+    if labels is None:
+        return out
+    missing = [k for k in SHAPE_KEYS if k not in labels]
+    if missing:
+        raise FragilityError(
+            f"labels is missing {missing}. Supply all {len(SHAPE_KEYS)} or none: a partial "
+            f"map turns an unlabelled outcome into a null, which is the fall-through bug "
+            f"this function exists to prevent.")
+    return out.map(labels)
+
+
 def fragility_frame(panel: pd.DataFrame, **kw) -> pd.DataFrame:
     """`market_fragility` plus the OI-denominated pressure ratios, in one call.
 

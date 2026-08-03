@@ -313,6 +313,53 @@ Assign a constraint weight per category:
 
 Weights are configured, documented as judgement, and subjected to sensitivity analysis rather than presented as estimates.
 
+#### The weight table sets the range of every asymmetry metric before any data arrives
+
+Since `Σ_c P_c = 0`, the gross net-long total `G` equals the gross net-short total. Therefore
+`Q_sell ≤ max(w)·G` and `Q_buy ≥ min(w)·G`, so **any ratio of the two directions is bounded**:
+
+```
+Q_sell / Q_buy   ≤   max(w) / min(w)
+```
+
+and the direction-agnostic form `max(Q_sell, Q_buy) / min(Q_sell, Q_buy)` carries the same
+bound. The current ceilings are **10.0 on Disaggregated** (1.0 / 0.1) and **3.333 on TFF**
+(1.0 / 0.3), verified at zero breaches across 21,756 Disaggregated and 6,033 TFF
+market-weeks.
+
+Three consequences, none of which were visible when this section was written:
+
+- The ceiling is a property of `core/config.py`, not of any market. An observed ratio must be
+  quoted **alongside the ceiling** or as a fraction of it, or it reads as a free measurement
+  when it is partly a statement about the config.
+- Changing the weight spread **rescales every asymmetry figure**, so a cross-version
+  comparison requires the weight-table version to be recorded beside the result. Changing the
+  *level* of the weights uniformly does not, because it cancels in the ratio.
+- The two report types **cannot be compared**, for the same reason §2.3 of the TFF analysis
+  gives for Φ itself: the ceilings differ by a factor of three, so the appendix's 9.05×
+  example is arithmetically unreachable on TFF rather than merely unusual there.
+
+Measured: see amendments 2026-08-02 §B31 (the bound and its verification), §B32 (per report
+type) and §B34 (the direction-agnostic form, and why the *signed* median of 0.993 is
+direction cancelling rather than symmetry).
+
+#### `PM == 0` is inexpressible, not false
+
+When labelling a market by the hedger-versus-fund shape, a market with **no
+Producer/Merchant position at all** is a sixth outcome and must be labelled explicitly. It is
+not "the fund is flat", and it is not "the template does not hold": there is no hedger side
+for the template to be a statement about.
+
+It is 73 of 21,756 Disaggregated market-weeks, concentrated in the retail-sized contracts
+(MICRO GOLD in 58 weeks of 80, MICRO SILVER 5, Coinbase GOLD-1oz 4), and on TFF it is a third
+of the report by market count, because `asset_manager` is absent from crypto in 72.7% of
+market-weeks.
+
+**Label by explicit mask, never by fall-through.** A first implementation defaulted unmatched
+rows to "fund net flat" and duly reported MICRO GOLD as a fund-flat market, when Managed Money
+is net long there in 84% of weeks and it is the *hedger* that is missing. Recorded here so it
+is not re-introduced; asserted in `tests/test_fragility.py`.
+
 ### 6.4 Flow decomposition
 
 Weekly change in net position decomposes into four states, which have different implications:

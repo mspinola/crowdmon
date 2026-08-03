@@ -31,7 +31,7 @@ not about next week's return. Positioning extremes persist for quarters.
 | [`crowdmon_plain_language_summary.md`](docs/design/crowdmon_plain_language_summary.md) — the argument in prose, **and the authoritative appendix** | here |
 | [`crowdmon_futures_cot_module.md`](docs/design/crowdmon_futures_cot_module.md) — the primary spec, §13 build order | here |
 | [`amendments-2026-08-01.md`](docs/design/amendments-2026-08-01.md) — A1-A22, **closed** | here |
-| [`amendments-2026-08-02.md`](docs/design/amendments-2026-08-02.md) — B1-B32, commonality through the cocoa template on TFF. **Closed** | here |
+| [`amendments-2026-08-02.md`](docs/design/amendments-2026-08-02.md) — B1-B37, commonality through the template follow-ups and §A.2's real worked example. **Closed** | here |
 | [`amendments-2026-08-03.md`](docs/design/amendments-2026-08-03.md) — C1 onward, template classification stability and the `w_SD` sweep. **The open file** | here |
 | `crowdmon_step2_normalisation.md` — layer 2, **accepted and shipped**. History, not instructions | `../cotdata/docs/design/` |
 | `cot_vintage.md` — the vintage store this reads | `../cotdata/docs/design/` |
@@ -48,16 +48,23 @@ from a formula there should read the amendments alongside it, and several sectio
 It is written in LaTeX, which renders on GitHub and not in every viewer. The source is plain
 text either way, so read the file rather than a rendering if the math matters.
 
-**Its worked example is executed, not just read** ([`tests/test_appendix.py`](tests/test_appendix.py)):
-§A.2's cocoa figures and §A.5's days-to-liquidate reproduce exactly, so the implementation
-is pinned to the specification rather than merely believed to match it. Places where the
-appendix is right about its example and wrong about real data: spreading and "a single
-category dominating is typical" (2026-08-01 §A6); the cocoa **shape** itself, which is a
-minority configuration concentrated in metals and livestock rather than in the harvest
-markets the example is drawn from, and which cocoa itself has not held for most of the last
-year (2026-08-02 §B31); and the shape's complete absence from financial futures, where its
-mirror image is 77% of open interest and the example's 9.05x asymmetry is arithmetically
-unreachable (§B32).
+**Its worked example is executed, not just read** ([`tests/test_appendix.py`](tests/test_appendix.py)),
+and **it is now a real market**: LIVE CATTLE, report week 2026-07-28, carried through §A.2,
+§A.5, §A.7 and §A.9 (2026-08-02 §B37). That buys a second failure mode worth having, since
+the figures can now drift because the store changed rather than only because the code did,
+so [`tests/test_appendix_live.py`](tests/test_appendix_live.py) re-derives them from the real
+store. The constructed cocoa table is retained beside it, labelled, with its position stated:
+`Q_sell/Q_buy = 9.045` is **90.5% of a ceiling set by `core/config.py`**, not an empirical
+extreme.
+
+Places where the appendix was right about its example and wrong about real data, all now
+corrected in place: spreading and "a single category dominating is typical" (2026-08-01 §A6,
+measured at 29% of markets); the cocoa **shape** itself, a minority configuration
+concentrated in metals and livestock rather than in the harvest markets the example was drawn
+from, and which cocoa has not held since early 2026 (§B31, §B36); its complete absence from
+financial futures, where the mirror image is 77% of open interest and 9.05x is arithmetically
+unreachable (§B32); and the reading that the median market has no asymmetry, which is
+direction cancelling rather than symmetry (§B34).
 
 Precedence: **a measurement beats a doc, the appendix beats a handoff, and a handoff beats
 your own judgement about what would be nicer.**
@@ -153,7 +160,9 @@ src/crowdmon/
     notional.py             rung 3, contracts to USD. Refuses anything but unadj
     riskunits.py            rung 4, notional x sigma. Refuses anything but propadj
     flow.py                 A.3 flow decomposition
-    fragility.py            A.2 Q_sell / Q_buy / Phi
+    fragility.py            A.2 Q_sell / Q_buy / Phi, and `shape_labels`: the six-outcome
+                            (stable, fragile) classification, by explicit mask never
+                            fall-through. Lives here because both reproducers had a copy
     breadth.py              §6.2 breadth-depth quadrant
     concentration.py        §6.2 CR4/CR8. Published, never null, needs nothing else
     impact.py               A.5 exit COST. Amihud needs the multiplier, see A20
@@ -284,15 +293,16 @@ COTDATA_STORE=/tmp/crowdmon_test .venv/bin/python -m pytest tests/ -q -rs
 .venv/bin/python -m ruff check src tests bin
 ```
 
-**That fixture run skips 57 assertions, and they are the valuable ones.** Every
+**That fixture run skips 61 assertions, and they are the valuable ones.** Every
 `tests/*_live.py` needs the real store, so CI has never executed the layer-2 trap-table
-figures, the appendix's cocoa arithmetic, the volume and trigger measurements, or
+figures, the appendix's live-cattle arithmetic (`test_appendix_live.py`, `2026-08-02 §B37`),
+the volume and trigger measurements, or
 `2026-08-03 §C1-C4` (`test_supplemental_live.py`, the most exposed of the set: three of its
 five assertions read `cot_supplemental`, a domain one release old). From the
-**main checkout**, against `~/code/cotdata_store`, the same suite is **492 passed / 5
-skipped** rather than **435 / 62**.
+**main checkout**, against `~/code/cotdata_store`, the same suite is **525 passed / 5
+skipped** rather than **464 / 66**.
 
-> **From a worktree those two figures are 490 / 7 and 433 / 64**, because `test_boundaries`
+> **From a worktree those two figures are 523 / 7 and 462 / 68**, because `test_boundaries`
 > resolves `../cotdata` and `../marketdata` relative to the test file and finds neither,
 > so the two producer-direction checks skip. Quote the main-checkout numbers: a worktree
 > reports two fewer passes and has one real seam unguarded. This note exists because an
@@ -306,7 +316,7 @@ subscription and this repo is public, and the vintage store accumulates forward 
 2026-07-31 so no download reconstructs it. The split is therefore permanent:
 
 ```bash
-bin/live-tests.sh          # the 57, against the real store. Scheduled 09:15 daily
+bin/live-tests.sh          # the 61, against the real store. Scheduled 09:15 daily
 ```
 
 `--profile live` is the load-bearing part. A run whose store is missing or unsynced would
