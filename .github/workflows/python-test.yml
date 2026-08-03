@@ -47,7 +47,7 @@ jobs:
 
     - name: Run linting
       working-directory: crowdmon
-      run: python -m ruff check src tests
+      run: python -m ruff check src tests bin
 
     - name: Run tests
       working-directory: crowdmon
@@ -55,6 +55,7 @@ jobs:
         # cotdata guards on this at import, so every test needs a real path even though
         # the ones that write use the tmp_path store fixture.
         COTDATA_STORE: /tmp/cotdata_store
+        CROWDMON_SKIP_REPORT: /tmp/crowdmon-skips.json
       run: |
         mkdir -p /tmp/cotdata_store
         # -rs so the skipped live-store tests are VISIBLE. CI has no store, so
@@ -62,3 +63,12 @@ jobs:
         # that silently skipped the only tests touching real data would be worse
         # than a red one.
         pytest tests/ -q -rs
+
+    # Visible was never enough: nothing read the -rs output, so a test that quietly
+    # started skipping looked identical to one that passed. This asserts the skip set is
+    # the one a FIXTURE store should produce, and fails on any new reason. It cannot
+    # verify a real-store number -- the data is Norgate-licensed and this repo is public,
+    # so that job runs nightly on the developer machine instead. See bin/check_skips.py.
+    - name: Check the skip set is the expected one
+      working-directory: crowdmon
+      run: python bin/check_skips.py --profile ci /tmp/crowdmon-skips.json

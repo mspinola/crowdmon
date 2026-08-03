@@ -8,12 +8,44 @@ definition should be tested against a case constructed to be unambiguous rather 
 against real data where it happens to hold. Real data then tests that the definition
 survives contact with it, which is a different question and is asked separately.
 """
+import json
+import os
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
+
+
+def pytest_terminal_summary(terminalreporter) -> None:
+    """Write every skip and its reason to `$CROWDMON_SKIP_REPORT`, when that is set.
+
+    The suite's most valuable assertions are the `*_live.py` ones, and they are exactly the
+    ones that **skip silently** when the store they need is absent. A green run therefore
+    proves much less than it looks like it proves, and nothing in the ordinary output says
+    which of the two happened. `bin/check_skips.py` turns this file into a pass or fail
+    against a profile; see that module for what each profile allows and why.
+
+    Off unless the env var is set, so an ordinary `pytest` is unchanged and no stray file
+    appears in a working tree.
+    """
+    target = os.environ.get("CROWDMON_SKIP_REPORT")
+    if not target:
+        return
+    rows = []
+    for report in terminalreporter.stats.get("skipped", []):
+        reason = ""
+        longrepr = getattr(report, "longrepr", None)
+        # A skip's longrepr is (fspath, lineno, "Skipped: <reason>"); anything else is a
+        # shape pytest does not currently produce, so fall back rather than index blindly.
+        if isinstance(longrepr, tuple) and len(longrepr) == 3:
+            reason = str(longrepr[2]).removeprefix("Skipped: ").strip()
+        else:
+            reason = str(longrepr or "").strip()
+        rows.append({"nodeid": report.nodeid, "reason": reason})
+    rows.sort(key=lambda r: (r["nodeid"], r["reason"]))
+    Path(target).write_text(json.dumps(rows, indent=2) + "\n")
 
 
 @pytest.fixture(scope="session")

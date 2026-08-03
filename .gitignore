@@ -7,3 +7,6 @@ dist/
 .pytest_cache/
 .ruff_cache/
 .DS_Store
+
+# Written by bin/live-tests.sh via the launchd agent (append-only run log).
+live-tests.log

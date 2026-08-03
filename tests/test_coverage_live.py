@@ -39,8 +39,19 @@ def panels():
     if panel.empty or panel["market_code"].nunique() < 20:
         pytest.skip("store too small for a coverage panel")
 
+    # Guarded separately from the panel above, and it has to be. A store carrying the free
+    # CFTC half but no Norgate half reads a panel perfectly well and then raises here, so
+    # a guard on `from_current_store` alone turns six clean skips into six ERRORS on
+    # exactly the store a CI job would build. Measured: `cotdata-update --cot-disagg
+    # --cot-tff` produces that store in 11 seconds, and this file was the only one that
+    # errored rather than skipped against it.
+    try:
+        master = ContractMaster.load()
+    except Exception as exc:                                    # noqa: BLE001
+        pytest.skip(f"no contract_specs table: {exc}")
+
     per_category = add_volume(add_extremity(add_risk_units(
-        add_notional(ContractMaster.load().annotate(panel)))))
+        add_notional(master.annotate(panel)))))
     volume = (per_category.groupby(["report_date", "market_code"])[["adv", "adv_stress"]]
               .max().reset_index())
     per_market = market_fragility(panel).merge(

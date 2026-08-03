@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd agent for the crowdmon live-test run (macOS).
+
+  Install:
+    cp bin/com.mspinola.crowdmon-live-tests.plist.example \
+       ~/Library/LaunchAgents/com.mspinola.crowdmon-live-tests.plist
+    launchctl load ~/Library/LaunchAgents/com.mspinola.crowdmon-live-tests.plist
+
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.mspinola.crowdmon-live-tests.plist
+
+  Run it once by hand first, and read the log. It should report OK and, crucially, show
+  zero disallowed skips:
+    bin/live-tests.sh
+
+  Schedule: 09:15 local, daily. That sits AFTER the cotdata overnight sync (observed
+  landing ~06:25) and after com.mspinola.cotdata-verify's 08:45 check, so a failure here
+  is about this package rather than about a store that had not arrived yet. It does not
+  collide with npf-weekly-setups (Fri 17:00), npf-orchestrate (Fri 18:00), or
+  livebook-daily (weekdays 07:30).
+
+  The hour is not load-bearing in the way livebook's is: nothing here writes a decision.
+  A run against a stale store fails rather than recording anything, because live-tests.sh
+  passes --profile live and a data-absent skip is an error there.
+
+  Daily rather than weekdays-only on purpose. The thing being guarded against is a sibling
+  checkout moving under an editable install, and that happens whenever someone is working,
+  which is not confined to weekdays.
+
+  Notification on failure follows com.mspinola.cotdata-verify, which is the closest
+  existing analogue: a scheduled verification whose only job is to be noticed when it
+  breaks.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.mspinola.crowdmon-live-tests</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>{ echo "===== $(date) ====="; /Users/matts/code/trading_workspace/crowdmon/bin/live-tests.sh; rc=$?; echo; } &gt;&gt; /Users/matts/code/trading_workspace/crowdmon/live-tests.log 2&gt;&amp;1; [ "$rc" -eq 0 ] || osascript -e 'display notification "live tests FAILED — see crowdmon/live-tests.log" with title "crowdmon" sound name "Basso"'</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Hour</key><integer>9</integer>
+            <key>Minute</key><integer>15</integer>
+        </dict>
+    </array>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>
