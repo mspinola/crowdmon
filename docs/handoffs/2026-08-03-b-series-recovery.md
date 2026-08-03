@@ -289,10 +289,11 @@ one against the sections `docs/design/amendments-*.md` defines, and also checks 
 series for holes, which is the cheapest thing that would have caught B32 being followed by
 nothing while four documents cited B33.
 
-**Exactly one reference does not resolve**, and it is not a gap in this work: `§C5` belongs
-to crowdmon#42, unmerged. It is recorded in `KNOWN_UNRESOLVED` with a reason and a place to
-look, never deleted, and a fourth test fails once it becomes resolvable so the allowlist
-cannot rot.
+**Every reference resolves.** One did not while this was being written, `§C5`, which lived
+on crowdmon#42; it was recorded in `KNOWN_UNRESOLVED` with a reason and a place to look
+rather than deleted. #42 then merged, and the fourth test failed **because** the gap had
+closed, which forced the entry out and the explanatory prose with it. That is the mechanism
+working rather than a cleanup, and it is why the allowlist cannot rot into a list of lies.
 
 ### §4. The band, and the prediction holds
 
