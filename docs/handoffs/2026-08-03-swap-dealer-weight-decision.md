@@ -1,7 +1,8 @@
 # Handoff: the Swap Dealer weight decision
 
-**Status:** **open, and it is a decision rather than a measurement.** The evidence is
-complete and is not the bottleneck. Nothing here needs new data.
+**Status:** **complete, 2026-08-03 (PR #NN).** Decided by the human as **option (a)**:
+`swap: 0.4` stands, examined and deliberately kept. See §7. §6 corrects §1's headline figure
+before the decision was taken, and `single_weight_sweep` (the one item §4 released) is built.
 **Date:** 2026-08-03
 **Lives at:** `crowdmon/docs/handoffs/2026-08-03-swap-dealer-weight-decision.md`
 **Target:** the human. A session may prepare the change; it may not choose the number
@@ -183,3 +184,50 @@ against it.
 Full detail and the reproducer: `2026-08-03 §C6`.
 
 **Status: still open. The weight table is still unchanged.**
+
+---
+
+## 7. Decision, 2026-08-03: option (a). `swap: 0.4` stands, and the reasoning is on the record
+
+Appended per the append-never-edit rule. **The decision was made by the human**, presented
+with §2's four options against §6's corrected figures rather than §1's.
+
+**`swap` stays at 0.4. `TFF_WEIGHTS["dealer"]` stays at 0.4.** No value in `core/config.py`
+changed.
+
+### Why (a) rather than the other three
+
+The correction in §6 is what made it defensible. Against §1's 42.0% the weight looked like a
+number the answer depended on; against §6's **17.9% over the order-preserving band, and 3.5%
+pooled**, it is a number the answer is mildly sensitive to on 13 markets and nearly indifferent
+to everywhere else. 0.4 sits inside the plausible class and 7.1% from the routine-turnover
+reading of 0.305, which is where most weeks are.
+
+Each of the others was declined on its own terms, and none is refuted:
+
+- **(b) cut toward 0.1** fits a stress-regime number to the ~95% of weeks that are not
+  stressed, and `core/config.py`'s header forbids tuning a configured weight until an output
+  looks better. §6 also closed its floor: 0.1 exactly is a tie, not a value.
+- **(c) regime-conditional** is what the evidence actually points at and remains the honest
+  long answer. It is a design decision rather than a number, needs a point-in-time regime
+  classifier with no lookahead, and nothing else in the package is regime-conditional.
+- **(d) publish the band** is what §6.3 literally asks for, but at 17.9% the band is now
+  small enough to read as noise rather than as a caveat, and it defers the judgement to every
+  reader forever.
+
+### What is recorded rather than resolved
+
+**The regime incoherence is real and is now a documented under-weighting, not a fixed one.**
+Swap behaves at 0.067 of Managed Money in the worst 5% of weeks and carries 0.4. Every
+`Q_sell` published during exactly the weeks this package exists to warn about overstates the
+forceability of the swap book. That is the known cost of (a) and it is written into
+`core/config.py` beside the value, so the next reader meets it there rather than here.
+
+**Metals are exactly where §3 left them.** The Supplemental report does not cover gold,
+silver or copper and never will. The case that motivated half of §0, a swap dealer on the
+immovable side, is untouched by any of this.
+
+**(c) is not closed, it is unscheduled.** If a regime classifier arrives for another reason,
+this decision should be re-opened rather than treated as settled precedent.
+
+**Status: complete. The weight table is unchanged, deliberately.**

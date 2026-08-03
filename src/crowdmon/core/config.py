@@ -38,6 +38,28 @@ DISAGGREGATED_WEIGHTS: dict[str, float] = {
     "other_reportable": 0.5,
     # Hedged against OTC exposure, so not directionally motivated, but balance-sheet and
     # capital constrained, which is a real forcing channel at the wrong moment.
+    #
+    # **Examined 2026-08-03 and deliberately kept**, which is not the same state as never
+    # having been looked at. The full record is
+    # `docs/handoffs/2026-08-03-swap-dealer-weight-decision.md`; the three things a reader
+    # should know before arguing with this number:
+    #
+    # 1. It is measurably doing two jobs. Against `managed_money` at 1.0, swap behaves at
+    #    0.305 on routine turnover and **0.067 in the worst 5% of weeks**, which is nearer
+    #    `producer_merchant` below it. The incoherence is between REGIMES, not between
+    #    markets, and no single value fixes it.
+    # 2. The whole plausible range is worth less than the argument suggests. Over the
+    #    order-preserving band [0.2, 0.4], median `Q_sell/Q_buy` moves **17.9%** on the 13
+    #    Supplemental markets and **3.5%** pooled (`2026-08-03 §C6`). 0.4 sits 7.1% from the
+    #    routine-turnover reading.
+    # 3. Below 0.1 is not available. At exactly 0.1 this ties `producer_merchant` and
+    #    collapses the swap-versus-hedger distinction; beneath it the §6.3 ordering inverts,
+    #    and `2026-08-01 §A22` measured that inverting the ordering destroys the rankings
+    #    outright (0 of 10 survive, rank correlation -0.045).
+    #
+    # Not fitted, per this module's header. Kept because 0.4 is inside the plausible class
+    # and near the regime most weeks are in, with the stress regime recorded as a known
+    # under-weighting rather than papered over.
     "swap": 0.4,
     # Hedging physical. Can stand for delivery, and the position exists to offset a cash
     # exposure rather than to express a view. The least forceable holder in the report.
