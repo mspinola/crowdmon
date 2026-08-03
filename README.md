@@ -32,9 +32,11 @@ src/crowdmon/
   futures/       COT-specific: ingestion, contract master, positioning engines
 ```
 
-`core/store.py` and `core/aggregate.py` are absent rather than stubbed: both want history the
-vintage store does not yet have. `core/impact.py` holds the square-root law and Amihud, which
-are true of any market with a price, a volatility and a volume.
+`core/store.py` is absent rather than stubbed: it wants history the vintage store does not yet
+have, and an empty module invites being imported. `core/aggregate.py` **arrived with
+extremity** and holds the trailing z-scores and percentiles; it is the first thing in `core/`
+to earn its place rather than be assumed into it. `core/impact.py` holds the square-root law
+and Amihud, which are true of any market with a price, a volatility and a volume.
 
 ## Why this is a separate package
 
@@ -184,36 +186,45 @@ output. The tests are pre-registered in
 which declares what has already been looked at and what is still clean, and is frozen awaiting
 a session that has written none of this.
 
-**Next for anyone who wants to build rather than judge**, checked against spec §13 rather than
-assumed: **step 5's cross-market engine is half unbuilt and is not blocked.** §13 step 5 asks
-for panel, **PCA** and **trend alignment**. The panel exists as `futures/commonality.py`;
-neither of the other two exists anywhere in `src/`, and neither needs data the workspace does
-not have.
+**Step 5's cross-market engine is built, all three parts.** §13 step 5 asks for panel, **PCA**
+and **trend alignment**: the panel is `futures/commonality.py`, the PCA is
+`futures/macro_pca.py`, and trend alignment is `futures/alignment.py`.
+`futures/clustering.py` (spec §369) sits beside them, clustering markets by return correlation
+rather than by sector label. Two findings worth carrying before reading any of their output:
+**PC1 is the subject, not a parameter** (it is the grain complex on Disaggregated and the
+macro book on TFF, §B21), and **the alignment score cannot reach 1**, its ceiling averaging
+0.931 and moving enough that the raw figure is not comparable across weeks (§B20).
 
-**Build the PCA the spec names, which is not the one nearest to hand.** §7's macro-book PCA
-runs on positioning **changes**, and reads PC1's variance share as the futures absorption ratio
-with loading rotation signalling the book being redefined. `commonality` builds an
-**illiquidity** panel, so a PCA over that is the closer object and answers a different
-question. Both are reachable, the positioning one from the same COT panel everything else
-consumes, but they are not interchangeable and only one of them is the absorption ratio.
-Trend alignment is reachable from the per-market, per-horizon signals `trigger` already
-computes.
+> **What is left to build is not listed here.**
+> [`docs/handoffs/README.md`](docs/handoffs/README.md) is the status table and is the only
+> place that tracks it. An earlier version of this section named three modules as unbuilt that
+> had already shipped, and a version before that named A.7 as "the last large unbuilt piece"
+> after A.7 shipped, which got the trigger module built twice in one afternoon. A hand-kept
+> "what's next" list in a README is how that happens.
 
-**Step 4 is two constraints, not one, and only one of them is blocked.** Treating them
-together is what kept the second sitting unbuilt.
+**Step 4 is two constraints, not one, and both are blocked on data.**
 
 | §13 step 4 item | state |
 |---|---|
 | **limit moves** | **blocked on data.** No daily price limit table exists in `cotdata` or `marketdata`, and spec §3 says the source is "manually maintained" by nothing |
-| **roll congestion** | **not blocked.** `cotdata.roll_dates(symbol)` returns exact roll dates from the Delivery Month change, populated for every market checked with decades of depth |
+| **roll congestion** | **blocked on data, in full.** §379's three components are calendar spread volatility, bid-ask behaviour and OI migration front to next: the first two need a per-expiry price source and quotes, neither of which exists, and the third is blocked too (§B19) |
 
-A per-expiry open-interest split, front against back, is genuinely absent. Roll congestion's
-useful question does not need it: `pressure` already says how many days the forced side needs
-to leave, and `roll_dates` says when the whole market has to move anyway, so whether an exit
-window collides with a roll is answerable today from two things already here.
+**The third one is the trap, and it was recorded here as "not blocked" for a day.**
+`cotdata.get_prices` returns an `Open Interest` column that reads exactly like the front-month
+figure a migration rate needs. It is not: measured against COT's whole-market total over 1,051
+weeks per market, the mean ratio is **1.000** for GC, SI, CL, ZC, NG, ZS, ZW and HG. It is the
+same number COT already reports. Two columns on one frame both look per-contract and neither
+is, `volume.py`'s `front` being the other.
+
+What shipped instead is `futures/roll.py`: roll-window volume and its effect on `pressure.T`,
+which is **5.1% median across 16 markets and wrong-signed for five of them**. That is roll
+*timing*, which is available, rather than roll *congestion*, which is not. Conflating the two
+is what produced the earlier claim.
 
 Step 7's report layer is buildable but is the last item, after validation, in the spec's own
-ordering.
+ordering. `futures/report.py` is the COT-specific half of it; `futures/continuity.py` sits
+under it, because a market code is not an instrument and a migrated code otherwise reads as
+two markets that each die halfway.
 
 ```python
 from crowdmon.futures import decompose, fragility_frame, latest, top_by
