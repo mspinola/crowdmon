@@ -908,7 +908,30 @@ Reproducer: [`../analysis/reproduce.py`](../analysis/reproduce.py)`::contract_sp
 
 ---
 
-## C15. The head of the backlog is NOT a duplicate, and the objection to it was mine
+## C15. EMPHASIS CORRECTED. The head of the backlog is NOT a duplicate, and the objection to it was mine
+
+> **The `r(MM net)` column below is noise, and this section led with it.** Corrected by
+> [`§C16`](#c16-correlating-positioning-levels-is-spurious-and-c15-led-with-it), which measured
+> the cause: Managed Money net positioning is near unit-root (lag-1 autocorrelation median
+> **0.956** over the covered 25), so correlating two such series is Granger-Newbold spurious
+> regression. An **independent random walk** scanned against the covered 25 posts a maximum
+> level correlation of **0.773** half the time, and 33.5% of cross-complex level pairs exceed
+> 0.5 against **0.0%** on first differences.
+>
+> **The conclusion below survives, on the statistic this section printed second.** `r(ΔMM)`
+> runs -0.054 to -0.234 against a differenced noise band of median 0.095 and p90 0.229, which
+> is genuinely consistent with independence. The bolded level figures from -0.224 to -0.643
+> are not evidence of anything and should not be quoted.
+>
+> **That is luck rather than method**, and it is the reason this marker exists rather than a
+> quiet edit: had the level correlations come back strongly positive by chance, this section
+> would have withdrawn a correct recommendation. The table is kept exactly as printed, because
+> how it was wrong is the useful part.
+>
+> **The closing rule below is superseded.** Test positioning correlation on **first
+> differences**, against a noise band computed from the same panel. A level correlation is not
+> weak evidence of a shared holder base, it is no evidence. Reproducer:
+> [`../analysis/reproduce.py`](../analysis/reproduce.py)`::positioning_levels_are_spurious`.
 
 **Withdraws an objection this session raised**, and records why it was wrong, because the
 reasoning that produced it is the kind that generalises badly.
