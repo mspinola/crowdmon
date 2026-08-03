@@ -15,15 +15,22 @@ keystroke (workspace governance: never drafted in an agent scratchpad).
 | [`crowdmon_plain_language_summary.md`](crowdmon_plain_language_summary.md) | **here** | the argument in prose, and the **authoritative appendix** (§A.1-A.11). Every formula in the package is defined here |
 | [`crowdmon_futures_cot_module.md`](crowdmon_futures_cot_module.md) | **here** | full system description v0.1, and the §13 build order. The primary spec |
 | [`amendments-2026-08-01.md`](amendments-2026-08-01.md) | **here** | A1-A22: what the layer-3 build measured that the two above get wrong. **Closed** |
-| [`amendments-2026-08-02.md`](amendments-2026-08-02.md) | **here** | B1-B7: commonality (why §A.6 is vacuous unless the own market is excluded, and why it cannot reach §A.9) and seasonality. **The open file** |
-| `crowdmon_step2_normalisation.md` | cotdata | contract master and normalisation: **proposed and measured, not accepted**. Read before starting layer 2 |
+| [`amendments-2026-08-02.md`](amendments-2026-08-02.md) | **here** | B1 onward: commonality (why §A.6 is vacuous unless the own market is excluded, and why it cannot reach §A.9) through the cocoa template on TFF. **The open file** |
+| `crowdmon_step2_normalisation.md` | cotdata | contract master and normalisation: **accepted, and layer 2 shipped** as `futures/notional.py` and `futures/riskunits.py`. **History, not instructions**: it named `backadj` for volatility, corrected on cotdata `main` in `ff2b755`. The trap table in [`../../CLAUDE.md`](../../CLAUDE.md) is authoritative on the three price series |
 | `cot_vintage.md` | cotdata | the vintage store this package reads. §9 records two adversarial reviews and one deliberately unmet acceptance criterion |
 
 The first two arrived on 2026-08-01, having been written before this package existed. **The
-`cotdata` copies still exist**, so those two files are now duplicated across repos: the ones
-here are canonical, and the cotdata ones should become pointers when something next brings
-that repo open. Do not edit both. The remaining two are about cotdata's own subsystems and
-belong where they are.
+duplication is resolved and there is no "do not edit both" hazard left.**
+`cotdata/docs/design/crowdmon_futures_cot_module.md` is now a 52-line pointer here rather
+than a copy, and the plain-language summary never existed in cotdata at all: its history
+there is empty. The remaining two are about cotdata's own subsystems and belong where they
+are.
+
+The lesson from that episode is kept in [`../../CLAUDE.md`](../../CLAUDE.md) rather than
+here, because it is procedural rather than about these files: the copy silently lost 104
+lines for a day, and duplicating a living document opens a regression window that closes only
+when someone diffs the copies. If a document must appear in two repos, one of them is a
+pointer from the first commit.
 
 The filename `crowdmon_futures_cot_module.md` keeps the old package name deliberately. It is
 the name merged PRs and `cotdata/docs/design/cot_vintage.md` link to, and it is not wrong on
