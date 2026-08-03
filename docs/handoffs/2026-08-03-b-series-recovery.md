@@ -1,6 +1,7 @@
 # Handoff: B-series recovery, reference hygiene, weight sensitivity
 
-**Status:** open
+**Status:** open. **§1 is already done, see §7**: the branch is pushed and the data-loss window
+is closed. Start at §2.
 **Date:** 2026-08-03
 **Lives at:** `crowdmon/docs/handoffs/2026-08-03-b-series-recovery.md`
 **Target:** Claude Code session, `crowdmon` worktree
@@ -225,3 +226,23 @@ still open and is a design question rather than a measurement.
 
 **Do not render a verdict on the composite using any of this.** The sweep describes how a
 configured number moves an output. It is not evidence that the output is right.
+
+---
+
+## 7. Outcome, §1 executed 2026-08-03, before the session started
+
+Appended per the append-never-edit rule; §0-§6 above are preserved as issued.
+
+The branch is pushed, unaltered:
+
+```
+11b7c81a67a77622f5d044d6328e151eee3833ac  refs/heads/claude/template-followups-doc-corrections-45de1d
+```
+
+No rebase, no squash, no amend, and **no PR opened**, because whether it merges or is closed
+with its findings ported is §2's outcome rather than a decision to take while pushing. The
+work now exists somewhere other than one disk, which was the whole of §1.
+
+**§1 is closed. A session executing this handoff starts at §2.** This section exists so that
+the branch is not pushed twice or, worse, "recovered" a second time by someone who reads §1
+and does not reach here.
