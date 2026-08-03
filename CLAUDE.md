@@ -284,13 +284,15 @@ COTDATA_STORE=/tmp/crowdmon_test .venv/bin/python -m pytest tests/ -q -rs
 .venv/bin/python -m ruff check src tests bin
 ```
 
-**That fixture run skips 52 assertions, and they are the valuable ones.** Every
+**That fixture run skips 57 assertions, and they are the valuable ones.** Every
 `tests/*_live.py` needs the real store, so CI has never executed the layer-2 trap-table
-figures, the appendix's cocoa arithmetic, or the volume and trigger measurements. From the
-**main checkout**, against `~/code/cotdata_store`, the same suite is **487 passed / 5
-skipped** rather than **435 / 57**.
+figures, the appendix's cocoa arithmetic, the volume and trigger measurements, or
+`2026-08-03 §C1-C4` (`test_supplemental_live.py`, the most exposed of the set: three of its
+five assertions read `cot_supplemental`, a domain one release old). From the
+**main checkout**, against `~/code/cotdata_store`, the same suite is **492 passed / 5
+skipped** rather than **435 / 62**.
 
-> **From a worktree those two figures are 485 / 7 and 433 / 59**, because `test_boundaries`
+> **From a worktree those two figures are 490 / 7 and 433 / 64**, because `test_boundaries`
 > resolves `../cotdata` and `../marketdata` relative to the test file and finds neither,
 > so the two producer-direction checks skip. Quote the main-checkout numbers: a worktree
 > reports two fewer passes and has one real seam unguarded. This note exists because an
@@ -304,7 +306,7 @@ subscription and this repo is public, and the vintage store accumulates forward 
 2026-07-31 so no download reconstructs it. The split is therefore permanent:
 
 ```bash
-bin/live-tests.sh          # the 52, against the real store. Scheduled 09:15 daily
+bin/live-tests.sh          # the 57, against the real store. Scheduled 09:15 daily
 ```
 
 `--profile live` is the load-bearing part. A run whose store is missing or unsynced would
