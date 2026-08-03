@@ -7,10 +7,15 @@
 **Evidence:** [`../design/amendments-2026-08-03.md`](../design/amendments-2026-08-03.md) §C14-§C17
 **Reproducer:** `../analysis/reproduce.py::variant_codes_are_not_duplicates`, `::ag_dairy_backlog_priority`
 
-> **Two tranches. §1-§7 are the five energy codes and were written first; [§8](#8-second-tranche-appended-2026-08-03-the-ag-and-dairy-backlog)
-> is the ag and dairy tranche, appended later.** The title of this file said "ICE Europe WTI
-> and the Henry Hub complex" while §1-§7 were the whole of it; it is broadened here because a
-> single producer run covers both and the operator should not have to find two documents.
+> **Two tranches. §1-§7 are the five energy codes and were written first; §8 is the ag and
+> dairy tranche, appended later.** The title of this file said "ICE Europe WTI and the Henry
+> Hub complex" while §1-§7 were the whole of it; it is broadened here because a single
+> producer run covers both and the operator should not have to find two documents.
+>
+> **The producer ask is SIX codes: §1's five, plus `039601` rough rice.** §8 ranked four ag
+> candidates and **§9 records the decision to take only the first**, so read §9 before acting
+> on §8's table. §9.2 supersedes §5's expected counts, which were written for tranche 1 alone.
+>
 > **§8.3 corrects a statistic §2 leads with**, so read it before quoting §2's table.
 
 ---
@@ -194,3 +199,72 @@ lag-1 autocorrelation of 0.956, and an **independent random walk** scanned again
 also reported (-0.054 to -0.234) sit inside a noise band of p90 = 0.229, so the energy five
 really are flow-independent of `CL` and `NG`. But the bolded negative numbers in §2's table
 are noise and should not be quoted. Any future variant test uses first differences.
+
+---
+
+# §9. Decision, 2026-08-03: the ag tranche is cut to rough rice alone
+
+**Decided by the human**, on the §C17 evidence, and recorded here rather than by editing §8
+so that what was recommended and what was chosen stay separately readable.
+
+## 9.1 The decision
+
+**Tranche 2 is `039601` ROUGH RICE and nothing else.** §8.1 ranked four codes as worth
+considering and the lower three are dropped:
+
+| code | market | §8.1 rank | disposition |
+|---|---|---|---|
+| `039601` | ROUGH RICE | 1 | **IN** |
+| `001626` | WHEAT-HRSpring | 2 | dropped. Flow 0.338 against wheat-SRW is above the noise band, and a third wheat class was not wanted for its own sake |
+| `135731` | CANOLA | 3 | dropped. Most duplicative of the ten on flow (0.584) |
+| `063642` | CHEESE | 4 | dropped. Flow 0.520 against Class III milk, which is priced off cheese |
+
+The six §8.1 already refused are unaffected and stay refused.
+
+**This makes the whole producer ask six codes**: the five energy codes of §1 plus rough rice.
+
+## 9.2 What this does to the §5 verification numbers
+
+§5 was written for tranche 1 alone and its figures still describe that tranche. With rough
+rice added the end state moves by one. Rough rice is present in **82 of 82** vintage weeks
+including the latest, so unlike oats it lands in the latest-week count rather than only in
+the union:
+
+| | covered markets, latest week | `joinable` |
+|---|---|---|
+| today | 45 | 47 of 49 |
+| after tranche 1 (five energy codes) | 50 | 52 of 54 |
+| after tranche 2 (rough rice) | **51** | **53 of 55** |
+
+`MFS` and `MME` remain the two unjoinable throughout, for the reason §0 gives.
+
+## 9.3 Why the three dropped codes are dropped rather than deferred
+
+Worth stating so a later session does not read the drop as a scheduling decision and quietly
+re-add them. All three failed on **flow correlation against an already-covered market**, which
+is a statement about information rather than about size or effort:
+
+- canola at 0.584 against soybean oil is the largest of the ten by open interest (271,205)
+  and the most redundant of the four by flow. **Size was the reason to want it and flow is
+  the reason not to**, which is the same inversion §C17 records for the tranche as a whole.
+- cheese at 0.520 against Class III milk is close to definitional: Class III milk is priced
+  off cheese, so the two books respond to one input.
+- WHEAT-HRSpring at 0.338 is the mildest case and the only genuinely arguable one. It clears
+  the levered-holder bar comfortably (MM share 0.278, twice the covered median). It is
+  dropped on the narrow ground that a third wheat class adds a market rather than adding
+  information, and the flow number says most of what it would contribute is already in
+  wheat-SRW and wheat-HRW.
+
+**If any one of the three is revisited, WHEAT-HRSpring is the one to revisit**, and the test
+to re-run is `§C17`'s, not a fresh argument from open interest.
+
+## 9.4 Rough rice, and why it is cheap as well as justified
+
+`039601` is a standard CBOT contract (Norgate `ZR`), so §4's vendor-coverage question, which
+is the real risk for the three cash-settled Henry Hub look-alikes, is close to a formality
+here. It is the **smallest market in the tranche by open interest (12,374) and the strongest
+on the criterion that decides**: Managed Money share of 0.433, 3.2x the covered median and the
+highest of any backlog candidate measured.
+
+If the producer run is split for any reason, **run rough rice first.** It is the one item in
+the whole backlog that is both certain to be available and certain to be worth having.
