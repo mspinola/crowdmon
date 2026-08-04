@@ -781,3 +781,60 @@ opposite sides of the line by the two reports**, with no spreading confound mixe
 speculative short reads roughly **9% smaller** than TFF's comparable grouping. Anyone
 presenting the two side by side should say they do not reconcile, because the subtraction is
 the first thing a reader tries.
+
+## D13. Composing §D9's quadrant with §D10's pool check removes half the CLOSE-and-SEVERE cell
+
+**Reproducer:**
+[`../../tests/test_publish_live.py`](../../tests/test_publish_live.py)`::test_the_pool_check_removes_half_of_d9s_close_and_severe_cell`.
+
+Found while building `futures/publish.py`, which is the first thing to run both amendments
+together on one panel. Neither `§D9` nor `§D10` says this, because each was measured before
+the other's fix existed.
+
+`§D9` reported the quadrant on 45 markets and named four in the cell the measure exists to
+find. That reproduces exactly on the 47-market panel `§D11` landed:
+
+| market | offside sigma | `D_sell_pct` | `T_sell` | pool agrees? |
+|---|---:|---:|---:|:--|
+| CORN | 0.25 | 0.955 | 3.69d | **yes** |
+| SOYBEAN MEAL | 0.64 | 0.803 | 4.44d | **yes** |
+| MILK, Class III | 1.10 | 0.764 | 8.98d | **no** |
+| DJIA x $5 | 0.93 | 0.783 | **0.27d** | **no** |
+
+`§D10` then made `format_offside` suppress the quadrant when the observed pool is on the
+other side, on the argument that labelling such a row CLOSE and SEVERE is precisely wrong.
+Applied here, **two of the four fall out**, and they are the two that most needed to.
+
+DJIA is the case worth stating twice. It is one of the three markets `§D10` measures as
+pool-opposite on **every** horizon, and it is separately `§D2`'s worked example of why the
+absolute level keeps a floor: a damage percentile of 0.783 on a **0.27-day** exit, which
+cannot be disorderly for anybody. Two independent guards, built for unrelated reasons, both
+reject the same row. The quadrant ranks and the level gates, and here they agree.
+
+### The panel-wide shape, week ending 2026-07-28, sell side
+
+Of 47 markets, 43 score and 37 carry a forced-sell trigger. Of those 37, the pool answer is
+**20 agree, 17 disagree**, and 10 markets have no sell trigger at all. So on the sell side
+the pool contradicts the signal on **46% of markets that have a level**, against `§D10`'s
+65.9% pooled agreement across all three horizons and both sides.
+
+| cell | markets |
+|---|---:|
+| plottable, neither close nor severe | 8 |
+| plottable, close but not severe | 6 |
+| plottable, severe but not close | 3 |
+| **plottable, CLOSE and SEVERE** | **2** |
+| suppressed: the pool is on the other side | 16 |
+
+**The consequence for anyone rendering this.** A chart of the quadrant that ignores
+`trigger_*_pool_agrees` puts 16 of 35 markets in a cell they do not belong in, and doubles
+the population of the one cell a reader acts on. The flag is a **tri-state**, and `NA`
+("nobody checked", which is what the reproducers' own build produces because it passes no
+`pool_column`) must not render as `False`.
+
+### What this does NOT establish
+
+Nothing about whether `D` or the trigger measures anything. Both halves are statements about
+the code and the configured weights, and this section only composes two of them. It is also
+one week: the 46% contradiction rate is not a property of the universe, and `§D10`'s three
+never-agree markets are the only part with any history behind it.

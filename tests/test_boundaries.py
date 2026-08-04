@@ -33,6 +33,13 @@ import pytest
 PKG = pathlib.Path(__file__).resolve().parent.parent / "src" / "crowdmon"
 WORKSPACE = pathlib.Path(__file__).resolve().parents[2]
 
+#: The drivers are checked too, and they were not until the publisher arrived.
+#: `_modules(PKG)` walks `src/` only, so a script under `bin/` could import anything at all
+#: while every module it drives stayed clean. That is exactly the "one convenient import
+#: inside the one function that needs it" hole this file's `_imports` docstring warns about,
+#: relocated one directory up where nothing was looking.
+BIN = pathlib.Path(__file__).resolve().parent.parent / "bin"
+
 # Workspace packages this one may NOT import. Note cotmetrics is here: it is a peer
 # consumer of the same store, not a layer below.
 FORBIDDEN_ROOTS = ("npf", "livebook", "cotmetrics", "crucible", "crucible_stack",
@@ -68,9 +75,10 @@ def test_there_is_something_to_check():
     """A guard that silently stops seeing its target passes forever."""
     mods = _modules(PKG)
     assert len(mods) >= 3, f"boundary test stopped seeing the package: {len(mods)} modules"
+    assert _modules(BIN), "boundary test stopped seeing bin/, so the drivers are unguarded"
 
 
-@pytest.mark.parametrize("path", _modules(PKG), ids=lambda p: p.name)
+@pytest.mark.parametrize("path", _modules(PKG) + _modules(BIN), ids=lambda p: p.name)
 def test_no_module_imports_a_strategy_or_a_peer_consumer(path):
     for name in _imports(path):
         root = name.split(".")[0]
@@ -80,7 +88,7 @@ def test_no_module_imports_a_strategy_or_a_peer_consumer(path):
             f"docstring for why {root!r} in particular is out.")
 
 
-@pytest.mark.parametrize("path", _modules(PKG), ids=lambda p: p.name)
+@pytest.mark.parametrize("path", _modules(PKG) + _modules(BIN), ids=lambda p: p.name)
 def test_no_module_reaches_for_an_undeclared_dependency(path):
     import sys
     for name in _imports(path):

@@ -223,7 +223,21 @@ src/crowdmon/
     report.py               the COT-specific half of the report layer. Knows categories
     brief.py                one market-week, assembled. Computes NOTHING, and NAMES the
                             reading instructions it cannot carry rather than omitting them
+    publish.py              the ONLY writer in the package. Builds the panel over both
+                            report types and writes it to CROWDMON_STORE for a UI that
+                            cannot import crowdmon. Reads nothing back, see ADR-0001
 ```
+
+`publish.py` is the package's **first and only writer**, and it is not `core/store.py`
+arriving by another name. The distinction is direction: an artifact is a statement made once
+a week and forgotten, a store is state this package would read back and depend on. Nothing in
+`src/` opens `CROWDMON_STORE`, and the one thing that looks like a read (the previous
+manifest's market count) is a safety interlock on the write. It is in `futures/` rather than
+`core/` because the panel it writes is COT-specific down to the column names.
+[ADR-0001](docs/adr/ADR-0001-crowdmon-publishes-a-panel-rather-than-being-imported.md) is the
+argument, and the short form is that `cot-analyzer`'s production host runs **Python 3.9**
+against this package's `>=3.10` floor, so the import a reader would reach for first is not
+available at any price.
 
 `riskunits.py` sits **here beside `notional.py`, not in `core/`**: it needs `propadj` where
 notional needs `unadj`, and that asymmetry is a fact about futures continuous-contract
@@ -333,14 +347,14 @@ COTDATA_STORE=/tmp/crowdmon_test .venv/bin/python -m pytest tests/ -q -rs
 .venv/bin/python -m ruff check src tests bin
 ```
 
-**That fixture run skips 77 assertions, and they are the valuable ones.** Every
+**That fixture run skips 88 assertions, and they are the valuable ones.** Every
 `tests/*_live.py` needs the real store, so CI has never executed the layer-2 trap-table
 figures, the appendix's live-cattle arithmetic (`test_appendix_live.py`, `2026-08-02 §B37`),
 the volume and trigger measurements, or
 `2026-08-03 §C1-C8` (`test_supplemental_live.py`, the most exposed of the set: three of its
 assertions read `cot_supplemental`, a domain one release old). From the
-**main checkout**, against `~/code/cotdata_store`, the same suite is **615 passed / 5
-skipped** rather than **538 / 82**.
+**main checkout**, against `~/code/cotdata_store`, the same suite is **649 passed / 5
+skipped** rather than **561 / 93**.
 
 **These four numbers are measured, so re-measure them rather than adjusting them by hand.**
 Any PR that adds or removes a `tests/*_live.py` assertion moves all four, and two PRs in
@@ -363,6 +377,14 @@ second re-runs both commands and updates this paragraph, `bin/check_skips.py`'s 
 > **That is the collision this paragraph warns about, and it happened again**: both
 > branches re-measured from a base that did not include the other, and the figures above
 > are a third measurement taken after the merge rather than either branch's arithmetic.
+>
+> Moved again on **2026-08-04** by the publisher branch, **+34**: 17 fixture tests in
+> `test_publish.py`, 11 live in `test_publish_live.py`, and **6 that nobody added by hand**.
+> Those six are `test_boundaries.py` parametrising over one new module (`publish.py`, +2) and
+> over `bin/` for the first time (`check_skips.py` and `publish_damage.py`, +4). **A
+> parametrised guard that grows its own corpus moves these counts without a test file being
+> written**, which is a third way for them to drift and is not covered by the paragraph
+> above. The live-only figure is 77 -> **88**, the eleven new live assertions.
 > The live-only count is the difference between the two skip figures (80 - 5), never a
 > total, so a fixture test moves the four totals and leaves it alone.
 
@@ -389,6 +411,24 @@ failure there. CI runs the same checker under `--profile ci`, which allows those
 fails on a **new** reason, which is how a pin silently stops running. Both live in
 [`bin/check_skips.py`](bin/check_skips.py); the schedule is
 `bin/com.mspinola.crowdmon-live-tests.plist.example`.
+
+Publish the weekly damage panel, which is what a UI reads instead of importing this package
+(needs the real store, and writes to `CROWDMON_STORE`, NOT to `COTDATA_STORE`):
+
+```bash
+bin/publish_damage.sh --dry-run
+```
+
+```bash
+bin/publish_damage.sh
+```
+
+Roughly 8 seconds for 47 markets over both report types, of which 1.3 is the Amihud panel
+behind `beta`. Schedule it beside the live tests at 09:15: `bin/live-tests.sh` records an
+observed incident where reading the store mid-write made panels momentarily unreadable, and
+the failure mode differs between the two. A test run fails loudly; **a publisher would write
+a short panel, and a short panel is a perfectly well-formed panel that nothing downstream
+would question**. `publish._refuse_a_short_panel` is the interlock.
 
 Regenerate the analysis figures (needs the real store):
 

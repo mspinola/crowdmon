@@ -5,11 +5,11 @@
     python bin/check_skips.py --profile ci   skips.json
     python bin/check_skips.py --profile live skips.json
 
-**Why this exists.** 77 of this package's assertions live in `tests/*_live.py` and need the
+**Why this exists.** 88 of this package's assertions live in `tests/*_live.py` and need the
 real store: the layer-2 trap-table figures (gold notional wrong by +294% in 2002, soybean
 volatility 201x too high off `backadj`), the appendix's live-cattle arithmetic, the volume
 and trigger measurements. Every one of them **skips silently** when the store is absent, and
-CI runs against a two-panel fixture, so those 77 have never run in CI and a green badge has
+CI runs against a two-panel fixture, so those 88 have never run in CI and a green badge has
 never meant they passed. That is not a hypothetical failure mode; it is the current state,
 and it is what this script exists to make visible.
 
@@ -65,6 +65,12 @@ DATA_ABSENT = (
     "no readable vintage store",
     "store does not carry the appendix's market-week",
     "store has no LE volume",
+    # test_publish_live.py. ONE guard for the whole chain rather than one per input, because
+    # the published panel joins COT, contract specs, two price tiers, volume and an Amihud
+    # panel, and a store missing any of them yields no panel rather than a short one. The
+    # publisher itself refuses a short panel (`publish._refuse_a_short_panel`), so a partial
+    # store cannot reach this file as a passing run with fewer markets.
+    "the damage panel cannot be built from this store",
 )
 
 PROFILES = {"ci": INTENTIONAL + DATA_ABSENT, "live": INTENTIONAL}

@@ -335,6 +335,37 @@ third of market-weeks carry no `D`, for two causes that mean opposite things, an
 rendered as the same blank cell. Detail in `2026-08-03 §C25-§C27`, reproducer
 [`docs/analysis/reproduce_brief.py`](docs/analysis/reproduce_brief.py).
 
+### Publishing the panel, for a reader who cannot import this package
+
+`bin/publish_damage.sh` writes the whole panel to `CROWDMON_STORE` (a *different* store from
+`COTDATA_STORE`, following npf's `CMRDATA_STORE`): every market-week over both report types,
+plus the latest week's `format_damage_block` output pre-rendered, plus a manifest carrying
+every vocabulary and every reading instruction generated from the live constants.
+
+```bash
+COTDATA_STORE=~/code/cotdata_store CROWDMON_STORE=~/code/crowdmon_store bin/publish_damage.sh
+```
+
+It exists because the consumer that wants `D` **cannot import this package**. `cot-analyzer`
+serves from a Linux host that runs **Python 3.9** against this package's `>=3.10` floor, and
+that host cannot produce the Norgate `unadj` + `propadj` prices the ladder needs however it is
+provisioned. Three softer reasons point the same way, and
+[ADR-0001](docs/adr/ADR-0001-crowdmon-publishes-a-panel-rather-than-being-imported.md) is the
+record. This is the package's first and only writer; `core/store.py` is still absent, because
+an artifact is a statement made once a week and forgotten while a store is state this package
+would read back.
+
+**Three things a reader of the panel must be told, and the artifact carries all three as
+data rather than leaving them to prose on this page.** The trigger columns are the **latest
+week only** (a full history is ~95,000 price-store reads against 90 for one week), so there
+is no offside history to plot. `trigger_{side}_pool_agrees` is a **tri-state**, and a chart
+must suppress the quadrant on `False` exactly as `format_offside` does: on 2026-07-28 the
+observed pool contradicts the signal on 16 of the 35 sell-side markets that have a level, so
+ignoring it doubles the population of the one cell a reader acts on (`2026-08-04 §D13`). And
+a consumer must hold **none of this package's vocabulary** in its own source: a hard-coded
+`"warmup"` or `QUADRANT` string is another copy of a living document in a repo with weaker
+guards than this one.
+
 ### First results
 
 [`docs/analysis/`](docs/analysis/) holds the first run over real data, ranked rather than

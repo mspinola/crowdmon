@@ -1,8 +1,14 @@
 # Architecture decision records
 
-Empty so far. Nothing in this package has needed one yet: the decisions that shaped it were
-taken elsewhere and are recorded elsewhere, and duplicating them here would create a second
-copy to drift.
+One, so far. Most of the decisions that shaped this package were taken elsewhere and are
+recorded elsewhere, and duplicating them here would create a second copy to drift. The
+pointer table below is that, and the list under it is what this package has decided itself.
+
+| ADR | Decision |
+|---|---|
+| [ADR-0001](ADR-0001-crowdmon-publishes-a-panel-rather-than-being-imported.md) | crowdmon **publishes** a damage panel to `CROWDMON_STORE`; a consumer reads the file rather than importing this package. Accepted 2026-08-04 |
+
+Taken elsewhere:
 
 | Decision | Recorded in |
 |---|---|
@@ -14,7 +20,11 @@ copy to drift.
 ## When to write one here
 
 When a choice is **structural, contested, and expensive to reverse** — and is this package's
-to make. Some that are visible on the horizon:
+to make. ADR-0001 is the worked example: the alternative (a UI imports `crowdmon` and calls
+`add_composite` in a request handler) was permitted by every test in this repo, cheaper on
+the day, and would have been very hard to walk back once a page depended on it.
+
+Some that are visible on the horizon:
 
 - whether the CTA replication model lives here at all, given the §9.4 standing caution that
   it must not become a trading signal by drift
