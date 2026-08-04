@@ -16,6 +16,7 @@ from crowdmon.futures import (
     add_composite,
     add_score_state,
     add_unwind_state,
+    damage_block,
     damage_report,
     top_damage,
 )
@@ -344,3 +345,188 @@ def _flow_frame(scored: pd.DataFrame, state: str) -> pd.DataFrame:
         "report_date": scored["report_date"], "market_code": scored["market_code"],
         "category": "managed_money", "flow_state": state,
     })
+# ── The delivered block: D_pct never travels alone ──────────────────────────
+def test_damage_block_publishes_all_three_factors_beside_the_headline():
+    """`D_pct` on its own is not auditable, and three separate findings say so: `D` is a
+    product so its smallest term dominates, `Phi`'s effect on `D_pct` is not monotone, and
+    `Phi` carries no signal independent of the weights while moving the published
+    percentile by more than 0.3 in one week of ten."""
+    fragility, extremity = _frames()
+    out = add_composite(fragility, extremity, min_periods=52)
+    block = damage_block(out, "TEST01")
+
+    for key in ("crowding", "illiquidity", "fragility", "damage", "damage_pct"):
+        assert block[key] is not None, key
+    assert block["crowding"] * block["illiquidity"] * block["fragility"] == pytest.approx(
+        block["damage"])
+    # The raw level travels too: a percentile cannot say whether the level is trivial.
+    assert block["raw"]["dtl"] is not None
+    assert block["raw"]["phi"] == pytest.approx(0.4)
+
+
+def test_damage_block_takes_the_buy_side_factors_for_the_buy_side():
+    fragility, extremity = _frames()
+    out = add_composite(fragility, extremity, min_periods=52)
+    sell, buy = damage_block(out, "TEST01"), damage_block(out, "TEST01", side="buy")
+    row = out[out["report_date"] == out["report_date"].max()].iloc[0]
+    assert sell["crowding"] == pytest.approx(row["crowding_long"])
+    assert buy["crowding"] == pytest.approx(row["crowding_short"])
+    assert buy["illiquidity"] == pytest.approx(row["illiquidity_buy"])
+    assert buy["raw"]["dtl"] == pytest.approx(row["dtl_buy"])
+    with pytest.raises(CompositeError, match="'sell' or 'buy'"):
+        damage_block(out, "TEST01", side="both")
+
+
+def test_damage_block_names_an_absent_market_week_rather_than_returning_empty():
+    """`add_composite` keeps unscored rows with a null D, so an empty selection means the
+    market-week is absent rather than merely unscored, and the error says which."""
+    fragility, extremity = _frames()
+    out = add_composite(fragility, extremity, min_periods=52)
+    with pytest.raises(CompositeError, match="NOPE"):
+        damage_block(out, "NOPE")
+
+
+def test_damage_block_survives_a_null_factor_instead_of_hiding_it():
+    """A market with too little history has a null `D`; the block must still render, with
+    the missing factor visible, rather than raising or silently substituting."""
+    fragility, extremity = _frames()
+    out = add_composite(fragility, extremity, min_periods=52)
+    early = out["report_date"].min()
+    block = damage_block(out, "TEST01", report_date=early)
+    assert block["damage_pct"] is None
+    assert block["crowding"] is None or block["illiquidity"] is None
+
+
+def test_format_damage_block_shows_the_factors_and_refuses_the_probability_reading():
+    from crowdmon.futures.report import damage_band, format_damage_block
+
+    fragility, extremity = _frames()
+    out = add_composite(fragility, extremity, min_periods=52)
+    text = format_damage_block(damage_block(out, "TEST01"))
+    for token in ("crowding", "illiquidity", "fragility", "D_pct"):
+        assert token in text
+    # The three readings a bare percentile invites, each explicitly denied.
+    assert "not a probability" in text
+    assert "not a forecast" in text
+    assert "monotone" in text
+    assert damage_band(0.95) == "top decile"
+    assert damage_band(None) == "unscored"
+
+
+# ── The offside term travels beside D, never inside it ──────────────────────
+def test_damage_block_carries_offside_as_nulls_when_the_trigger_never_ran():
+    """`add_trigger_distance` is optional, so the key must exist and be null rather than
+    absent: a caller doing `block["offside"]["distance_sigma"]` should get `None`, not a
+    KeyError that reads as a bug in their code."""
+    fragility, extremity = _frames()
+    out = add_composite(fragility, extremity, min_periods=52)
+    block = damage_block(out, "TEST01")
+    assert block["offside"]["distance_sigma"] is None
+    assert block["offside"]["horizons_disagree"] is None
+
+
+def test_damage_block_reads_the_trigger_columns_for_the_matching_side():
+    """The side convention must line up with Q_sell/T_sell/damage_sell: a signal that is
+    long flips DOWN and forces SELLING. Pairing a trigger with the opposite side's severity
+    is the one error here that produces entirely plausible numbers."""
+    fragility, extremity = _frames()
+    out = add_composite(fragility, extremity, min_periods=52)
+    latest = out["report_date"] == out["report_date"].max()
+    out.loc[latest, "trigger_sell_sigma"] = 0.5
+    out.loc[latest, "trigger_sell_pct"] = 0.004
+    out.loc[latest, "trigger_sell_k"] = 20
+    out.loc[latest, "trigger_buy_sigma"] = 7.5
+    out.loc[latest, "trigger_buy_pct"] = 0.06
+    out.loc[latest, "trigger_buy_k"] = 250
+    out.loc[latest, "trigger_horizons_disagree"] = True
+
+    sell = damage_block(out, "TEST01", side="sell")["offside"]
+    buy = damage_block(out, "TEST01", side="buy")["offside"]
+    assert sell["distance_sigma"] == pytest.approx(0.5)
+    assert sell["lookback_days"] == pytest.approx(20)
+    assert buy["distance_sigma"] == pytest.approx(7.5)
+    assert buy["lookback_days"] == pytest.approx(250)
+    assert sell["horizons_disagree"] is True
+
+
+def test_the_offside_term_is_never_folded_into_the_damage_score():
+    """D must be exactly C x I x Phi whether or not a trigger distance is present. A.10
+    makes D a conditional severity; multiplying in a distance would make it unconditional,
+    and the distance is the trailing k-day return so it would also double-count C."""
+    fragility, extremity = _frames()
+    out = add_composite(fragility, extremity, min_periods=52)
+    before = out["damage_sell"].copy()
+    out["trigger_sell_sigma"] = 0.1          # as close to firing as it gets
+    out["trigger_sell_pct"] = 0.001
+    out["trigger_sell_k"] = 20
+    after = add_composite(fragility, extremity, min_periods=52)["damage_sell"]
+    pd.testing.assert_series_equal(before, after)
+    row = out[out["report_date"] == out["report_date"].max()].iloc[0]
+    assert row["damage_sell"] == pytest.approx(
+        row["crowding_long"] * row["illiquidity_sell"] * row["fragility"])
+
+
+def test_format_offside_names_the_quadrant_and_refuses_the_forecast_reading():
+    from crowdmon.futures.report import CLOSE_SIGMA, format_offside
+
+    close_severe = format_offside(
+        {"distance_sigma": 0.5, "distance_pct": 0.004, "lookback_days": 20,
+         "horizons_disagree": True}, side="sell", damage_pct=0.95)
+    assert "CLOSE and SEVERE" in close_severe
+    assert "not a forecast" in close_severe
+    assert "DISAGREE" in close_severe
+
+    far_severe = format_offside(
+        {"distance_sigma": 9.0, "distance_pct": 0.2, "lookback_days": 250,
+         "horizons_disagree": False}, side="sell", damage_pct=0.95)
+    assert "not close" in far_severe
+    assert "DISAGREE" not in far_severe
+
+    # The boundary is inclusive, so a market exactly at the threshold reads as close.
+    edge = format_offside(
+        {"distance_sigma": CLOSE_SIGMA, "distance_pct": 0.01, "lookback_days": 60,
+         "horizons_disagree": False}, side="sell", damage_pct=0.95)
+    assert "CLOSE and SEVERE" in edge
+
+
+def test_an_unscored_row_gets_its_own_reading_rather_than_a_broken_sentence():
+    """A null `D_pct` used to render "in this market,  looked less dangerous", which is not
+    a sentence. Lumber is the live case: four years of prices against the six `C = pct(z)`
+    needs, so `I` and `Phi` exist and the product cannot be formed."""
+    from crowdmon.futures.report import format_damage_block
+
+    fragility, extremity = _frames()
+    out = add_composite(fragility, extremity, min_periods=52)
+    text = format_damage_block(damage_block(out, "TEST01",
+                                            report_date=out["report_date"].min()))
+    assert "UNSCORED" in text
+    assert "looked less" not in text
+    assert "cannot be formed" in text
+
+
+def test_a_trigger_whose_pool_sits_on_the_other_side_is_flagged_not_shown_plainly():
+    """The signal says what a trend follower WOULD hold; COT says what levered money DOES.
+    They disagree on a third of (market, horizon) pairs, and where they do the level is real
+    while the book it would force is absent."""
+    from crowdmon.futures.report import format_offside
+
+    disagrees = format_offside(
+        {"distance_sigma": 0.5, "distance_pct": 0.004, "lookback_days": 20,
+         "pool_agrees": False, "horizons_disagree": True},
+        side="sell", damage_pct=0.95)
+    assert "OTHER side" in disagrees
+    # The quadrant is suppressed: calling it CLOSE and SEVERE would be exactly wrong.
+    assert "CLOSE and SEVERE" not in disagrees
+
+    unknown = format_offside(
+        {"distance_sigma": 0.5, "distance_pct": 0.004, "lookback_days": 20,
+         "pool_agrees": None, "horizons_disagree": False},
+        side="sell", damage_pct=0.95)
+    assert "no pool supplied" in unknown
+
+    agrees = format_offside(
+        {"distance_sigma": 0.5, "distance_pct": 0.004, "lookback_days": 20,
+         "pool_agrees": True, "horizons_disagree": False},
+        side="sell", damage_pct=0.95)
+    assert "CLOSE and SEVERE" in agrees
+    assert "OTHER side" not in agrees

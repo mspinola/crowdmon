@@ -404,7 +404,117 @@ def top_damage(scored: pd.DataFrame, *, side: str = "sell", n: int = 10,
             [[c for c in cols if c in rows.columns]].reset_index(drop=True))
 
 
+def damage_block(scored: pd.DataFrame, market_code: str, *, side: str = "sell",
+                 report_date=None) -> dict:
+    """One market's delivered reading: `D_pct` **with all three factors beside it**.
+
+    `damage_{side}_pct` is the number A.10 says to report, and on its own it is not
+    auditable. Three separate findings make publishing the factors alongside it a
+    requirement rather than a nicety:
+
+    1. **`D` is a product of three percentiles, so it is dominated by its smallest term.**
+       A market can sit at a record `T` and still read middling because the fragile crowd
+       is not the one carrying it. Sterling, 2026-07-28: `I = 1.000` and `D_sell_pct =
+       0.611`, because `C = 0.420` and `pct(Phi) = 0.376`. Without the factors that reads
+       as the measure missing something, and with them it reads as the measure working.
+    2. **The effect of `Phi` is NOT monotone in `D_pct`.** Corn and sterling both had
+       below-median `pct(Phi)` in that week; including it moved corn UP (0.917 -> 0.955)
+       and sterling DOWN (0.707 -> 0.611), because the percentile of a product is not
+       monotone in each factor's percentile. So "more fragile means more damage" is not a
+       sentence anyone may write, and a lone `D_pct` invites exactly that reading.
+    3. **`Phi` carries no signal independent of the weights** (§A.11), while moving the
+       published percentile by more than 0.3 in one week of ten. A reader who disagrees
+       with `core/config.py` needs to see which part of the number is that disagreement.
+
+    `raw` carries the unpercentiled `T` and `phi` too, because a percentile cannot say
+    whether the level is trivial: a market clearing in a quarter of a session should never
+    be read as dangerous however unusual that is for it.
+    """
+    if side not in ("sell", "buy"):
+        raise CompositeError(f"side must be 'sell' or 'buy', got {side!r}")
+    needed = [f"damage_{side}_pct", f"illiquidity_{side}", "fragility"]
+    _require(scored, needed, "scored")
+
+    stamp = (scored["report_date"].max() if report_date is None
+             else pd.Timestamp(report_date))
+    rows = scored[(scored["market_code"] == str(market_code))
+                  & (pd.to_datetime(scored["report_date"]) == stamp)]
+    if rows.empty:
+        raise CompositeError(
+            f"no row for market_code {market_code!r} on {stamp.date()}. Pass a "
+            f"`report_date` the frame holds, or check the code: `add_composite` keeps "
+            f"unscored rows with a null D rather than dropping them, so an empty "
+            f"selection means the market-week is absent, not merely unscored.")
+    r = rows.iloc[0]
+    crowding = "crowding_long" if side == "sell" else "crowding_short"
+    return {
+        "market_name": r.get("market_name"),
+        "market_code": str(market_code),
+        "report_date": r["report_date"],
+        "side": side,
+        "crowding": _f(r.get(crowding)),
+        "illiquidity": _f(r.get(f"illiquidity_{side}")),
+        "fragility": _f(r.get("fragility")),
+        "damage": _f(r.get(f"damage_{side}")),
+        "damage_pct": _f(r.get(f"damage_{side}_pct")),
+        "raw": {
+            "dtl": _f(r.get(f"dtl_{side}")),
+            "phi": _f(r.get("phi")),
+            "q": _f(r.get(f"q_{side}")),
+            "open_interest": _f(r.get("open_interest")),
+        },
+        # §A.7's trigger distance, present only when `trigger.add_trigger_distance` has run.
+        #
+        # **Deliberately beside `D` and never inside it, for two reasons.**
+        #
+        # 1. A.10 governs. `D` is a conditional severity: `D ⊥ E[r_{t+1}]` and `D -> skew,
+        #    ES`, so it answers "how bad if forced" and refuses "when". Distance to the flip
+        #    answers only "how close". Multiplying them turns `D` into an unconditional
+        #    quantity, which is exactly what A.10 declines to produce.
+        # 2. It would double-count `C`. Since `F* = F_{t-k}`, the distance IS the trailing
+        #    k-day return (an identity, see `trigger.nearest_trigger`), so it and positioning
+        #    extremity are both downstream of the same trend. Measured 2026-07-28: corr with
+        #    `crowding_long` is **-0.481** and with `damage_sell_pct` **-0.217**
+        #    (`2026-08-04 §D9`). That is the same defect as fragility sitting inside both `I`
+        #    and `Phi`, and there is no reason to add a third instance knowingly.
+        #
+        # An earlier draft of this comment claimed the two were orthogonal at -0.017. That
+        # figure came from reading triggers at the latest price bar against positioning at
+        # the report date, three days apart. Measured consistently it is -0.217, and the
+        # argument above does not rest on independence at all.
+        #
+        # Keeping them separate also preserves the quadrant, which is the actual deliverable:
+        # close-and-severe is the cell to act on, close-and-harmless fires often and does not
+        # matter, far-and-severe would hurt but is not imminent. One scalar cannot say which.
+        "offside": {
+            "distance_sigma": _f(r.get(f"trigger_{side}_sigma")),
+            "distance_pct": _f(r.get(f"trigger_{side}_pct")),
+            "lookback_days": _f(r.get(f"trigger_{side}_k")),
+            "pool_agrees": _b(r.get(f"trigger_{side}_pool_agrees", pd.NA)),
+            "horizons_disagree": _b(r.get("trigger_horizons_disagree", pd.NA)),
+        },
+    }
+
+
 # ── internals ───────────────────────────────────────────────────────────────
+def _f(value):
+    """`None` rather than `nan`, so a caller can test one thing instead of two."""
+    v = pd.to_numeric(pd.Series([value]), errors="coerce").iloc[0]
+    return None if pd.isna(v) else float(v)
+
+
+def _b(value):
+    """Tri-state: `True`, `False`, or `None` for unknown.
+
+    `pd.NA` and `False` are different answers here and collapsing them would be a real
+    error: "the observed pool is on the other side" and "no pool was supplied" carry
+    opposite implications for whether a trigger means anything.
+    """
+    if value is None or (not isinstance(value, bool) and pd.isna(value)):
+        return None
+    return bool(value)
+
+
 def _percentile_by_market(frame: pd.DataFrame, column: str, *, window, min_periods):
     """Trailing percentile of `column`, per market, aligned back to `frame`'s index."""
     parts = []
