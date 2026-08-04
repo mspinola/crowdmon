@@ -63,11 +63,13 @@ Suppose cocoa has been rising for eight months on genuine supply problems in Wes
 
 The crowd isn't broadening. It is concentrating and levering up. That is the fragile configuration. The concentration figures confirm it: the four largest traders hold a growing share of the long side.
 
-**What the liquidity data shows.** Cocoa trades perhaps 25,000 contracts on an average day, and during the rally the market has thinned out — many natural sellers have already sold. At a realistic exit rate, 90,000 contracts takes over two weeks to unwind.
+**What the liquidity data shows.** Cocoa trades perhaps 25,000 contracts on an average day, and during the rally the market has thinned out — many natural sellers have already sold. Against that volume, 90,000 contracts is under four days of *total* market turnover. But a seller cannot be the whole market: at a realistic participation rate of a fifth of daily volume, the same 90,000 contracts takes about 18 trading days to unwind.
 
 And cocoa has daily price limits: on a limit-down day, trading effectively stops. You cannot exit at any price. That is a door that doesn't just narrow — it closes.
 
-**What the trigger model shows.** Working backwards through the trend rules gives the level: the medium-term signal flips if cocoa falls about 9% from here. Estimated forced selling on that flip is roughly 35,000 contracts — a week and a half of normal volume, arriving all at once, into a market with price limits.
+**What the trigger model shows.** Working backwards through the trend rules gives the level: the medium-term signal flips if cocoa falls about 9% from here. Estimated forced selling on that flip is roughly 35,000 contracts, which is 1.4 days of total market turnover.
+
+That figure understates it, because the forced sellers cannot be the entire market: somebody has to be taking the other side, and the traders being stopped out are not available to absorb each other. Hold them to a fifth of daily volume and the same 35,000 contracts takes about seven trading days to clear, arriving all at once, into a market with price limits.
 
 **The point is not that cocoa will fall.** The supply problem may be entirely real and prices may keep climbing for another year.
 
@@ -84,8 +86,12 @@ And this is knowable in advance, from public data, before anything happens.
 So this doesn't generate trades. It changes how you hold them:
 
 - smaller size in fragile markets,
-- wider stops, because tight ones get blown through in a stampede,
+- exit on positioning rather than on price where you can, and use defined-risk protection (a long put, a spread) wherever gap risk is real,
 - and a strong prior against adding to a position at the exact moment the exit is most congested.
+
+The middle one used to read "wider stops, because tight ones get blown through". That is wrong, and wrong in a way worth stating plainly: **a stop is a trigger, not a guarantee.** It converts to a market order when touched, and in a gapping or limit-locked market that order fills wherever the market next trades, which may be far below the level you named. A stop in a stampede fires *because* the cascade happened, not before it, so widening it does not buy protection, it only moves where you find out.
+
+Widening does change one thing, and it is a trade-off rather than an improvement: a wide stop keeps you in a positioning unwind, which is the case that usually reverts, and it costs you more in a fundamental repricing, which is the case that persists. Which one you are in is exactly the question §A.10's classification answers, and it is answerable while the drawdown is happening.
 
 It also tells you something useful *during* a crash — whether prices are falling because the facts changed, or because everyone is trying to leave at once. Those look identical while they are happening and they end very differently. The first is a reason to reconsider the position. The second usually reverses, once the forced sellers are done.
 
