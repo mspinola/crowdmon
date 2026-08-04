@@ -87,6 +87,84 @@ def format_q_block(arith: dict) -> str:
     ])
 
 
+#: What each factor of `D` is asking, in the words a reader should use for it. Kept here
+#: rather than in `composite.py` because it is presentation, and kept as data rather than
+#: prose in a docstring so `format_damage_block` and any future renderer say the same thing.
+FACTOR_QUESTIONS = {
+    "crowding": "how lopsided the forceable holders are, vs this market's own 3 years",
+    "illiquidity": "how long that side would take to exit, vs its own 3 years",
+    "fragility": "how much of the market sits in forceable hands, vs its own 3 years",
+}
+
+#: Bands for the headline. Deliberately coarse: `D_pct` is a percentile of a product of
+#: percentiles, so a two-decimal reading implies a precision the construction does not have.
+DAMAGE_BANDS = ((0.90, "top decile"), (0.75, "high"), (0.50, "above middling"),
+                (0.25, "below middling"), (0.0, "bottom quartile"))
+
+
+def damage_band(damage_pct: float) -> str:
+    """The coarse band for a `D_pct`, or `unscored` for a null."""
+    if damage_pct is None or pd.isna(damage_pct):
+        return "unscored"
+    for floor, label in DAMAGE_BANDS:
+        if float(damage_pct) >= floor:
+            return label
+    return "bottom quartile"
+
+
+def format_damage_block(block: dict) -> str:
+    """`D_pct` rendered with its three factors, the arithmetic, and how to read it.
+
+    The factors are printed **every time**, not on request. `composite.damage_block`
+    records the three measured reasons; the short version is that `D` is a product, so it
+    is dominated by its smallest term, and the effect of `Phi` is not monotone, so a lone
+    percentile cannot be interpreted even by someone who knows the formula.
+
+    The closing line is deliberately about what the number is NOT. Percentiles get read as
+    probabilities, and this one is a rank among past weeks in one market.
+    """
+    b = block
+    side = b["side"]
+    forced = "forced longs selling" if side == "sell" else "forced shorts buying"
+    c, i, f = b["crowding"], b["illiquidity"], b["fragility"]
+    d, dp = b["damage"], b["damage_pct"]
+    raw = b.get("raw", {})
+
+    def _n(v, spec=".3f"):
+        return "n/a" if v is None else format(v, spec)
+
+    lines = [
+        f"{b['market_name']} ({b['market_code']})  {pd.Timestamp(b['report_date']).date()}"
+        f"  side: {side} ({forced})",
+        "",
+        f"    C   crowding     {_n(c)}   {FACTOR_QUESTIONS['crowding']}",
+        f"    I   illiquidity  {_n(i)}   {FACTOR_QUESTIONS['illiquidity']}",
+        f"    Phi fragility    {_n(f)}   {FACTOR_QUESTIONS['fragility']}",
+        "",
+    ]
+    if None not in (c, i, f):
+        lines += [f"    D   = {c:.3f} x {i:.3f} x {f:.3f} = {d:.4f}", ""]
+    lines += [
+        f"    D_pct = {_n(dp)}   <- the delivered number ({damage_band(dp)})",
+        "",
+        f"  Read as: of the last 3 years of weeks in this market, "
+        f"{'' if dp is None else f'{dp:.0%}'} looked less",
+        f"  dangerous than now for {forced}. It is a rank among this market's own past,",
+        "  not a probability, not a forecast, and not comparable as a level to another",
+        "  market's days-to-liquidate.",
+    ]
+    if raw.get("dtl") is not None:
+        lines.append(
+            f"  Level check: T_{side} = {raw['dtl']:.2f} days. A percentile cannot tell "
+            f"you\n  whether the level is trivial; a market clearing in under half a "
+            f"session\n  is not dangerous however unusual that is for it.")
+    lines.append(
+        "  D is a product, so the smallest factor dominates. Phi's effect is NOT\n"
+        "  monotone: a below-median Phi can raise or lower D_pct depending on the\n"
+        "  market's own joint history (2026-08-04, corn up and sterling down).")
+    return "\n".join(lines)
+
+
 def flow_sequence(flows: pd.DataFrame, market_code: str, category: str,
                   weeks: int = 12) -> pd.DataFrame:
     """The trailing state sequence for one market and category.

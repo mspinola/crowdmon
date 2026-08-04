@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from crowdmon.futures import add_composite, damage_report, top_damage
+from crowdmon.futures import add_composite, damage_block, damage_report, top_damage
 from crowdmon.futures.composite import CompositeError
 
 WEEKS = 260  # five years, enough for a three-year window plus warm-up
@@ -208,3 +208,71 @@ def test_top_damage_shows_every_factor_beside_the_score():
         assert column in top.columns
     with pytest.raises(CompositeError, match="'sell' or 'buy'"):
         top_damage(out, side="both")
+
+
+# ── The delivered block: D_pct never travels alone ──────────────────────────
+def test_damage_block_publishes_all_three_factors_beside_the_headline():
+    """`D_pct` on its own is not auditable, and three separate findings say so: `D` is a
+    product so its smallest term dominates, `Phi`'s effect on `D_pct` is not monotone, and
+    `Phi` carries no signal independent of the weights while moving the published
+    percentile by more than 0.3 in one week of ten."""
+    fragility, extremity = _frames()
+    out = add_composite(fragility, extremity, min_periods=52)
+    block = damage_block(out, "TEST01")
+
+    for key in ("crowding", "illiquidity", "fragility", "damage", "damage_pct"):
+        assert block[key] is not None, key
+    assert block["crowding"] * block["illiquidity"] * block["fragility"] == pytest.approx(
+        block["damage"])
+    # The raw level travels too: a percentile cannot say whether the level is trivial.
+    assert block["raw"]["dtl"] is not None
+    assert block["raw"]["phi"] == pytest.approx(0.4)
+
+
+def test_damage_block_takes_the_buy_side_factors_for_the_buy_side():
+    fragility, extremity = _frames()
+    out = add_composite(fragility, extremity, min_periods=52)
+    sell, buy = damage_block(out, "TEST01"), damage_block(out, "TEST01", side="buy")
+    row = out[out["report_date"] == out["report_date"].max()].iloc[0]
+    assert sell["crowding"] == pytest.approx(row["crowding_long"])
+    assert buy["crowding"] == pytest.approx(row["crowding_short"])
+    assert buy["illiquidity"] == pytest.approx(row["illiquidity_buy"])
+    assert buy["raw"]["dtl"] == pytest.approx(row["dtl_buy"])
+    with pytest.raises(CompositeError, match="'sell' or 'buy'"):
+        damage_block(out, "TEST01", side="both")
+
+
+def test_damage_block_names_an_absent_market_week_rather_than_returning_empty():
+    """`add_composite` keeps unscored rows with a null D, so an empty selection means the
+    market-week is absent rather than merely unscored, and the error says which."""
+    fragility, extremity = _frames()
+    out = add_composite(fragility, extremity, min_periods=52)
+    with pytest.raises(CompositeError, match="NOPE"):
+        damage_block(out, "NOPE")
+
+
+def test_damage_block_survives_a_null_factor_instead_of_hiding_it():
+    """A market with too little history has a null `D`; the block must still render, with
+    the missing factor visible, rather than raising or silently substituting."""
+    fragility, extremity = _frames()
+    out = add_composite(fragility, extremity, min_periods=52)
+    early = out["report_date"].min()
+    block = damage_block(out, "TEST01", report_date=early)
+    assert block["damage_pct"] is None
+    assert block["crowding"] is None or block["illiquidity"] is None
+
+
+def test_format_damage_block_shows_the_factors_and_refuses_the_probability_reading():
+    from crowdmon.futures.report import damage_band, format_damage_block
+
+    fragility, extremity = _frames()
+    out = add_composite(fragility, extremity, min_periods=52)
+    text = format_damage_block(damage_block(out, "TEST01"))
+    for token in ("crowding", "illiquidity", "fragility", "D_pct"):
+        assert token in text
+    # The three readings a bare percentile invites, each explicitly denied.
+    assert "not a probability" in text
+    assert "not a forecast" in text
+    assert "monotone" in text
+    assert damage_band(0.95) == "top decile"
+    assert damage_band(None) == "unscored"

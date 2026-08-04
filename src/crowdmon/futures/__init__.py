@@ -84,6 +84,7 @@ from .composite import (
     COMPOSITE_COLUMNS,
     CompositeError,
     add_composite,
+    damage_block,
     damage_report,
     top_damage,
 )
@@ -303,7 +304,8 @@ __all__ = [
     "market_concentration", "add_concentration_extremity",
     "concentration_vs_fragility", "quadrant", "ConcentrationError",
     "CONCENTRATION_COLUMNS",
-    "add_composite", "damage_report", "top_damage", "CompositeError",
+    "add_composite", "damage_block", "damage_report", "top_damage",
+    "CompositeError",
     "COMPOSITE_COLUMNS",
     "add_extremity", "extremity_report", "latest_extremes", "ExtremityError",
     "EXTREMITY_COLUMNS",
