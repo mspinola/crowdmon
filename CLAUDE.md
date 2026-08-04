@@ -206,6 +206,8 @@ src/crowdmon/
     roll.py                 roll-window volume, NOT §379: all three of its parts are blocked
     coverage.py             which markets can be scored at all, and at which rung they die
     continuity.py           a market code is not an instrument. Migrations, keyed on the code
+    stratum.py              outright / certificate / differential, so C8's band rule is a
+                            value a consumer reads. Classifies, never gates
     report.py               the COT-specific half of the report layer. Knows categories
     brief.py                one market-week, assembled. Computes NOTHING, and NAMES the
                             reading instructions it cannot carry rather than omitting them
@@ -319,14 +321,14 @@ COTDATA_STORE=/tmp/crowdmon_test .venv/bin/python -m pytest tests/ -q -rs
 .venv/bin/python -m ruff check src tests bin
 ```
 
-**That fixture run skips 71 assertions, and they are the valuable ones.** Every
+**That fixture run skips 75 assertions, and they are the valuable ones.** Every
 `tests/*_live.py` needs the real store, so CI has never executed the layer-2 trap-table
 figures, the appendix's live-cattle arithmetic (`test_appendix_live.py`, `2026-08-02 §B37`),
 the volume and trigger measurements, or
 `2026-08-03 §C1-C8` (`test_supplemental_live.py`, the most exposed of the set: three of its
 assertions read `cot_supplemental`, a domain one release old). From the
-**main checkout**, against `~/code/cotdata_store`, the same suite is **568 passed / 5
-skipped** rather than **497 / 76**.
+**main checkout**, against `~/code/cotdata_store`, the same suite is **590 passed / 5
+skipped** rather than **515 / 80**.
 
 **These four numbers are measured, so re-measure them rather than adjusting them by hand.**
 Any PR that adds or removes a `tests/*_live.py` assertion moves all four, and two PRs in
@@ -341,7 +343,7 @@ second re-runs both commands and updates this paragraph, `bin/check_skips.py`'s 
 > test moves all four as surely as a live one does, and the paragraph above named only
 > `tests/*_live.py`; it is the total that is quoted, so any added test counts.
 
-> **From a worktree those two figures are 566 / 7 and 495 / 78**, because `test_boundaries`
+> **From a worktree those two figures are 588 / 7 and 513 / 82**, because `test_boundaries`
 > resolves `../cotdata` and `../marketdata` relative to the test file and finds neither,
 > so the two producer-direction checks skip. Quote the main-checkout numbers: a worktree
 > reports two fewer passes and has one real seam unguarded. This note exists because an
@@ -355,7 +357,7 @@ subscription and this repo is public, and the vintage store accumulates forward 
 2026-07-31 so no download reconstructs it. The split is therefore permanent:
 
 ```bash
-bin/live-tests.sh          # the 71, against the real store. Scheduled 09:15 daily
+bin/live-tests.sh          # the 75, against the real store. Scheduled 09:15 daily
 ```
 
 `--profile live` is the load-bearing part. A run whose store is missing or unsynced would

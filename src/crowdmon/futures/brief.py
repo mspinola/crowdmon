@@ -48,6 +48,7 @@ import pandas as pd
 
 from ..core.report import to_markdown  # noqa: F401  (re-exported for walkthrough scripts)
 from .composite import SCORE_STATES
+from .stratum import BAND_ADVICE, STRATA
 
 #: A caveat is `carried` when a value on this row says whether it bites, `indeterminate`
 #: when the carrier exists and is silent here, and `not_carried` when no per-row value can
@@ -118,14 +119,10 @@ READING_INSTRUCTIONS: tuple[Caveat, ...] = (
         ref="2026-08-03 §C3",
         misreading="the weight sensitivity measured over the pooled universe transfers to "
                    "this market",
-        source="docs/design/amendments-2026-08-03.md §C3, §C8, §C23, "
+        source="docs/design/amendments-2026-08-03.md §C3, §C8, §C23, §C29, "
                "docs/analysis/reproduce_w_sd_band.py::asymmetry_across_the_band, "
-               "docs/analysis/reproduce_report_gate.py::c23_the_band_has_no_market",
-        why_not="the population is part of the sensitivity result, so the band is a "
-                "property of a population and a weight sweep rather than of a row. §C23 "
-                "measures that no panel available today holds both a D percentile and the "
-                "markets §C8's rule names, so there is nothing to publish beside this "
-                "number yet.",
+               "docs/analysis/reproduce_stratum.py::c29_the_rule_is_vacuous_the_split_is_not",
+        column="stratum",
     ),
 )
 
@@ -229,6 +226,8 @@ def market_brief(scored: pd.DataFrame, market_code: str, report_date=None, *,
         "d_damage_pct": _value(row, f"d_damage_{side}_pct"),
         "unwind_state": row.get(f"unwind_state_{side}"),
         "beta": _value(row, "beta"),
+        "stratum": row.get("stratum"),
+        "venue": row.get("venue"),
         "coverage": _coverage(ladder, market_code),
     }
     brief["caveats"] = caveat_ledger(brief)
@@ -351,6 +350,16 @@ def _row_facts(brief: dict) -> list[tuple[str, str]]:
                       f"Q_sell {_fmt(q_sell, 1)} contracts, Q_buy {_fmt(q_buy, 1)} "
                       f"contracts. Two separate events."))
 
+    stratum = brief["stratum"]
+    if stratum is None:
+        facts.append(("stratum", "no `stratum` on this frame, so whether §C8's `w_SD` band "
+                                 "binds on this market is unstated. Run "
+                                 "`stratum.classify`."))
+    else:
+        venue_note = f" ({brief['venue']})" if brief["venue"] else ""
+        facts.append(("stratum", f"`{stratum}`{venue_note}. "
+                                 f"{BAND_ADVICE.get(stratum, 'no reading for this stratum')}."))
+
     coverage = brief["coverage"]
     if coverage is None:
         facts.append(("coverage", "no ladder supplied, so whether this market can be "
@@ -405,9 +414,30 @@ def _beta_status(brief: dict) -> tuple[str, str]:
                      f"inside it.")
 
 
+def _stratum_status(brief: dict) -> tuple[str, str]:
+    """`§C8`'s operating rule as a per-row answer, which is what §4 of the handoff asked for.
+
+    Note what this does and does not settle. It answers "does the `w_SD` band bind on this
+    market?", which is the question a reader holding one `D` actually has. It does **not**
+    make the obligation live: `§C23` measured that no panel today carries both a `pct(D)`
+    and a market on the band-required side, so the answer is currently `no` on every
+    scoreable row. That is a fact about coverage, and `§C29` is where it is recorded.
+    """
+    stratum = brief.get("stratum")
+    if stratum is None:
+        return NOT_CARRIED, ("no 'stratum' on this frame. Run `stratum.classify` to attach "
+                             "it, and `stratum.stratum_summary` to see the split it "
+                             "derived.")
+    if stratum not in BAND_ADVICE:
+        return NOT_CARRIED, (f"stratum {stratum!r} is not one of {STRATA}, so §C8's rule "
+                             f"has no reading for it.")
+    return CARRIED, f"`{stratum}`. {BAND_ADVICE[stratum]}."
+
+
 #: One status function per carrier column. A dict rather than a chain of `elif`, so adding a
 #: carrier without deciding how to read it fails in `caveat_ledger` instead of defaulting.
-_STATUS_OF = {"unwind_state": _unwind_status, "beta": _beta_status}
+_STATUS_OF = {"unwind_state": _unwind_status, "beta": _beta_status,
+              "stratum": _stratum_status}
 
 
 def _coverage(ladder: pd.DataFrame | None, market_code: str) -> dict | None:

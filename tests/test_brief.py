@@ -15,7 +15,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from crowdmon.futures import add_composite, add_score_state, add_unwind_state
+from crowdmon.futures import (
+    add_composite,
+    add_score_state,
+    add_unwind_state,
+    classify,
+)
 from crowdmon.futures.brief import (
     CARRIED,
     INDETERMINATE,
@@ -102,17 +107,41 @@ def test_format_brief_cannot_be_asked_to_omit_the_ledger():
 
 
 # ── the carriers, when they are attached ────────────────────────────────────
-def test_attaching_the_carriers_moves_two_of_the_five_to_carried():
+def test_attaching_every_carrier_moves_three_of_the_five_to_carried():
+    """`§C3` joined `§A17` and `§B2` when §4 shipped the stratum classifier (`§C29`)."""
     scored = add_unwind_state(_scored(), _flows(_scored(), "long_liquidation"))
     scored["beta"] = 0.63
+    scored = classify(scored)
     ledger = {c["ref"]: c for c in market_brief(scored, MARKET)["caveats"]}
 
     assert ledger["2026-08-02 §B2"]["status"] == CARRIED
     assert "0.63" in ledger["2026-08-02 §B2"]["detail"]
     assert ledger["2026-08-01 §A17"]["status"] in (CARRIED, INDETERMINATE)
-    # The three the gate found un-carryable stay un-carryable however rich the frame is.
-    for ref in ("2026-08-01 §A21", "2026-08-01 §A22", "2026-08-03 §C3"):
+    assert ledger["2026-08-03 §C3"]["status"] == CARRIED
+    # The two that no per-row value can ever answer stay un-carryable however rich the
+    # frame is. `§A21` is identical on every row and `§A22` is a property of a ranking.
+    for ref in ("2026-08-01 §A21", "2026-08-01 §A22"):
         assert ledger[ref]["status"] == NOT_CARRIED
+
+
+def test_the_band_rule_reads_opposite_ways_on_the_two_strata():
+    """§4's whole ask: `§C8`'s rule consulted rather than documented."""
+    for name, expect in (("TEST MARKET - COMMODITY EXCHANGE INC.", "footnote"),
+                         ("TEST BASIS - ICE FUTURES ENERGY DIV", "PUBLISH")):
+        scored = classify(_scored().assign(market_name=name))
+        brief = market_brief(scored, MARKET)
+        entry = {c["ref"]: c for c in brief["caveats"]}["2026-08-03 §C3"]
+        assert entry["status"] == CARRIED
+        assert expect in entry["detail"]
+        assert expect in format_brief(brief)
+
+
+def test_an_unclassified_frame_declares_the_band_rule_missing_rather_than_assuming_safe():
+    """The dangerous default would be silence, which reads as "the band does not bind"."""
+    entry = {c["ref"]: c for c in market_brief(_scored(), MARKET)["caveats"]}
+    assert entry["2026-08-03 §C3"]["status"] == NOT_CARRIED
+    assert "stratum.classify" in entry["2026-08-03 §C3"]["detail"]
+    assert "no `stratum` on this frame" in format_brief(market_brief(_scored(), MARKET))
 
 
 def test_indeterminate_is_spoken_rather_than_left_blank():
