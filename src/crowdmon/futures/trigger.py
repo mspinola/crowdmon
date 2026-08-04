@@ -235,6 +235,25 @@ def nearest_trigger(symbol: str, *, sigma_daily: float, pool_net: float | None =
     `C` are downstream of the same trend, they are correlated (**-0.481** on 2026-07-28), so
     a fourth multiplicand would compound one signal twice.
 
+    **It is a moving level, so quote it as a snapshot and never as a countdown**
+    (`2026-08-04 §D12`). The reference is a single rolling bar, so the trigger drifts even
+    when price does not: on 6C over 120 sessions `F_(t-250)` moved with a daily standard
+    deviation of **0.4256%** against spot's 0.2540%, **1.68x**, so most of the change in
+    distance-to-trigger is last year's bars rolling off. The distance can close without the
+    market doing anything.
+
+    **And it is time-series momentum, not a breakout.** The comparison is against one bar,
+    not against the extreme of a window. Same market and week: the TSMOM trigger sits +4.14%
+    from spot while the Donchian 250d high is +5.31% and the low -0.77%. Nothing in `src/`
+    computes a breakout, and reading this as one puts the level in the wrong place.
+
+    **The rule reverses rather than exits**, so a flip is `delta_s = 2`. `trigger_block`
+    reports `flow_close` and `flow_reverse` for that reason and picks neither. A caller
+    pairing this distance with `T_sell`/`T_buy` should know they cover different
+    populations: `T` is the whole fragility-weighted side, while the trigger fires only the
+    trend-following slice of the weight-1.0 pool. On 6C that is 9.00 days against 6.57 if
+    the pool goes flat and 13.13 if it reverses.
+
     Returns nulls rather than raising when a side has no trigger: a market whose every
     horizon is long genuinely has no forced-buy level, and that is an answer.
     """
