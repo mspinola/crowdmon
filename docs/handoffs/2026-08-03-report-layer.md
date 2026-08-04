@@ -1,7 +1,7 @@
 # Handoff: step 7's report layer, and whether a `D` can carry its own caveats
 
 **Status:** **complete, all three tasks. §2 (PR #55) gate PASSES at `R=4, E=1`; §3 shipped
-(PR #56) under §5's escape clause; §4 shipped (PR #NN), which corrects §9's "do not build"
+(PR #56) under §5's escape clause; §4 shipped (PR #59), which corrects §9's "do not build"
 and takes the brief to three of five reading instructions carried.** Outcomes as §9, §10 and
 §11, findings `2026-08-03 §C20-§C28`
 **Date:** 2026-08-03
