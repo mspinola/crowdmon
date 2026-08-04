@@ -1,7 +1,8 @@
 # Handoff: step 7's report layer, and whether a `D` can carry its own caveats
 
-**Status:** **§2 complete (PR #55), gate PASSES at `R=4, E=1`. §3 open and unclaimed.
-§4 will not run before 2026-12-29.** Outcome as §9, findings `2026-08-03 §C20-§C24`
+**Status:** **complete. §2 (PR #55) gate PASSES at `R=4, E=1`; §3 shipped (PR #56) under
+§5's escape clause, carrying one of five reading instructions and naming the rest; §4 will
+not run before 2026-12-29.** Outcomes as §9 and §10, findings `2026-08-03 §C20-§C27`
 **Date:** 2026-08-03
 **Drafted against:** `075ad26916dcef41c5e0efcd7cf75671c395048a` (`main`, merge of PR #46)
 **Lives at:** `crowdmon/docs/handoffs/2026-08-03-report-layer.md`
@@ -506,3 +507,80 @@ completeness.
 
 **§2 complete. §3 open and unclaimed. §4 will not run before 2026-12-29.** This handoff stays
 `open` on that basis, and the next session takes §3 rather than re-running the gate.
+
+---
+
+## 10. Outcome, appended 2026-08-03: §3 executed, the brief ships under §5's escape clause
+
+**§3 is done. §4 remains dead** for `§C23`'s reason and is not re-examined here.
+
+Claimed and executed in the same session, which is normal practice for a build handoff here
+and is not the case the cold-session rule covers. The claim is this section: nothing else was
+in flight on the report layer when it started, and `docs/handoffs/README.md` carried §3 as
+open and unclaimed since PR #55.
+
+Findings: `2026-08-03 §C25` through `§C27`. Reproducer:
+[`../analysis/reproduce_brief.py`](../analysis/reproduce_brief.py). Pinned live in
+[`../../tests/test_brief_live.py`](../../tests/test_brief_live.py).
+
+### The misreading check, which is the deliverable
+
+§3 required the enumeration *before* building, so the denominator could not be chosen to fit
+the result. It is `README.md`'s five reading instructions, and it is now
+`brief.READING_INSTRUCTIONS` rather than prose, so the check runs on every render.
+
+**The brief prevents one of the five, two after one extra call, and names the rest.** It does
+not clear the "prevents every misreading" bar, so it ships under the second clause of §5's
+pre-registered rule: it **names in its own output** the ones it does not carry, on every
+render, with a path and a reproducer for each.
+
+**Three of the five cannot be carried per row at all**, and that is the substantive finding
+rather than a shortfall (`§C25`). `§A21` is computable on every row and identical on every
+row. `§A22` is a property of a pooled ranking under a sweep of whole weight tables. `§C3` is
+a property of a population. None is an effort problem and none becomes carryable with more
+work on the artifact.
+
+### What was built, and what was deliberately not
+
+| where | what | why there |
+|---|---|---|
+| `futures/composite.py` | `add_score_state`, `add_unwind_state` | `composite` owns `D`. §6: a derivation in the rendering is how the next engine gets built by accident |
+| `futures/brief.py` | `market_brief`, `format_brief`, `caveat_ledger`, `READING_INSTRUCTIONS` | pure selection and rendering. It computes nothing |
+
+Both derivations are on §6's allowed list as written: a classification of existing rows, and
+a first difference of a series a shipped module returns. No new formula, estimator,
+threshold or configured constant was added, and `core/config.py` is untouched.
+
+`add_score_state` is the `E = 1` gap `§C24` identified and the only thing here that closes a
+caveat no other output states. `add_unwind_state` is the §A17 carrier §2 said to test rather
+than assign; §9 above required it to render `indeterminate` out loud, and it does.
+
+### Three things §9 did not anticipate
+
+**`indeterminate` has two causes, not one** (`§C27`). `§C21` measured the flow state carrying
+nothing on 59.8% of falling weeks. It did not separate the other way a marker goes silent: no
+prior scored week, so there is no `ΔD` at all. That is 8,856 rows against 5,118, so the
+**larger** cause was the unmeasured one. Both render as `indeterminate` with different
+reasons, because collapsing them would be the `warmup`/`no_crowding` error one level down.
+
+**The `§B2` carrier is one call away and the chain does not make it** (`§C25`). `beta`
+attaches on 100% of rows, and `add_commonality` is not part of the composite chain and never
+will be (`2026-08-02 §B2`). So the obvious assembly carries **one** of five, and the ledger's
+declaration is the only thing that says the fifth is missing rather than inapplicable.
+
+**A third of all possible briefs have no number** (`§C26`). 8,831 of 27,194 market-weeks
+carry no `damage_sell_pct`, and every one of them previously rendered as a blank cell beside
+three populated factor columns. That is the degenerate input §2 listed first, and it is the
+common case rather than an edge.
+
+### On negative #2, which also applies
+
+§5's negative #2 says a brief that adds nothing the modules do not already give should ship
+labelled as convenience rather than as safety. With `E = 1` and one carried caveat of five,
+that label is earned, and `format_brief` prints it in its own footer rather than leaving it
+in this handoff. There is deliberately no flag to suppress the ledger.
+
+### Status
+
+**§2 complete. §3 complete. §4 will not run before 2026-12-29.** Nothing in this handoff is
+open.

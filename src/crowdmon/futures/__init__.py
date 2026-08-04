@@ -82,8 +82,12 @@ from .commonality import (
 )
 from .composite import (
     COMPOSITE_COLUMNS,
+    SCORE_STATES,
+    UNWIND_STATES,
     CompositeError,
     add_composite,
+    add_score_state,
+    add_unwind_state,
     damage_report,
     top_damage,
 )
@@ -305,6 +309,10 @@ __all__ = [
     "CONCENTRATION_COLUMNS",
     "add_composite", "damage_report", "top_damage", "CompositeError",
     "COMPOSITE_COLUMNS",
+    # the two per-row caveat carriers, here rather than in the report layer because
+    # `composite` owns `D` and a derivation in a rendering is how the next engine gets
+    # built by accident. `add_score_state` is the one caveat no other output states.
+    "add_score_state", "add_unwind_state", "SCORE_STATES", "UNWIND_STATES",
     "add_extremity", "extremity_report", "latest_extremes", "ExtremityError",
     "EXTREMITY_COLUMNS",
     "decompose", "state_distribution", "tolerance_sensitivity", "FLOW_STATES",
