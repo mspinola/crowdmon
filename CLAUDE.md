@@ -32,7 +32,8 @@ not about next week's return. Positioning extremes persist for quarters.
 | [`crowdmon_futures_cot_module.md`](docs/design/crowdmon_futures_cot_module.md) — the primary spec, §13 build order | here |
 | [`amendments-2026-08-01.md`](docs/design/amendments-2026-08-01.md) — A1-A22, **closed** | here |
 | [`amendments-2026-08-02.md`](docs/design/amendments-2026-08-02.md) — B1-B37, commonality through the template follow-ups and §A.2's real worked example. **Closed** | here |
-| [`amendments-2026-08-03.md`](docs/design/amendments-2026-08-03.md) — C1 onward, template classification stability, the `w_SD` sweep, the report-layer gate and the brief. **The open file** | here |
+| [`amendments-2026-08-03.md`](docs/design/amendments-2026-08-03.md) — C1-C30, template classification stability, the `w_SD` sweep, the report-layer gate, the brief and the stratum. **Closed** | here |
+| [`amendments-2026-08-04.md`](docs/design/amendments-2026-08-04.md) — D1 onward, the Norgate vendor-coverage answer. **The open file** | here |
 | `crowdmon_step2_normalisation.md` — layer 2, **accepted and shipped**. History, not instructions | `../cotdata/docs/design/` |
 | `cot_vintage.md` — the vintage store this reads | `../cotdata/docs/design/` |
 

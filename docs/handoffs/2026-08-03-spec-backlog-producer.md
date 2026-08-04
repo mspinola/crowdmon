@@ -1,6 +1,7 @@
 # Handoff: contract specs for the §C14 backlog
 
-**Status:** open, blocked on the Norgate producer (Windows box). Nothing to do in `crowdmon`
+**Status:** open, blocked on the Norgate producer (Windows box). Nothing to do in `crowdmon`.
+**§4 is CLOSED as of 2026-08-04 (§11): the vendor carries only two of the six**, so the ask is `039601` rough rice and `067411` ICE Europe WTI, and the four Henry Hub codes are vendor-absent. §5's and §9.2's expected counts are superseded by §11.2
 **Date:** 2026-08-03
 **Target:** whoever runs the Norgate producer, plus a follow-up `crowdmon` session
 **Depends on:** PR #46 (the inventory that identified these codes)
@@ -343,3 +344,76 @@ Two worth naming:
 
 `06665G` propane non-LDH (29,972 OI) and `025608` ethanol T2 both have a median Managed Money
 net of **exactly zero**.
+
+---
+
+# §11. §4 answered, 2026-08-04: the vendor carries two of the six, and the ask shrinks
+
+**This is the outcome for §4, the one step this handoff said had to happen first and could not
+be settled from the Linux side.** It is answered by the vendor's own catalogue, which the
+human supplied: Norgate's `FuturesContractDetails.xls`, the workbook `contract_specs` is built
+from. Nothing else in this handoff is executed; §1, §8, §9 and §10 stand as written.
+
+Findings: `2026-08-04 §D1`.
+
+## 11.1 The answer, and it is the one §4 suspected
+
+| CFTC code | market | Norgate | disposition |
+|---|---|---|---|
+| `039601` | ROUGH RICE | **`ZR`** | **ask stands** |
+| `067411` | WTI, ICE Futures Europe | **`WBS`** | **ask stands** |
+| `023A55` | HENRY HUB LAST DAY FIN | absent | **vendor-absent**, stays in the backlog |
+| `03565B` | HENRY HUB, NYMEX | absent | **vendor-absent** |
+| `023A56` | HENRY HUB PENULTIMATE FIN | absent | **vendor-absent** |
+| `03565C` | HENRY HUB PENULTIMATE NAT GAS | absent | **vendor-absent** |
+
+§4 flagged the three cash-settled look-alikes as the doubtful ones and was right about all
+three, plus `03565B` goes the same way. **The producer ask is two codes, not six.**
+
+The absence is read off a **complete enumeration rather than a keyword search**: Norgate's
+entire energy universe is eight contracts (`CL`, `HO`, `RB`, `NG`, `BRN`, `WBS`, `GAS`,
+`GWM`), of which four are already covered. It lists exactly one Henry Hub contract and it is
+`NG`, which is `023651` and already in the store.
+
+§4's rule is applied as written: reported vendor-absent, no proxy substituted.
+
+## 11.2 What this does to §5 and §9.2
+
+Both were written for a six-code run. Superseded:
+
+| | covered markets, latest week | `joinable` |
+|---|---|---|
+| today | 45 | 47 of 49 (verified 2026-08-04) |
+| §9.2's expectation, all six | 51 | 53 of 55 |
+| **achievable** | **47** | **49 of 51** |
+
+`MFS` and `MME` remain the two unjoinable throughout. §5's shell command is unchanged and is
+still the check that matters; only its expected numbers move.
+
+## 11.3 The workbook does not shorten the run
+
+It settles the vendor question and supplies most of one artifact of three. The `unadj` and
+`backadj` series both still need the subscription, and `propadj` is derived from that pair, so
+**the Windows box is still the blocker for everything §3 asks for**. The workbook also has no
+`Margin` column, which `contract_master.py` reads per spec row and which is non-null on all 47
+today.
+
+It was cross-checked against the store rather than trusted: 47 of 47 stored symbols present,
+`Tick Value` and `Point Value` agreeing exactly on every one.
+
+## 11.4 Two things worth carrying
+
+**Vendor coverage is not why the three ag codes were dropped.** `RS` Canola and `MWE` Hard Red
+Spring Wheat are both in the catalogue. §9.3 says WHEAT-HRSpring is the one to revisit if any
+is, by re-running `§C17`'s test; the data for it exists.
+
+**There is a block of CFTC-reported financials nobody has looked at**, because `§C14` scoped
+itself to Disaggregated: `SR3`, `ZQ`, `UB`, `TN`, `VX` and the equity micros are all in the
+catalogue and none is in the store. They report on TFF, where the levered-holder bar means
+something different, so this is **recorded and not proposed**. It is not a third tranche and
+§10's "no third tranche" is unaffected.
+
+## 11.5 Status
+
+**Still open, still blocked on the Windows box**, and now scoped: **two codes**, rough rice
+first per §9.4. §4 is closed.
