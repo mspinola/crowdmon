@@ -353,8 +353,8 @@ figures, the appendix's live-cattle arithmetic (`test_appendix_live.py`, `2026-0
 the volume and trigger measurements, or
 `2026-08-03 §C1-C8` (`test_supplemental_live.py`, the most exposed of the set: three of its
 assertions read `cot_supplemental`, a domain one release old). From the
-**main checkout**, against `~/code/cotdata_store`, the same suite is **649 passed / 5
-skipped** rather than **561 / 93**.
+**main checkout**, against `~/code/cotdata_store`, the same suite is **650 passed / 5
+skipped** rather than **562 / 93**.
 
 **These four numbers are measured, so re-measure them rather than adjusting them by hand.**
 Any PR that adds or removes a `tests/*_live.py` assertion moves all four, and two PRs in
@@ -377,6 +377,11 @@ second re-runs both commands and updates this paragraph, `bin/check_skips.py`'s 
 > **That is the collision this paragraph warns about, and it happened again**: both
 > branches re-measured from a base that did not include the other, and the figures above
 > are a third measurement taken after the merge rather than either branch's arithmetic.
+>
+> Moved once more the same day by the scheduling branch, **+1** and a **fixture** test, so
+> the four go to 650 / 5 and 562 / 93 while the live-only figure stays at **88**. That is
+> the paragraph above's own rule working: the live-only count is the DIFFERENCE between the
+> two skip figures, not a total, so a fixture test moves the four and leaves it alone.
 >
 > Moved again on **2026-08-04** by the publisher branch, **+34**: 17 fixture tests in
 > `test_publish.py`, 11 live in `test_publish_live.py`, and **6 that nobody added by hand**.
