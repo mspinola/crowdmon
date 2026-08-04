@@ -3,7 +3,7 @@
     COTDATA_STORE=~/code/cotdata_store python docs/analysis/reproduce_stratum.py
 
 Deterministic: no sampling, no seeds, no fitting. Regenerates every figure in
-`docs/design/amendments-2026-08-03.md` §C28.
+`docs/design/amendments-2026-08-03.md` §C29.
 
 **Nothing here measures anything new.** `2026-08-03 §C13` and `§C14` already partitioned the
 universe; this shows that the same partition falls out of `crowdmon.futures.stratum`, which
@@ -33,10 +33,10 @@ def rule(title: str) -> None:
     print(f"\n{'=' * 78}\n{title}\n{'=' * 78}")
 
 
-def c28_the_split_reproduces_from_src(vintage: pd.DataFrame,
+def c29_the_split_reproduces_from_src(vintage: pd.DataFrame,
                                       current: pd.DataFrame) -> None:
-    """§C28, first half. The promoted classifier cuts where the analysis script cut."""
-    rule("C28a. The promoted classifier reproduces C13 and C14 exactly")
+    """§C29, first half. The promoted classifier cuts where the analysis script cut."""
+    rule("C29a. The promoted classifier reproduces C13 and C14 exactly")
     latest = vintage[vintage["report_date"] == vintage["report_date"].max()]
     week = pd.Timestamp(latest["report_date"].iloc[0]).date()
 
@@ -56,10 +56,10 @@ def c28_the_split_reproduces_from_src(vintage: pd.DataFrame,
     print("  hard to reason about, not a sample of it.")
 
 
-def c28_the_rule_is_vacuous_the_split_is_not(vintage: pd.DataFrame,
+def c29_the_rule_is_vacuous_the_split_is_not(vintage: pd.DataFrame,
                                              current: pd.DataFrame) -> None:
-    """§C28, second half. Why §9 said not to build this, and what that reasoning missed."""
-    rule("C28b. The obligation is vacuous; the classification is not")
+    """§C29, second half. Why §9 said not to build this, and what that reasoning missed."""
+    rule("C29b. The obligation is vacuous; the classification is not")
     v_weeks = vintage["report_date"].nunique()
     c_weeks = current["report_date"].nunique()
     v = {k: int(n) for k, n in zip(*(lambda s: (s["stratum"], s["markets"]))(
@@ -99,8 +99,8 @@ def main() -> None:
     vintage = from_vintage(report_type="disaggregated")
     current = from_current_store()
 
-    c28_the_split_reproduces_from_src(vintage, current)
-    c28_the_rule_is_vacuous_the_split_is_not(vintage, current)
+    c29_the_split_reproduces_from_src(vintage, current)
+    c29_the_rule_is_vacuous_the_split_is_not(vintage, current)
     worked_rows()
 
 

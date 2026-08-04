@@ -518,6 +518,10 @@ vol-shock sensitivity: +5 vol pts forces −Q% position, independent of price
 
 That block is the deliverable. It combines positioning extremity, holder fragility, a specific trigger level, and a liquidity-denominated cost estimate — which is the full synthesis the equity monitor can only approximate.
 
+**Read the trigger as a deadline, not a forecast.** The solved level is not a prediction that price will reach it. It is the level at which *other* holders become forced sellers, so it is the point after which a holder's own exit is competing with theirs for the same capacity the impact estimate has already priced. The useful reading is therefore "be gone before this", not "this will happen": a holder who waits for the level to print is exiting into the flow rather than ahead of it, which is the configuration the whole system exists to identify. That reframes §9's output from a description of the market into an actionable date-free deadline on the holder.
+
+This does not weaken §9.4. A deadline is a risk statement, not a directional one: it says nothing about whether the level will be reached, or about which way price goes if it is, and a holder acting on it is reducing exposure rather than expressing a view. The prohibition in §9.4 is on trading the replication model's *signal*; using its solved level to decide when you no longer want to be in the way of it carries no first-moment content at all.
+
 ### 9.4 Standing caution
 
 The replication model must not become a trading signal by drift. It is calibrated to reproduce *consensus* positioning, so trading it directly means deliberately joining the crowded trade the system exists to warn about. If a directional strategy is ever derived from it, that requires separate out-of-sample validation and its own document.

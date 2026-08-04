@@ -86,7 +86,7 @@ def test_no_covered_market_is_a_certificate_or_a_differential(panels):
 
 def test_the_band_obligation_has_the_markets_on_one_panel_and_the_percentile_on_the_other(
         panels):
-    """`§C23` restated through the shipped classifier, which is `§C28`'s whole point.
+    """`§C23` restated through the shipped classifier, which is `§C29`'s whole point.
 
     The classification is live on both panels. The OBLIGATION is vacuous, because the panel
     carrying the markets `§C8` names cannot produce a `pct(D)` and the panel that can
@@ -104,6 +104,6 @@ def test_the_band_obligation_has_the_markets_on_one_panel_and_the_percentile_on_
     weeks = vintage["report_date"].nunique()
     assert weeks < DEFAULT_MIN_PERIODS, (
         f"the vintage panel now has {weeks} weeks against a {DEFAULT_MIN_PERIODS}-week "
-        f"min_periods, so §C8's rule has stopped being vacuous and §C28 needs revisiting. "
+        f"min_periods, so §C8's rule has stopped being vacuous and §C29 needs revisiting. "
         f"This test failing is the event it was written to announce.")
     assert current["report_date"].nunique() >= DEFAULT_MIN_PERIODS

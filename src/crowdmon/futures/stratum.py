@@ -39,7 +39,7 @@ side: the current-state panel is 1,051 weeks and zero certificates, the vintage 
 the certificates and is short of the percentile's `min_periods`. So nobody has to publish a
 band yet. That is a fact about coverage rather than about this function, which still answers
 the reader's question on every row — "does the band bind here?" — and answers it `no` with a
-reason. See `2026-08-03 §C28`.
+reason. See `2026-08-03 §C29`.
 
 ## The heuristic is a heuristic, and it is auditable on purpose
 

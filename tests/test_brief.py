@@ -108,7 +108,7 @@ def test_format_brief_cannot_be_asked_to_omit_the_ledger():
 
 # ── the carriers, when they are attached ────────────────────────────────────
 def test_attaching_every_carrier_moves_three_of_the_five_to_carried():
-    """`§C3` joined `§A17` and `§B2` when §4 shipped the stratum classifier (`§C28`)."""
+    """`§C3` joined `§A17` and `§B2` when §4 shipped the stratum classifier (`§C29`)."""
     scored = add_unwind_state(_scored(), _flows(_scored(), "long_liquidation"))
     scored["beta"] = 0.63
     scored = classify(scored)

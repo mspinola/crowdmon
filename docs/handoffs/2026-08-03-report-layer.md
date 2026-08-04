@@ -3,7 +3,7 @@
 **Status:** **complete, all three tasks. §2 (PR #55) gate PASSES at `R=4, E=1`; §3 shipped
 (PR #56) under §5's escape clause; §4 shipped (PR #59), which corrects §9's "do not build"
 and takes the brief to three of five reading instructions carried.** Outcomes as §9, §10 and
-§11, findings `2026-08-03 §C20-§C28`
+§11, findings `2026-08-03 §C20-§C27` and `§C29`
 **Date:** 2026-08-03
 **Drafted against:** `075ad26916dcef41c5e0efcd7cf75671c395048a` (`main`, merge of PR #46)
 **Lives at:** `crowdmon/docs/handoffs/2026-08-03-report-layer.md`
@@ -594,7 +594,7 @@ open.
 Re-check after that date." The measurement §9 rested on stands; the conclusion did not follow
 from it.
 
-Findings: `2026-08-03 §C28`. Reproducer:
+Findings: `2026-08-03 §C29`. Reproducer:
 [`../analysis/reproduce_stratum.py`](../analysis/reproduce_stratum.py). Pinned live in
 [`../../tests/test_stratum_live.py`](../../tests/test_stratum_live.py).
 

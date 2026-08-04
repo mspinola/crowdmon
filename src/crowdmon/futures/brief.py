@@ -119,9 +119,9 @@ READING_INSTRUCTIONS: tuple[Caveat, ...] = (
         ref="2026-08-03 §C3",
         misreading="the weight sensitivity measured over the pooled universe transfers to "
                    "this market",
-        source="docs/design/amendments-2026-08-03.md §C3, §C8, §C23, §C28, "
+        source="docs/design/amendments-2026-08-03.md §C3, §C8, §C23, §C29, "
                "docs/analysis/reproduce_w_sd_band.py::asymmetry_across_the_band, "
-               "docs/analysis/reproduce_stratum.py::c28_the_rule_is_vacuous_the_split_is_not",
+               "docs/analysis/reproduce_stratum.py::c29_the_rule_is_vacuous_the_split_is_not",
         column="stratum",
     ),
 )
@@ -421,7 +421,7 @@ def _stratum_status(brief: dict) -> tuple[str, str]:
     market?", which is the question a reader holding one `D` actually has. It does **not**
     make the obligation live: `§C23` measured that no panel today carries both a `pct(D)`
     and a market on the band-required side, so the answer is currently `no` on every
-    scoreable row. That is a fact about coverage, and `§C28` is where it is recorded.
+    scoreable row. That is a fact about coverage, and `§C29` is where it is recorded.
     """
     stratum = brief.get("stratum")
     if stratum is None:
