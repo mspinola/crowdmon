@@ -333,14 +333,14 @@ COTDATA_STORE=/tmp/crowdmon_test .venv/bin/python -m pytest tests/ -q -rs
 .venv/bin/python -m ruff check src tests bin
 ```
 
-**That fixture run skips 75 assertions, and they are the valuable ones.** Every
+**That fixture run skips 77 assertions, and they are the valuable ones.** Every
 `tests/*_live.py` needs the real store, so CI has never executed the layer-2 trap-table
 figures, the appendix's live-cattle arithmetic (`test_appendix_live.py`, `2026-08-02 §B37`),
 the volume and trigger measurements, or
 `2026-08-03 §C1-C8` (`test_supplemental_live.py`, the most exposed of the set: three of its
 assertions read `cot_supplemental`, a domain one release old). From the
-**main checkout**, against `~/code/cotdata_store`, the same suite is **597 passed / 5
-skipped** rather than **522 / 80**.
+**main checkout**, against `~/code/cotdata_store`, the same suite is **599 passed / 5
+skipped** rather than **522 / 82**.
 
 **These four numbers are measured, so re-measure them rather than adjusting them by hand.**
 Any PR that adds or removes a `tests/*_live.py` assertion moves all four, and two PRs in
@@ -355,7 +355,7 @@ second re-runs both commands and updates this paragraph, `bin/check_skips.py`'s 
 > test moves all four as surely as a live one does, and the paragraph above named only
 > `tests/*_live.py`; it is the total that is quoted, so any added test counts.
 
-> **From a worktree those two figures are 595 / 7 and 520 / 82**, because `test_boundaries`
+> **From a worktree those two figures are 597 / 7 and 520 / 84**, because `test_boundaries`
 > resolves `../cotdata` and `../marketdata` relative to the test file and finds neither,
 > so the two producer-direction checks skip. Quote the main-checkout numbers: a worktree
 > reports two fewer passes and has one real seam unguarded. This note exists because an
@@ -369,7 +369,7 @@ subscription and this repo is public, and the vintage store accumulates forward 
 2026-07-31 so no download reconstructs it. The split is therefore permanent:
 
 ```bash
-bin/live-tests.sh          # the 75, against the real store. Scheduled 09:15 daily
+bin/live-tests.sh          # the 77, against the real store. Scheduled 09:15 daily
 ```
 
 `--profile live` is the load-bearing part. A run whose store is missing or unsynced would
