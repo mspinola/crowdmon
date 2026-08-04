@@ -1,8 +1,9 @@
 # Handoff: step 7's report layer, and whether a `D` can carry its own caveats
 
-**Status:** **complete. §2 (PR #55) gate PASSES at `R=4, E=1`; §3 shipped (PR #56) under
-§5's escape clause, carrying one of five reading instructions and naming the rest; §4 will
-not run before 2026-12-29.** Outcomes as §9 and §10, findings `2026-08-03 §C20-§C27`
+**Status:** **complete, all three tasks. §2 (PR #55) gate PASSES at `R=4, E=1`; §3 shipped
+(PR #56) under §5's escape clause; §4 shipped (PR #NN), which corrects §9's "do not build"
+and takes the brief to three of five reading instructions carried.** Outcomes as §9, §10 and
+§11, findings `2026-08-03 §C20-§C28`
 **Date:** 2026-08-03
 **Drafted against:** `075ad26916dcef41c5e0efcd7cf75671c395048a` (`main`, merge of PR #46)
 **Lives at:** `crowdmon/docs/handoffs/2026-08-03-report-layer.md`
@@ -584,3 +585,70 @@ in this handoff. There is deliberately no flag to suppress the ledger.
 
 **§2 complete. §3 complete. §4 will not run before 2026-12-29.** Nothing in this handoff is
 open.
+
+---
+
+## 11. Outcome, appended 2026-08-03: §4 executed after all, and §9's reason was half right
+
+**§4 is done.** This section corrects §9 of this same file, which said "Do not build §4.
+Re-check after that date." The measurement §9 rested on stands; the conclusion did not follow
+from it.
+
+Findings: `2026-08-03 §C28`. Reproducer:
+[`../analysis/reproduce_stratum.py`](../analysis/reproduce_stratum.py). Pinned live in
+[`../../tests/test_stratum_live.py`](../../tests/test_stratum_live.py).
+
+### Why it ran despite §9
+
+§4's own gate is "only if §3 ships and §2 found the stratum to be row-computable". Both are
+true: §3 shipped, and `§C23` found `venue` parses on 100% of rows. §9's "do not build" was a
+judgement about value, not a pre-registered stop, and the distinction matters because this
+directory treats pre-registered thresholds as binding and session judgement as revisable.
+
+### The step that did not hold
+
+`§C23` established that no panel today carries both a `pct(D)` and a market on the
+band-required side, so **nobody has to publish a `w_SD` band**. That is still true and
+unchanged. What does not follow is that the classification is therefore worthless. Two
+different readers:
+
+- the *obligation* addresses whoever publishes a band, and has no audience today
+- the *classification* answers what a reader holding one `D` actually asks, **does the band
+  bind on this market?**, and `no, this is a classic outright` is information rather than an
+  absence
+
+`§C22` had drawn exactly that distinction one section earlier and it was not applied. A
+constant `outright` on today's scoreable panel is constant because the caveat **bites
+nowhere on it**, not because the value says nothing, and it flips the week a certificate
+market becomes scoreable. `§A21`'s constant is the other kind and stays un-carryable.
+
+### What shipped
+
+`futures/stratum.py`: `classify`, `stratum_summary`, `differential_matches`, `format_strata`,
+`venue`, and `BAND_ADVICE` as `§C8`'s rule in value form. `brief.py` consults it, so the
+`§C3` entry in the ledger moves from **named** to **carried**, and the brief now carries
+three of the five reading instructions rather than one.
+
+Three of §4's own conditions, met explicitly:
+
+- **No hardcoded count.** §4 says a classifier carrying one is wrong on arrival, because the
+  covered universe is report-week dependent and spans two report types (`§C12`).
+  `stratum_summary` derives the split from whatever frame it is handed and prints it.
+- **Three populations, not two.** A venue split alone puts the seven differentials on the
+  outright side (`§C14`), and a differential is not a small outright: the ladder computes a
+  position value and a spread does not have one.
+- **The promotion is verified, not asserted.** The moved classifier reproduces `§C13` and
+  `§C14` exactly, to the individual code, which is the only thing that makes moving logic out
+  of an analysis script safe.
+
+### What is still not true
+
+**The obligation remains vacuous** and this changes nothing about that.
+`test_the_band_obligation_has_the_markets_on_one_panel_and_the_percentile_on_the_other`
+fails on purpose the week the vintage panel reaches `min_periods`, which is the announcement
+that it has stopped being vacuous. That is the re-check §9 asked for, now automatic rather
+than dependent on someone remembering a date.
+
+### Status
+
+**§2, §3 and §4 all complete.** Nothing in this handoff is open.

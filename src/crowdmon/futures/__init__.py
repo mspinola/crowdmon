@@ -237,6 +237,19 @@ from .seasonal import (
     seasonality_report,
     week_of_year,
 )
+from .stratum import (
+    BAND_ADVICE,
+    BAND_REQUIRED,
+    CERTIFICATE_VENUES,
+    DIFFERENTIAL_TOKENS,
+    STRATA,
+    StratumError,
+    classify,
+    differential_matches,
+    format_strata,
+    stratum_summary,
+    venue,
+)
 from .trigger import (
     DEFAULT_LOOKBACKS,
     TriggerError,
@@ -313,6 +326,11 @@ __all__ = [
     # `composite` owns `D` and a derivation in a rendering is how the next engine gets
     # built by accident. `add_score_state` is the one caveat no other output states.
     "add_score_state", "add_unwind_state", "SCORE_STATES", "UNWIND_STATES",
+    # which population a market is in, so §C8's band rule is a value a consumer can read
+    # rather than prose beside code that could check it. Classifies, never gates.
+    "classify", "stratum_summary", "differential_matches", "format_strata", "venue",
+    "STRATA", "BAND_ADVICE", "BAND_REQUIRED", "CERTIFICATE_VENUES", "DIFFERENTIAL_TOKENS",
+    "StratumError",
     "add_extremity", "extremity_report", "latest_extremes", "ExtremityError",
     "EXTREMITY_COLUMNS",
     "decompose", "state_distribution", "tolerance_sensitivity", "FLOW_STATES",

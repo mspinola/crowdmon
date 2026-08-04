@@ -1510,3 +1510,98 @@ its reason.
 "I cannot say", which is the honest shape of `§C21`'s finding rather than a defect in it.
 
 Reproducer: [`../analysis/reproduce_brief.py`](../analysis/reproduce_brief.py)`::c27_indeterminate_is_two_states`.
+
+---
+
+## C28. `§C8`'s band rule is now enforceable, and the reason it was deferred was half right
+
+**§4 of [`../handoffs/2026-08-03-report-layer.md`](../handoffs/2026-08-03-report-layer.md),
+executed after `§C23` recommended against it.** That recommendation is corrected here rather
+than overturned: its measurement stands and its conclusion did not follow from it.
+
+### What `§C23` established, and it still holds
+
+No panel available today carries both a `pct(D)` and a market on the side `§C8`'s rule names:
+
+| panel | markets | weeks | certificate markets | `pct(D)` computable |
+|---|---|---|---|---|
+| vintage | 346 | 82 | **263** | **no**, 82 < 104 `min_periods` |
+| current-state | 27 | 1,051 | **0** | yes |
+
+So **nobody has to publish a `w_SD` band today**, and that does not change until the vintage
+panel reaches 104 observations, 2026-12-29 at the earliest. `§C23` measured this correctly.
+
+### What did not follow
+
+`§C23` concluded "do not build the classifier, there is nothing to point it at", and §9 of
+the handoff carried that forward as "§4 is dead". The step that does not hold is the move
+from **the obligation is vacuous** to **the classification is worthless**. They are different
+statements about different readers:
+
+- The *obligation* is addressed to whoever publishes a band. It has no audience today.
+- The *classification* answers a question every reader of a single `D` has: **does the band
+  bind on this market?** On a classic outright the answer is `no, and here is why`, which is
+  information rather than an absence.
+
+`§C22` drew exactly this distinction one section earlier and it was not applied here: the
+test is not "can this be computed per row" but "does the value differ between rows where the
+caveat bites and rows where it does not". A constant `outright` on a scoreable panel looks
+like `§A21`'s constant and is not one. `§A21` is identical everywhere *and* the caveat bites
+everywhere equally, so it separates nothing ever. `stratum` is constant on today's scoreable
+panel because the caveat bites **nowhere on it**, and it flips the week a certificate market
+becomes scoreable. One is a property of the construction; the other is a property of current
+coverage.
+
+### The promotion reproduces `§C13` and `§C14` exactly
+
+Moving logic out of an analysis script is only safe if the moved copy cuts where the original
+cut. `crowdmon.futures.stratum.classify` over the vintage panel's latest report week:
+
+| stratum | markets | share |
+|---|---|---|
+| `certificate` | **213** | 76.3% |
+| `outright` | **59** | 21.1% |
+| `differential` | **7** | 2.5% |
+
+`§C14` measured 213 certificates, 7 differentials and 34 uncovered outrights; `§C13` measured
+the 25 covered outrights, and 34 + 25 = 59. On the current-state panel it is **27 of 27
+outright, 0 certificate, 0 differential**, which is `§C13`'s finding that the covered set is
+the complement of the thing that made the panel hard to reason about rather than a sample of
+it.
+
+The seven differentials are the same seven, and each now names the token that caught it:
+
+| code | matched on |
+|---|---|
+| `022A13` UP DOWN GC ULSD VS HO SPR | `VS`, `SPR` |
+| `0676A5` WTI HOUSTON ARGUS/WTI TR MO | `/` |
+| `0676A6` WTI HOUSTON ARGUS/WTI BALMO | `/`, `BALMO` |
+| `067A71` WTI MIDLAND ARGUS VS WTI TRADE | `VS` |
+| `111A34` GULF COAST CBOB GAS A2 PL RBOB | `PL` |
+| `86465A` GULF JET NY HEAT OIL SPR | `SPR` |
+| `86565A` GULF # 6 FUEL OIL CRACK | `CRACK` |
+
+`differential_matches` exists because `DIFFERENTIAL_TOKENS` is pattern matching over a
+display label and nothing more. `/` is broad enough to catch a future outright whose name
+happens to carry a slash, and the audit function is how that would be noticed rather than
+inherited.
+
+### Consequence for the brief
+
+`§C25` reported the brief carrying **one** of `README.md`'s five reading instructions by
+default and two after an `add_commonality` call. With `stratum` attached it carries
+**three**, and the two that remain are the two no per-row value can ever answer: `§A21` is
+identical on every row, `§A22` is a property of a pooled ranking under a weight sweep. That
+is now the floor rather than a status quo, because both were shown un-carryable by
+measurement rather than left unbuilt.
+
+The failure mode §4 named is also closed. `§C11` is its precedent: `rank_markets` documented
+an alignment requirement instead of checking it and the requirement was found unmet. `§C8`'s
+rule was in exactly that position, and a brief that consults it cannot be read by someone who
+never read the prose.
+
+Reproducer: [`../analysis/reproduce_stratum.py`](../analysis/reproduce_stratum.py).
+Pinned live in [`../../tests/test_stratum_live.py`](../../tests/test_stratum_live.py), where
+`test_the_band_obligation_has_the_markets_on_one_panel_and_the_percentile_on_the_other`
+**fails on purpose** the week the vintage panel reaches `min_periods`. That failure is the
+announcement that the obligation has stopped being vacuous.
