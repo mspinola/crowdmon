@@ -10,3 +10,4 @@ dist/
 
 # Written by bin/live-tests.sh via the launchd agent (append-only run log).
 live-tests.log
+publish.log

@@ -424,11 +424,22 @@ bin/publish_damage.sh
 ```
 
 Roughly 8 seconds for 47 markets over both report types, of which 1.3 is the Amihud panel
-behind `beta`. Schedule it beside the live tests at 09:15: `bin/live-tests.sh` records an
-observed incident where reading the store mid-write made panels momentarily unreadable, and
-the failure mode differs between the two. A test run fails loudly; **a publisher would write
-a short panel, and a short panel is a perfectly well-formed panel that nothing downstream
-would question**. `publish._refuse_a_short_panel` is the interlock.
+behind `beta`. **Scheduled daily at 09:30**, fifteen minutes after the live tests, by
+`bin/com.mspinola.crowdmon-publish.plist.example`. The order is the point rather than the
+hour: the 09:15 run is what would already have alarmed if the store were mid-write or this
+package broken, so a panel is never written from a tree whose own suite is failing.
+
+Daily though the data is weekly, because the panel is anchored on the report date and a
+re-run between releases is idempotent, while **a failed weekly publish would leave a stale
+panel up for seven days**.
+
+`bin/live-tests.sh` records an observed incident where reading the store mid-write made
+panels momentarily unreadable, and the failure mode differs between the two jobs. A test run
+fails loudly; **a publisher would write a short panel, and a short panel is a perfectly
+well-formed panel that nothing downstream would question**.
+`publish._refuse_a_short_panel` is the interlock, and the launchd notification is the only
+channel that reports it: `cot-analyzer`'s page renders a staleness banner rather than an
+error, which is correct and also means nobody finds out from the dashboard.
 
 Regenerate the analysis figures (needs the real store):
 
