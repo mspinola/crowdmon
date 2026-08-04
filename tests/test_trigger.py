@@ -11,7 +11,12 @@ import pandas as pd
 import pytest
 
 from crowdmon.futures import trigger as trig
-from crowdmon.futures.trigger import TriggerError
+from crowdmon.futures.trigger import (
+    TRIGGER_DISTANCE_COLUMNS,
+    TriggerError,
+    add_trigger_distance,
+    nearest_trigger,
+)
 
 MARKET = pd.Series({"market_name": "TEST MARKET", "phi": 0.4,
                     "net_contracts": 100_000.0, "net_risk_usd_pct": 0.9})
@@ -200,3 +205,52 @@ def test_the_block_prints_every_input_beside_its_result(prices):
                      "vol shock"):
         assert expected in text, expected
     assert "annualised" in text and "daily" in text, "both vol units must be shown"
+
+
+# ── nearest_trigger: the side convention and the sigma unit ─────────────────
+def test_nearest_trigger_refuses_to_invent_a_sigma():
+    """Sigma comes from `riskunits.add_risk_units` and is not recomputed here. Two
+    definitions of sigma in one package is how the layer-2 trap started."""
+    with pytest.raises(TriggerError, match="positive daily sigma"):
+        nearest_trigger("GC", sigma_daily=0.0)
+    with pytest.raises(TriggerError, match="positive daily sigma"):
+        nearest_trigger("GC", sigma_daily=None)
+
+
+def test_add_trigger_distance_names_the_columns_it_needs():
+    frame = pd.DataFrame({"report_date": [pd.Timestamp("2026-07-28")], "symbol": ["GC"]})
+    with pytest.raises(TriggerError, match="sigma_daily"):
+        add_trigger_distance(frame)
+
+
+def test_add_trigger_distance_leaves_every_column_present_and_null_on_an_empty_frame():
+    """Null columns rather than missing ones, so a downstream `.notna()` fails loudly on
+    nulls instead of raising a KeyError that reads as a different bug."""
+    frame = pd.DataFrame(columns=["report_date", "symbol", "sigma_daily"])
+    out = add_trigger_distance(frame)
+    for column in TRIGGER_DISTANCE_COLUMNS:
+        assert column in out.columns
+
+
+def test_add_trigger_distance_only_populates_the_as_of_row():
+    """A point-in-time overlay, not a history: two price reads per market-week would be
+    ~95,000 reads across the panel against 90 for one week. Earlier rows stay null, which
+    is stated in the docstring and must be visible in the output."""
+    frame = pd.DataFrame({
+        "report_date": pd.to_datetime(["2026-07-21", "2026-07-28"]),
+        "symbol": ["NOPE", "NOPE"], "sigma_daily": [0.01, 0.01]})
+    out = add_trigger_distance(frame)
+    # An unresolvable symbol yields nulls everywhere rather than raising mid-run.
+    assert out["trigger_sell_sigma"].isna().all()
+
+
+def test_pool_agreement_is_tri_state_and_unknown_is_not_false():
+    """"No pool supplied" and "the pool is on the other side" carry opposite implications
+    for whether a trigger means anything, so they must not collapse."""
+    frame = pd.DataFrame({
+        "report_date": [pd.Timestamp("2026-07-28")], "symbol": ["NOPE"],
+        "sigma_daily": [0.01]})
+    out = add_trigger_distance(frame)
+    assert out["trigger_sell_pool_agrees"].isna().all()
+    with pytest.raises(TriggerError, match="missing columns"):
+        add_trigger_distance(frame, pool_column="pool_net")

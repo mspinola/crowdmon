@@ -87,6 +87,159 @@ def format_q_block(arith: dict) -> str:
     ])
 
 
+#: What each factor of `D` is asking, in the words a reader should use for it. Kept here
+#: rather than in `composite.py` because it is presentation, and kept as data rather than
+#: prose in a docstring so `format_damage_block` and any future renderer say the same thing.
+FACTOR_QUESTIONS = {
+    "crowding": "how lopsided the forceable holders are, vs this market's own 3 years",
+    "illiquidity": "how long that side would take to exit, vs its own 3 years",
+    "fragility": "how much of the market sits in forceable hands, vs its own 3 years",
+}
+
+#: Bands for the headline. Deliberately coarse: `D_pct` is a percentile of a product of
+#: percentiles, so a two-decimal reading implies a precision the construction does not have.
+DAMAGE_BANDS = ((0.90, "top decile"), (0.75, "high"), (0.50, "above middling"),
+                (0.25, "below middling"), (0.0, "bottom quartile"))
+
+
+def damage_band(damage_pct: float) -> str:
+    """The coarse band for a `D_pct`, or `unscored` for a null."""
+    if damage_pct is None or pd.isna(damage_pct):
+        return "unscored"
+    for floor, label in DAMAGE_BANDS:
+        if float(damage_pct) >= floor:
+            return label
+    return "bottom quartile"
+
+
+def format_damage_block(block: dict) -> str:
+    """`D_pct` rendered with its three factors, the arithmetic, and how to read it.
+
+    The factors are printed **every time**, not on request. `composite.damage_block`
+    records the three measured reasons; the short version is that `D` is a product, so it
+    is dominated by its smallest term, and the effect of `Phi` is not monotone, so a lone
+    percentile cannot be interpreted even by someone who knows the formula.
+
+    The closing line is deliberately about what the number is NOT. Percentiles get read as
+    probabilities, and this one is a rank among past weeks in one market.
+    """
+    b = block
+    side = b["side"]
+    forced = "forced longs selling" if side == "sell" else "forced shorts buying"
+    c, i, f = b["crowding"], b["illiquidity"], b["fragility"]
+    d, dp = b["damage"], b["damage_pct"]
+    raw = b.get("raw", {})
+
+    def _n(v, spec=".3f"):
+        return "n/a" if v is None else format(v, spec)
+
+    lines = [
+        f"{b['market_name']} ({b['market_code']})  {pd.Timestamp(b['report_date']).date()}"
+        f"  side: {side} ({forced})",
+        "",
+        f"    C   crowding     {_n(c)}   {FACTOR_QUESTIONS['crowding']}",
+        f"    I   illiquidity  {_n(i)}   {FACTOR_QUESTIONS['illiquidity']}",
+        f"    Phi fragility    {_n(f)}   {FACTOR_QUESTIONS['fragility']}",
+        "",
+    ]
+    if None not in (c, i, f):
+        lines += [f"    D   = {c:.3f} x {i:.3f} x {f:.3f} = {d:.4f}", ""]
+    lines += [f"    D_pct = {_n(dp)}   <- the delivered number ({damage_band(dp)})", ""]
+    if dp is None:
+        # An empty percentage inside the sentence below rendered as "in this market,
+        # looked less dangerous", which is not a sentence. A market with a null factor
+        # gets its own reading, and lumber is the live case: four years of prices against
+        # the six that `C = pct(z)` needs, so `D` cannot be formed while `I` and `Phi` can.
+        missing = [n for n, v in (("C", c), ("I", i), ("Phi", f)) if v is None]
+        lines += [
+            f"  UNSCORED: {', '.join(missing)} {'is' if len(missing) == 1 else 'are'} "
+            f"null, so D cannot be formed. The factors that DO",
+            "  exist are above and are readable on their own; the product is not.",
+            "  Usually too little history: C stacks two 3-year windows and needs six.",
+        ]
+    else:
+        lines += [
+            f"  Read as: of the last 3 years of weeks in this market, {dp:.0%} looked less",
+            f"  dangerous than now for {forced}. It is a rank among this market's own past,",
+            "  not a probability, not a forecast, and not comparable as a level to another",
+            "  market's days-to-liquidate.",
+        ]
+    if raw.get("dtl") is not None:
+        lines.append(
+            f"  Level check: T_{side} = {raw['dtl']:.2f} days. A percentile cannot tell "
+            f"you\n  whether the level is trivial; a market clearing in under half a "
+            f"session\n  is not dangerous however unusual that is for it.")
+    lines.append(
+        "  D is a product, so the smallest factor dominates. Phi's effect is NOT\n"
+        "  monotone: a below-median Phi can raise or lower D_pct depending on the\n"
+        "  market's own joint history (2026-08-04, corn up and sterling down).")
+
+    off = b.get("offside") or {}
+    if off.get("distance_sigma") is not None:
+        lines += ["", format_offside(off, side=side, damage_pct=dp)]
+    return "\n".join(lines)
+
+
+#: The four cells of (how close is the trigger) x (how bad is the exit). Publishing `D_pct`
+#: and the trigger distance separately is what keeps these distinguishable; a product of the
+#: two collapses all four into one scalar. Thresholds are coarse for the same reason
+#: `DAMAGE_BANDS` is: both inputs are noisy and a fine grid implies precision neither has.
+QUADRANT = {
+    (True, True): "CLOSE and SEVERE. The cell the measure exists to find",
+    (True, False): "close but not severe. Likely to fire, unlikely to hurt",
+    (False, True): "severe but not close. Would hurt, is not imminent",
+    (False, False): "neither close nor severe",
+}
+
+#: A trigger within this many daily sigma is "close". Roughly one ordinary day's move.
+CLOSE_SIGMA = 1.5
+
+
+def format_offside(offside: dict, *, side: str, damage_pct: float | None) -> str:
+    """The trigger distance, rendered beside `D_pct` and explicitly not multiplied into it.
+
+    Two things this block must not let a reader do. It must not read the distance as a
+    forecast: it is the level at which a rules-based pool is mechanically forced, not a
+    prediction that price gets there. And it must not be combined with `D_pct` into a single
+    ranking, because `D` is a conditional severity (A.10) and because the distance is the
+    trailing k-day return, which already drives `C` (`2026-08-04 §D9`). The quadrant is the
+    information.
+    """
+    d_sigma = offside.get("distance_sigma")
+    d_pct = offside.get("distance_pct")
+    k = offside.get("lookback_days")
+    forced = "selling" if side == "sell" else "buying"
+    out = [
+        f"    offside      {d_sigma:.1f} sigma   nearest {k:.0f}d flip that forces "
+        f"{forced}, {d_pct:.2%} away",
+    ]
+    # The observed pool must actually be on the side the signal implies, or the level is
+    # real and the book it would force is not. They disagree on a third of (market,
+    # horizon) pairs, so this is the common case rather than the exotic one.
+    agrees = offside.get("pool_agrees")
+    if agrees is False:
+        out.append("                 !! the OBSERVED pool is on the OTHER side, so this "
+                   "level would\n                    force a book that is not there. "
+                   "Signal-implied, not held.")
+    elif agrees is None:
+        out.append("                 (no pool supplied, so whether anyone is actually "
+                   "positioned\n                    this way is unchecked)")
+    if damage_pct is not None and agrees is not False:
+        cell = QUADRANT[(d_sigma <= CLOSE_SIGMA, damage_pct >= 0.75)]
+        out.append(f"                 -> {cell}")
+    out += [
+        "  Not multiplied into D, and not a forecast. D says how bad an exit would be;",
+        "  this says how far price must move before the rules force one. Kept separate",
+        "  because D is a conditional severity (A.10) and because F* = F_{t-k} makes this",
+        "  the trailing k-day return, which already drives C (corr -0.481). Publishing",
+        "  both is what keeps the four cells above distinguishable.",
+    ]
+    if offside.get("horizons_disagree"):
+        out.append("  The 20/60/250d horizons DISAGREE here: there is a forced-buy level "
+                   "too.\n  This book is not one pool with one trigger.")
+    return "\n".join(out)
+
+
 def flow_sequence(flows: pd.DataFrame, market_code: str, category: str,
                   weeks: int = 12) -> pd.DataFrame:
     """The trailing state sequence for one market and category.

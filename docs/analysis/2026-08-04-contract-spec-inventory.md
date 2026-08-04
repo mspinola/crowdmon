@@ -3,7 +3,7 @@
 **Report week:** 2026-07-28 (latest), vintage panel from 2025-01-07, 82 weeks
 **Handoff:** [`2026-08-03-spec-backlog-producer.md`](../handoffs/2026-08-03-spec-backlog-producer.md) §6
 **Reproducer:** [`reproduce.py`](reproduce.py)`::contract_spec_inventory`
-**Amendments:** [`../design/amendments-2026-08-04.md`](../design/amendments-2026-08-04.md) §D1, §D2
+**Amendments:** [`../design/amendments-2026-08-04.md`](../design/amendments-2026-08-04.md) §D1, §D11
 **Data:** `cot_disagg` and `cot_tff` vintage observations, `contract_specs` (Norgate, written 2026-08-04 11:48)
 
 Point-in-time, per this directory's rule. **A new file rather than an edit to

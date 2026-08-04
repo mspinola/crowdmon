@@ -1,6 +1,6 @@
 # Handoff: contract specs for the §C14 backlog
 
-**Status:** **COMPLETE 2026-08-04 (§12).** §4 was answered from the vendor catalogue (§11): Norgate carries only `039601` rough rice and `067411` ICE Europe WTI, and the four Henry Hub codes are vendor-absent and stay in the backlog. Both landed via cotdata #99 plus the producer run, `joinable` is **49 of 51** and covered markets **45 -> 47**. §6's follow-up is executed. Findings `2026-08-04 §D1`, `§D2`
+**Status:** **COMPLETE 2026-08-04 (§12).** §4 was answered from the vendor catalogue (§11): Norgate carries only `039601` rough rice and `067411` ICE Europe WTI, and the four Henry Hub codes are vendor-absent and stay in the backlog. Both landed via cotdata #99 plus the producer run, `joinable` is **49 of 51** and covered markets **45 -> 47**. §6's follow-up is executed. Findings `2026-08-04 §D1`, `§D11`
 **Date:** 2026-08-03
 **Target:** whoever runs the Norgate producer, plus a follow-up `crowdmon` session
 **Depends on:** PR #46 (the inventory that identified these codes)
@@ -423,7 +423,7 @@ first per §9.4. §4 is closed.
 
 **Complete.** The producer run wrote both codes the vendor carries, the store synced, and the
 follow-up §6 assigns to a `crowdmon` session is done. Findings: `2026-08-04 §D1` (the vendor
-answer) and `§D2` (the landing). New point-in-time record:
+answer) and `§D11` (the landing). New point-in-time record:
 [`../analysis/2026-08-04-contract-spec-inventory.md`](../analysis/2026-08-04-contract-spec-inventory.md).
 
 ## 12.1 What landed
@@ -449,7 +449,7 @@ predicted from rough rice's 82-of-82 week count.
 | item | done |
 |---|---|
 | re-run `contract_spec_inventory`, **new dated file** | `docs/analysis/2026-08-04-contract-spec-inventory.md`. The 2026-07-28 file is untouched and both are correct about the same week |
-| update the covered-universe count | `docs/handoffs/README.md`, two rows. **`CLAUDE.md` never carried it**, see `§D2` |
+| update the covered-universe count | `docs/handoffs/README.md`, two rows. **`CLAUDE.md` never carried it**, see `§D11` |
 | re-measure the four suite figures | done, rather than adjusted by hand |
 | `continuity.py` on `03565B` vs `023651` | **moot, and settled the other way.** Whether they are one instrument or two no longer matters: Norgate carries no series for `03565B`, so it cannot be scored under either answer |
 

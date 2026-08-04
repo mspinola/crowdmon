@@ -34,6 +34,8 @@ Alongside it, the exchanges publish exact daily trading volume. So you can put a
 
 **The critical arithmetic is the ratio.** If speculative funds hold 200,000 contracts and the market trades 100,000 contracts a day, they can't all leave at once. You can't realistically be more than about a fifth of a day's trading without moving the price against yourself, so at that rate the exit takes ten days. Ten days of everyone selling into the same market is not an orderly exit. It's a rout.
 
+**But ten days is only alarming if ten days is unusual for that market.** Some markets always take that long, because they are small relative to the money that trades them, and they are not in a permanent rout. So the number is read against the same market's own history rather than against other markets, which is the same treatment every other quantity here gets (A.4 for positioning, A.9 for the composite). A.5 has the measurement.
+
 Two things make it worse than that sounds:
 
 - Trading volume during a panic isn't the calm-market volume you measured. It is often worse exactly when you need it most, because buyers step back.
@@ -111,10 +113,12 @@ Crowding on its own is harmless. It becomes dangerous when the crowd is large re
 > §A.7 and §A.9 is one **real** market at a stated report week, recomputed from the store by
 > that test and by `docs/analysis/reproduce.py` (`appendix_a2_worked_example`); the
 > constructed figures kept beside it are labelled as constructed everywhere they appear.
-> Implementation notes and measured amendments live in
-> [`amendments-2026-08-01.md`](amendments-2026-08-01.md) and
-> [`amendments-2026-08-02.md`](amendments-2026-08-02.md); anyone building from this appendix
-> should read those alongside it.
+> Implementation notes and measured amendments live in the dated `amendments-*.md` files,
+> indexed in [`README.md`](README.md); anyone building from this appendix should read those
+> alongside it. **The pointer is to the index rather than to a list of filenames**, because
+> the list went stale: it named 08-01 and 08-02 and was still naming only those after 08-03
+> and 08-04 landed, which is the same silent-decay failure the amendments themselves keep
+> catching.
 
 
 Each section below corresponds to a claim made above. Nothing new is introduced; the plain-language statements are simply written in a form that can be computed.
@@ -297,6 +301,10 @@ Six days against under two. That gap, not either number alone, is what the direc
 Using the *unweighted* Managed Money net of 67,025 instead would give 4.45 days, against 6.08 weighted. The two diverge here because the swap book adds 27% of $Q_{\text{sell}}$, which is the general case; they coincide only where a single category dominates $Q$, and the weighted figure is the meaningful one either way.
 
 *The constructed extreme, continued.* Carrying $Q_{\text{sell}} = 99{,}500$ with an assumed $V = 25{,}000$ gives $T = 99{,}500 / 5{,}000 \approx 20$ days: a month of forced selling in a market that has already thinned. That is 3.3 times the live cattle reading, on a $Q/OI$ of 0.50 against 0.31 into a market a third the size. This is the shape the measure exists to flag. Note both use calm-market volume; the stress conditioning below revises it, and not always downwards.
+
+**The level is not comparable across markets, and a ranking on it is largely structural.** The "3.3 times" above holds because the constructed market is *stipulated* to be a third the size; between two real markets the same ratio would mostly be describing their standing liquidity rather than this week. Measured over the 45 markets that reach a live $T$: the rank correlation between this week's $T$ and each market's own long-run median $T$ is **0.639**, and the top ten by raw $T$ overlaps the top ten by percentile-of-own-history in only **3 of 10** places. Live cattle sits 4th on a raw ranking while at the **20th percentile** of its own three years; sterling is at its **highest exit time in three years** and ranks 12th. So $T$ is surfaced as a percentile of its own history, exactly as $z$ is in A.4 and $\mathcal{D}$ is in A.9.
+
+**The absolute level keeps one job: a floor.** A percentile cannot say whether a level is trivial, and a market clearing in under half a session cannot be disorderly however unusual that is for it. Measured on the same week, exactly one market is affected: the DJIA contract reads a damage percentile of 0.783 on a $T_{\text{sell}}$ of **0.27 days**. Rank on the percentile, gate on the level.
 
 **Cost of forcing the exit.** The square-root impact law:
 

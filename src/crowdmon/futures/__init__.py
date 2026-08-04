@@ -88,6 +88,7 @@ from .composite import (
     add_composite,
     add_score_state,
     add_unwind_state,
+    damage_block,
     damage_report,
     top_damage,
 )
@@ -252,8 +253,11 @@ from .stratum import (
 )
 from .trigger import (
     DEFAULT_LOOKBACKS,
+    TRIGGER_DISTANCE_COLUMNS,
     TriggerError,
+    add_trigger_distance,
     format_block,
+    nearest_trigger,
     trigger_block,
     trigger_prices,
     vol_shock_reduction,
@@ -300,6 +304,7 @@ __all__ = [
     "RISK_ADJUSTMENT", "DEFAULT_VOL_WINDOW", "DEFAULT_MIN_PERIODS",
     # engines
     "trigger_prices", "trigger_block", "format_block", "vol_shock_reduction",
+    "nearest_trigger", "add_trigger_distance", "TRIGGER_DISTANCE_COLUMNS",
     "TriggerError", "DEFAULT_LOOKBACKS",
     "staircase", "bracket", "headline", "implied_gross_pool", "effective_lambda",
     "format_cascade_block", "ReflexivityError", "STAIRCASE_COLUMNS",
@@ -320,7 +325,8 @@ __all__ = [
     "market_concentration", "add_concentration_extremity",
     "concentration_vs_fragility", "quadrant", "ConcentrationError",
     "CONCENTRATION_COLUMNS",
-    "add_composite", "damage_report", "top_damage", "CompositeError",
+    "add_composite", "damage_block", "damage_report", "top_damage",
+    "CompositeError",
     "COMPOSITE_COLUMNS",
     # the two per-row caveat carriers, here rather than in the report layer because
     # `composite` owns `D` and a derivation in a rendering is how the next engine gets

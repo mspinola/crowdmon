@@ -33,7 +33,7 @@ not about next week's return. Positioning extremes persist for quarters.
 | [`amendments-2026-08-01.md`](docs/design/amendments-2026-08-01.md) — A1-A22, **closed** | here |
 | [`amendments-2026-08-02.md`](docs/design/amendments-2026-08-02.md) — B1-B37, commonality through the template follow-ups and §A.2's real worked example. **Closed** | here |
 | [`amendments-2026-08-03.md`](docs/design/amendments-2026-08-03.md) — C1-C30, template classification stability, the `w_SD` sweep, the report-layer gate, the brief and the stratum. **Closed** | here |
-| [`amendments-2026-08-04.md`](docs/design/amendments-2026-08-04.md) — D1 onward, the Norgate vendor-coverage answer. **The open file** | here |
+| [`amendments-2026-08-04.md`](docs/design/amendments-2026-08-04.md) — D1 the Norgate vendor-coverage answer, D2-D10 what single number the package delivers. **The open file** | here |
 | `crowdmon_step2_normalisation.md` — layer 2, **accepted and shipped**. History, not instructions | `../cotdata/docs/design/` |
 | `cot_vintage.md` — the vintage store this reads | `../cotdata/docs/design/` |
 
@@ -339,8 +339,8 @@ figures, the appendix's live-cattle arithmetic (`test_appendix_live.py`, `2026-0
 the volume and trigger measurements, or
 `2026-08-03 §C1-C8` (`test_supplemental_live.py`, the most exposed of the set: three of its
 assertions read `cot_supplemental`, a domain one release old). From the
-**main checkout**, against `~/code/cotdata_store`, the same suite is **599 passed / 5
-skipped** rather than **522 / 82**.
+**main checkout**, against `~/code/cotdata_store`, the same suite is **613 passed / 5
+skipped** rather than **538 / 80**.
 
 **These four numbers are measured, so re-measure them rather than adjusting them by hand.**
 Any PR that adds or removes a `tests/*_live.py` assertion moves all four, and two PRs in
@@ -354,8 +354,18 @@ second re-runs both commands and updates this paragraph, `bin/check_skips.py`'s 
 > figures here now include that drift plus the two fixture tests §C11 adds. A **fixture**
 > test moves all four as surely as a live one does, and the paragraph above named only
 > `tests/*_live.py`; it is the total that is quoted, so any added test counts.
+>
+> Moved three times on **2026-08-04** by `§D2-§D10`'s branch, +5 then +8 then +3, for
+> `damage_block` / `format_damage_block`, the offside term, and the two defects `§D10`
+> records. Those sixteen are all fixture tests, so the live-only count was unmoved by them;
+> it is **75** rather than 67 because `§D1`'s branch added live assertions in parallel.
+> **That is the collision this paragraph warns about, and it happened again**: both
+> branches re-measured from a base that did not include the other, and the figures above
+> are a third measurement taken after the merge rather than either branch's arithmetic.
+> The live-only count is the difference between the two skip figures (80 - 5), never a
+> total, so a fixture test moves the four totals and leaves it alone.
 
-> **From a worktree those two figures are 597 / 7 and 520 / 84**, because `test_boundaries`
+> **From a worktree those two figures are 611 / 7 and 536 / 82**, because `test_boundaries`
 > resolves `../cotdata` and `../marketdata` relative to the test file and finds neither,
 > so the two producer-direction checks skip. Quote the main-checkout numbers: a worktree
 > reports two fewer passes and has one real seam unguarded. This note exists because an
