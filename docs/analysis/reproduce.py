@@ -2114,9 +2114,11 @@ def contract_spec_inventory() -> None:
     print("\n  C12. spec'd markets by report type\n")
     print(f"  {'report type':<16}{'on panel':>10}{'spec, union':>13}{'spec, latest':>14}")
     totals = [0, 0]
+    seen: set = set()
     for rt in ("disaggregated", "tff"):
         vp = cm.annotate(from_vintage(report_type=rt))
         ok = vp[vp["symbol"].notna()]
+        seen |= set(ok["symbol"])
         last = ok["report_date"].max()
         union = ok["market_code"].nunique()
         latest_n = ok[ok["report_date"] == last]["market_code"].nunique()
@@ -2132,9 +2134,14 @@ def contract_spec_inventory() -> None:
                       f"{rows['market_name'].iloc[0]} ({rows['symbol'].iloc[0]}), present in "
                       f"{rows['report_date'].nunique()} of {ok['report_date'].nunique()} weeks")
     print(f"  {'TOTAL':<16}{'':>10}{totals[0]:>13}{totals[1]:>14}")
-    print("\n  26 + 21 = 47 is the whole contract_specs table, so nothing in it is")
-    print("  stranded. The handoff's '25 of 279' counted one report type: CFTC does not")
-    print("  publish financials on Disaggregated, and they are scored on TFF today.")
+    cov_all = cm.coverage()
+    joinable = set(cov_all.loc[cov_all["joinable"], "symbol"])
+    print(f"\n  symbols on a panel {len(seen)}, joinable {len(joinable)}, registry "
+          f"{len(cov_all)}; joinable-but-unseen {sorted(joinable - seen)}, seen-but-"
+          f"unjoinable {sorted(seen - joinable)}")
+    print("  Nothing spec'd is stranded, and nothing on a panel is unpriced. The handoff's")
+    print("  '25 of 279' counted one report type: CFTC does not publish financials on")
+    print("  Disaggregated, and they are scored on TFF today.")
 
     # ── the covered cross-section, and the gate ──────────────────────────────
     p = cm.annotate(latest())
@@ -2152,7 +2159,7 @@ def contract_spec_inventory() -> None:
     covered = inv[inv["dtl_sell"].notna()].sort_values("mean_oi", ascending=False)
     uncov = inv[inv["dtl_sell"].isna()].copy()
     print(f"\n  covered (real dtl_sell) {len(covered)}, uncovered {len(uncov)}"
-          f"  [§C5 pinned 25 / 254]")
+          f"  [§C5 pinned 25 / 254 on 2026-07-28, before ZR and WBS]")
 
     print("\n  C13. the gate: stratum, complex, Managed Money prominence\n")
     covered_class = covered["market_name"].map(_spec_class)
@@ -2177,7 +2184,10 @@ def contract_spec_inventory() -> None:
     inside = [v for k, v in template.items() if k in covered.index]
     print(f"  always-template set (2026-08-02 B36) inside coverage: "
           f"{len(inside)} of {len(template)}")
-    print("\n  The gate PASSES. 25 of 25 are classic outright and 0 are power/gas/carbon,")
+    n_out = int((covered_class == "real outright").sum())
+    n_power = int((covered_class == "environmental/power certificate").sum())
+    print(f"\n  The gate PASSES. {n_out} of {len(covered)} are classic outright and "
+          f"{n_power} are power/gas/carbon,")
     print("  against a panel that 2026-08-02 B31 measured as 76% power. Energy is thin on")
     print("  the fragility term wherever it appears, which is B33's finding arriving")
     print("  inside coverage rather than a defect in the scoping rule.")
@@ -2198,7 +2208,8 @@ def contract_spec_inventory() -> None:
            "Mt Belvieu/propane/NGL": out.index.str.startswith("06665").sum()}
     print(f"\n  families inside the backlog: {fam}, leaving "
           f"{len(out) - sum(fam.values())} one-instrument codes.")
-    print("  So the analytical gain is nearer 23 instruments than 34. Micro gold (088695)")
+    print(f"  So the analytical gain is nearer {len(out) - sum(fam.values()) + len(fam)} "
+          f"instruments than {len(out)}. Micro gold (088695)")
     print("  is the case to settle first: same underlying as the covered 088691 at a tenth")
     print("  the size, and 2026-08-02 B30 is the precedent for merging before ranking.")
 
