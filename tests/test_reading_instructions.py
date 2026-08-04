@@ -206,11 +206,16 @@ def test_the_parser_would_actually_see_a_sixth_instruction():
         f"parsed {len(live)} entries out of README; the heading, the `**n.` form or the "
         f"citation form has moved and this file has stopped guarding anything")
 
+    # The section marker is escaped so this invented ID is not itself scanned as a citation
+    # by `test_references.py`, which resolves every `§X##` in the repo against the sections
+    # the amendment files define. A fixture that has to resolve is a fixture that breaks
+    # when someone renumbers a real section.
+    invented = "2026-08-04 \u00a7Z9"
     section = _section()
     synthetic = section.replace(_CLOSING, (
-        "**5. A sixth reading instruction nobody told the brief about.** Prose prose. "
-        "(`2026-08-04 §D1`)\n\n" + _CLOSING), 1)
-    assert _readme_refs(synthetic) == live + ["2026-08-04 §D1"], (
+        f"**5. A sixth reading instruction nobody told the brief about.** Prose prose. "
+        f"(`{invented}`)\n\n" + _CLOSING), 1)
+    assert _readme_refs(synthetic) == live + [invented], (
         "the parser did not pick up an added entry, so it would not catch a real one")
 
 
