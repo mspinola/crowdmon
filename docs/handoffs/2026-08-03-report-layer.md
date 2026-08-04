@@ -3,7 +3,7 @@
 **Status:** **complete, all three tasks and §5's adjudication. §2 (PR #55) gate PASSES at
 `R=4, E=1`; §3 shipped (PR #56) under §5's escape clause; §4 shipped (PR #59), which corrects
 §9's "do not build" and takes the brief to three of five reading instructions carried; §5's
-negatives answered (PR #NN), where **#3 was true and undischarged** and the enumeration the
+negatives answered (PR #60), where **#3 was true and undischarged** and the enumeration the
 escape clause is stated over turned out to be an unchecked copy of `README.md`.** Outcomes as
 §9, §10, §11 and §12, findings `2026-08-03 §C20-§C27`, `§C29` and `§C30`
 **Date:** 2026-08-03
