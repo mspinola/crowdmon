@@ -1694,3 +1694,112 @@ Pinned live in [`../../tests/test_stratum_live.py`](../../tests/test_stratum_liv
 `test_the_band_obligation_has_the_markets_on_one_panel_and_the_percentile_on_the_other`
 **fails on purpose** the week the vintage panel reaches `min_periods`. That failure is the
 announcement that the obligation has stopped being vacuous.
+
+---
+
+## C30. The brief's safety case rests on three copies of other people's lists, and nothing diffed them
+
+**§5 of [`../handoffs/2026-08-03-report-layer.md`](../handoffs/2026-08-03-report-layer.md),
+the pre-registered negatives, adjudicated.** Three of the four were settled when §3 and §4
+shipped. **Negative #3 was not, and it is true.**
+
+Reproducer: [`../analysis/reproduce_negatives.py`](../analysis/reproduce_negatives.py), which
+needs no store. Pinned by
+[`../../tests/test_reading_instructions.py`](../../tests/test_reading_instructions.py).
+
+### The four outcomes, each answered
+
+| § | pre-registered negative | verdict |
+|---|---|---|
+| #1 | most caveats are not row-computable (`R<=3, E==0`) | **false.** `§C20`-`§C24` measured `R=4, E=1` strict, `R=5, E=2` lenient |
+| #2 | the brief adds nothing the modules do not already give | **true, and discharged.** `E=1`, and `format_brief`'s footer says so (`§C24`) |
+| #3 | the caveats cannot be carried without going stale anyway | **true, and was NOT discharged.** This section |
+| #4 | some caveats carried, others silently omitted | **true of the outcome**, met by §5's escape clause: the ledger names its gaps on every render (`§C25`) |
+
+**More than one is true at once, and the handoff lists them as alternatives.** That is worth
+recording on its own: §5 reads as a five-way choice ("which of the five outcomes is true"),
+and the artifact landed on three of them simultaneously. An enumeration of outcomes that is
+not mutually exclusive still routes correctly, because each has its own remedy, but a session
+that stops at the first match stops early. This one nearly did: #4 was named in the outcome
+section, #2 in a subsection under it, and #3 not at all.
+
+### What negative #3 says, and why it is true here
+
+> Every candidate mechanism turns out to require a hand-maintained string somewhere. That is
+> a real finding about this class of artifact and is worth more than a brief nobody trusts.
+
+`brief.READING_INSTRUCTIONS` is five hand-written `Caveat`s whose comment says they are
+"exactly `README.md`'s five reading instructions". **Nothing checked that.**
+`tests/test_references.py` resolves the `§C3` half of a citation against the amendment files
+and stops; `tests/test_brief.py` asserts each `source` contains `docs/` and `::` as
+substrings, which a renamed reproducer function passes. So the enumeration could gain, lose
+or misname an entry with the whole suite green.
+
+Counted rather than asserted, the brief carries **three** hand-maintained copies:
+
+| copy | entries | source of truth | what a divergence does |
+|---|---|---|---|
+| `READING_INSTRUCTIONS` | 5 | `README.md`, prose | a caveat README states and the ledger drops is omitted **silently** |
+| `SCORE_STATE_NOTES` | 5 | `composite.SCORE_STATES` | `KeyError` on the first row in the new state |
+| `UNWIND_NOTES` | 4 | `composite.UNWIND_STATES` | `KeyError`, same |
+
+plus **5 document paths and 7 reproducer functions** cited inside the artifact itself. All 12
+resolve today; none was checked before this section.
+
+**This is negative #4 arriving one document away from where anyone was watching.** The brief's
+whole ship condition is that it carries every misreading on the enumerated list or names the
+ones it does not. That condition is exactly as good as the enumeration: a sixth reading
+instruction added to `README.md` is not carried and not named, and the brief goes on printing
+a five-entry ledger that reads as complete. The escape clause does not fail loudly, it fails
+by staying quiet, which is the property §5 called the dangerous one.
+
+### The drift had already happened, in the one respect nothing was checking
+
+Measured at the time of writing: the set matched, all 12 citations resolved, and the **order
+did not**. `README.md` runs `§A17, §A21, §A22, §C3, §B2`, interleaving `3b` as a qualifier on
+`3`; the ledger runs `§A17, §A21, §A22, §B2, §C3`, in date order of the finding. Harmless in
+itself, and that is the point: the copy diverged from its stated source within a day of being
+written, in the only respect that was not load-bearing. Nothing distinguishes a harmless
+divergence from a dropped entry except a diff.
+
+The comment now states the ordering rule it actually follows, and the guard is over the set
+and the declared count rather than the sequence, because README's numbering answers to its
+own prose.
+
+### A second drift, in the source rather than the copy
+
+`README.md`'s section said **"Four things"** in its preamble and **"These five are the
+denominator"** in its closing paragraph. Both are correct about different things (four
+numbered instructions, five findings, because `3b` cites a finding of its own), and together
+they are a contradiction a reader meets before reaching either number. The section now states
+the reconciliation, and `test_the_section_declares_the_same_count_the_ledger_carries` pins the
+declared count against `len(READING_INSTRUCTIONS)`.
+
+### The fix, and why it is the second-best one
+
+The precedent is the 104 lines `crowdmon_futures_cot_module.md` lost for a day: duplicating a
+living document opens a silent-regression window that closes only when someone diffs the
+copies. The fix there was **a pointer instead of a copy**, and it is not available here: a
+`Caveat` carries a carrier column and a status function, so it is code and not prose.
+
+So the copy stays and is made to fail loudly instead. `tests/test_reading_instructions.py`
+resolves the enumeration against `README.md` on every run, and each of its four failure modes
+was verified to fire by mutation rather than assumed:
+
+- a caveat dropped from the ledger while README keeps it
+- README's declared count and the ledger's length disagreeing
+- a cited reproducer function or document path that no longer exists
+- a carrier column added with no status function to read it
+
+The parser is checked too (`test_the_parser_would_actually_see_a_sixth_instruction`),
+because a guard whose regex stops matching passes every assertion above it while guarding
+nothing. Same hazard `test_references.py::test_the_scan_actually_reaches_the_documents_it_claims_to`
+exists for, and worth the duplication: this file's entire value is noticing a change in a
+document.
+
+### What this does not close
+
+`E = 1` is unchanged. This adds no caveat to the ledger and moves nothing from `not_carried`
+to `carried`; the brief still prevents one misreading of five by itself and three with the two
+extra calls. What changes is that the **denominator** can no longer move without saying so,
+which is the only thing that made the escape clause worth anything.

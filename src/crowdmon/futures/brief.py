@@ -77,8 +77,16 @@ class Caveat:
 
 #: The denominator for §5's negative #4, enumerated **before** the brief was built so it
 #: could not be chosen to fit the result. These are exactly `README.md`'s five reading
-#: instructions for `D`, in its order, and nothing else belongs here: this is the list the
-#: brief is measured against, not a list of everything worth knowing.
+#: instructions for `D`, and nothing else belongs here: this is the list the brief is
+#: measured against, not a list of everything worth knowing.
+#:
+#: **It is a copy of a living document, and `tests/test_reading_instructions.py` is what
+#: makes the copy fail loudly rather than drift** (`2026-08-03 §C30`, §5's negative #3).
+#: Adding a sixth instruction to that README section without adding it here omits it
+#: SILENTLY, and the brief goes on reading as complete, which is negative #4 arriving one
+#: document away from where anyone was watching. Ordered by the date of the finding; README
+#: interleaves them differently because its `3b` qualifies its `3`, so the guard is over the
+#: set and the declared count rather than the sequence.
 READING_INSTRUCTIONS: tuple[Caveat, ...] = (
     Caveat(
         ref="2026-08-01 §A17",
