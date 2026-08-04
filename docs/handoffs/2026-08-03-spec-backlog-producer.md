@@ -1,7 +1,6 @@
 # Handoff: contract specs for the §C14 backlog
 
-**Status:** open, blocked on the Norgate producer (Windows box). Nothing to do in `crowdmon`.
-**§4 is CLOSED as of 2026-08-04 (§11): the vendor carries only two of the six**, so the ask is `039601` rough rice and `067411` ICE Europe WTI, and the four Henry Hub codes are vendor-absent. §5's and §9.2's expected counts are superseded by §11.2
+**Status:** **COMPLETE 2026-08-04 (§12).** §4 was answered from the vendor catalogue (§11): Norgate carries only `039601` rough rice and `067411` ICE Europe WTI, and the four Henry Hub codes are vendor-absent and stay in the backlog. Both landed via cotdata #99 plus the producer run, `joinable` is **49 of 51** and covered markets **45 -> 47**. §6's follow-up is executed. Findings `2026-08-04 §D1`, `§D11`
 **Date:** 2026-08-03
 **Target:** whoever runs the Norgate producer, plus a follow-up `crowdmon` session
 **Depends on:** PR #46 (the inventory that identified these codes)
@@ -417,3 +416,58 @@ something different, so this is **recorded and not proposed**. It is not a third
 
 **Still open, still blocked on the Windows box**, and now scoped: **two codes**, rough rice
 first per §9.4. §4 is closed.
+
+---
+
+# §12. CLOSED 2026-08-04: the tranche landed, and §6 is executed
+
+**Complete.** The producer run wrote both codes the vendor carries, the store synced, and the
+follow-up §6 assigns to a `crowdmon` session is done. Findings: `2026-08-04 §D1` (the vendor
+answer) and `§D11` (the landing). New point-in-time record:
+[`../analysis/2026-08-04-contract-spec-inventory.md`](../analysis/2026-08-04-contract-spec-inventory.md).
+
+## 12.1 What landed
+
+`cotdata` #99 added `ZR` (`039601`) and `WBS` (`067411`) to the registry, which is the
+**precondition** for the run rather than a consequence of it: `get_symbol_metadata` resolves
+`REGISTRY[internal].norgate`, so an unlisted symbol is a `KeyError` before any fetch. Then, on
+the Windows box:
+
+```
+cotdata-update --metadata --symbols ZR WBS
+cotdata-update --prices  --symbols ZR WBS
+```
+
+Verified against the real store: both carry a spec and all three price tiers (`ZR` 10,062 rows
+from 1986-08-20, `WBS` 5,288 from 2006-02-03, both to 2026-08-03), both point values match the
+vendor sheet, and **`joinable` reads 49 of 51** with `MFS` and `MME` still the only two out.
+Covered markets moved **45 to 47**, both new codes present in the latest report week, as §9.2
+predicted from rough rice's 82-of-82 week count.
+
+## 12.2 §6's four items
+
+| item | done |
+|---|---|
+| re-run `contract_spec_inventory`, **new dated file** | `docs/analysis/2026-08-04-contract-spec-inventory.md`. The 2026-07-28 file is untouched and both are correct about the same week |
+| update the covered-universe count | `docs/handoffs/README.md`, two rows. **`CLAUDE.md` never carried it**, see `§D11` |
+| re-measure the four suite figures | done, rather than adjusted by hand |
+| `continuity.py` on `03565B` vs `023651` | **moot, and settled the other way.** Whether they are one instrument or two no longer matters: Norgate carries no series for `03565B`, so it cannot be scored under either answer |
+
+## 12.3 What is still true
+
+**The four Henry Hub codes stay in the backlog permanently**, absent a vendor change, which
+`tests/test_contract_master_live.py::test_the_four_henry_hub_codes_are_absent_rather_than_forgotten`
+now asserts so that a future session reads it as settled rather than as an oversight. The bar
+it fails on is availability, not merit: `§C15` measured their holder base as genuinely
+different from `NG`'s, which is why they were wanted.
+
+§7's list is unchanged. Price limits still have no table, §379's OI migration is still blocked
+on whole-market `Open Interest`, and the §10 validation verdict is untouched, since new markets
+supply no new clean episodes for weeks that already happened.
+
+The seven codes `§10.2` recorded as passing but not requested are unaffected and stay
+unrequested.
+
+## 12.4 Status
+
+**COMPLETE.** Nothing open.

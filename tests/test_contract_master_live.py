@@ -90,3 +90,51 @@ def test_nothing_is_lost_by_annotating(live):
         pytest.skip("store has no vintage observations yet")
     assert len(live.annotate(obs)) == len(obs)
     assert len(live.annotate(obs, drop_unmatched=True)) < len(obs)
+
+
+#: The 2026-08-04 backlog tranche: the two codes of
+#: `docs/handoffs/2026-08-03-spec-backlog-producer.md` that Norgate carries (`2026-08-04
+#: §D1`). Point values are the vendor's own, cross-checked against
+#: `FuturesContractDetails.xls` before the registry entries were written.
+TRANCHE = {"039601": ("ZR", 20.0), "067411": ("WBS", 1000.0)}
+
+
+def test_the_backlog_tranche_landed_and_stayed_landed(live):
+    """§6 of the handoff, pinned. Two markets, three artifacts each, or they are invisible.
+
+    Worth a test rather than a one-off check because the failure is silent: a symbol whose
+    specs survive but whose prices do not still appears in the registry and simply stops
+    being scoreable, which reads as a market that was never added rather than one that was
+    lost.
+    """
+    for code, (symbol, point_value) in TRANCHE.items():
+        spec = live.spec(code)
+        assert spec is not None, f"{code} ({symbol}) has no contract spec"
+        assert spec.symbol == symbol
+        assert spec.point_value == point_value, (
+            f"{symbol} point value moved to {spec.point_value}; the vendor sheet says "
+            f"{point_value} and the two agreed when the tranche landed")
+        assert spec.currency == "USD", "ContractMaster.load() refuses a non-USD spec"
+
+    cov = live.coverage()
+    landed = cov[cov["symbol"].isin([s for s, _ in TRANCHE.values()])]
+    assert len(landed) == len(TRANCHE)
+    assert landed["joinable"].all(), (
+        f"the tranche regressed: {landed[~landed['joinable']][['symbol', 'missing']]}. "
+        f"Specs without prices is the partial-run state, not a missing market.")
+
+
+def test_the_four_henry_hub_codes_are_absent_rather_than_forgotten(live):
+    """`2026-08-04 §D1`: Norgate carries one Henry Hub contract and it is `NG`.
+
+    A vendor-absent market and an unrequested one look identical from inside the store, and
+    the difference is the whole content of §4 of that handoff. This asserts the absence so a
+    future session reads it as settled rather than as an oversight, and it fails if one of
+    them ever acquires a spec, which would mean the vendor answer changed.
+    """
+    for code in ("023A55", "03565B", "023A56", "03565C"):
+        assert live.spec(code) is None, (
+            f"{code} now has a spec. Norgate had no series for it on 2026-08-04, so either "
+            f"the vendor added one (update `2026-08-04 §D1`) or a proxy was substituted, "
+            f"which §4 of the spec-backlog handoff forbids.")
+    assert live.spec("023651") is not None, "NG is the Henry Hub contract that does exist"

@@ -371,7 +371,7 @@ Three things the adapter owns, none of which the store can do on its own:
 from crowdmon.futures import ContractMaster
 
 cm = ContractMaster.load()
-print(cm.coverage_summary())      # 47 of 49 registry symbols joinable, over 49 codes
+print(cm.coverage_summary())      # 49 of 51 registry symbols joinable, over 51 codes
 panel = cm.annotate(panel)        # adds symbol, point_value, currency, contract_scale
 print(cm.unmatched(panel))        # and says what has no spec, rather than dropping it
 ```

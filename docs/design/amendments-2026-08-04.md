@@ -600,7 +600,96 @@ their own.
 fixture tests and to the panel-level reproducer, and both appeared immediately on rendering
 **two named markets by hand**. A per-market block is the level at which a reader meets the
 output, and it is therefore the level at which nonsense shows up.
+## D11. The tranche landed: 47 covered markets, the gate still passes, and four print statements had gone stale
 
+**§6 of [`../handoffs/2026-08-03-spec-backlog-producer.md`](../handoffs/2026-08-03-spec-backlog-producer.md)
+executed**, once the producer run wrote `ZR` and `WBS` (cotdata #99 plus
+`cotdata-update --metadata --prices`). New point-in-time record:
+[`../analysis/2026-08-04-contract-spec-inventory.md`](../analysis/2026-08-04-contract-spec-inventory.md).
+Reproducer: [`../analysis/reproduce.py`](../analysis/reproduce.py)`::contract_spec_inventory`.
+Pinned live in
+[`../../tests/test_contract_master_live.py`](../../tests/test_contract_master_live.py).
+
+### What moved
+
+| | before | after |
+|---|---|---|
+| covered markets, latest week | 45 | **47** |
+| Disaggregated / TFF, latest week | 25 / 20 | **27** / 20 |
+| registry symbols | 49 | **51** |
+| `joinable` | 47 of 49 | **49 of 51** |
+| backlog, real outright | 34 | **32** |
+
+The certificate count (213) and the differential count (7) are **identical on both dates**,
+which is the check that the two rows came out of the backlog population rather than out of
+some other one.
+
+### The gate still passes, and the interesting number is the one that did not move
+
+| | before | after |
+|---|---|---|
+| covered stratum | 25 of 25 real outright | **27 of 27** |
+| power / gas / carbon inside coverage | 0 | **0** |
+| always-template markets inside (`2026-08-02 §B36`) | 7 of 7 | **7 of 7** |
+| median \|P_MM\|/OI, covered | 0.1371 | **0.1371** |
+| median \|P_MM\|/OI, uncovered | 0.0370 | **0.0364** |
+
+**The covered median is unchanged to four decimal places.** Rough rice was selected on a
+Managed Money share of 0.433, the highest of any backlog candidate measured, and ICE Europe
+WTI on a holder base measurably unlike `CL`'s (`2026-08-03 §C15`). Adding one market far above
+the median and one energy market, where energy is thin on this term everywhere (`§B33`), moved
+the median of 27 markets not at all. That is what a median does, and the reading is that the
+covered set's **character** is unchanged rather than that the additions were inert. Anyone
+tempted to use this statistic to detect a coverage change should not: it is chosen for
+robustness and it is robust.
+
+### Four print statements had gone stale, and they contradicted their own output
+
+`contract_spec_inventory` hardcoded figures that were current when written:
+
+| printed | computed directly above it |
+|---|---|
+| `26 + 21 = 47 is the whole contract_specs table` | `TOTAL 49 47` |
+| `25 of 25 are classic outright` | `covered stratum: {'real outright': 27}` |
+| `nearer 23 instruments than 34` | 32 real outright |
+| `[§C5 pinned 25 / 254]` | `covered 27, uncovered 252` |
+
+All four now derive from what the function computed, and the `§C5` pin is labelled with the
+date it was taken. This is the house rule about not restating a measured figure as a literal
+in a report string, arriving as a **bug rather than as a style note**: a reproducer whose
+prose disagrees with its own table is worse than one with no prose, because the reader has to
+work out which half to believe.
+
+The `26 + 21 = 47` form had a second problem worth naming. It was an **arithmetic** argument
+that nothing spec'd is stranded, and it worked only while the registry and the spec table had
+the same length. They no longer do (51 against 49). It is now a **set** identity, printed in
+both directions:
+
+```
+symbols on a panel 49, joinable 49, registry 51;
+  joinable-but-unseen [], seen-but-unjoinable []
+```
+
+`MFS` and `MME` are in neither set: no spec, and not on either vintage panel.
+
+### Open interest has now failed as a backlog ordering three times
+
+`§C14` ranked the backlog by open interest, which put the Henry Hub complex at the head.
+`§C18` then found the levered-holder bar must be applied within complex rather than pooled,
+which moved rough rice, the **smallest** candidate, to the top. `§D1` now removes the four
+largest entries entirely, because the vendor does not carry them. The remaining head of the
+list by open interest is `06765T` Brent last day and `06765A` WTI financial, the latter with
+175,418 mean OI and a median Managed Money net of **475 contracts**.
+
+### One instruction in §6 pointed at a file that never carried the number
+
+§6 says to update the covered-universe count in "`CLAUDE.md` and `docs/handoffs/README.md`,
+both of which now say 45". `CLAUDE.md` does not, and never did: the count lives in the
+handoffs README (two rows) and in the analysis documents. Recorded because a session that
+takes the instruction literally goes looking for a number that is not there, and either edits
+something adjacent or concludes the instruction is stale in some larger way. Both rows are
+updated, and the completed step-2 row is **annotated rather than rewritten**, since its
+figures are the correct record of what `§C12` measured on 2026-07-28.
 ---
 
 ## D12. The trigger is a moving level, and a net-basis Legacy/TFF comparison isolates reclassification
