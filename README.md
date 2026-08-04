@@ -255,9 +255,13 @@ Three refusals worth knowing before reading any output:
 
 ### Reading `D` on live output
 
-Four things, and none of them is discoverable from the number itself. They were measured
-separately and are gathered here because together they are the reading instructions. The
-third carries a qualifier (`3b`) that arrived later and narrows it rather than adding a fifth.
+**Four numbered instructions over five findings, and the denominator is the five.** None of
+them is discoverable from the number itself. They were measured separately and are gathered
+here because together they are the reading instructions. The third carries a qualifier
+(`3b`) that arrived later and narrows it rather than adding a fifth *instruction*; it cites a
+finding of its own, so the ledger the brief prints is over five. This section said "four" at
+the top and "five" at the bottom for a day, both defensible and together a contradiction a
+reader meets before reaching either number (`2026-08-03 §C30`).
 
 **1. `D` falls during an unwind, and that is correct.** It describes a pre-condition, and both
 the position and the forceable holders it describes leave while the event happens. Across
@@ -296,7 +300,11 @@ and hogs near 0.07 (their own door) against the wheats above 1.0 (the same door 
 (`2026-08-02 §B2`)
 
 **These five are the denominator, and `futures/brief.py` carries three of them.** The list
-above is now `brief.READING_INSTRUCTIONS` as well as prose, so a market-week can travel with
+above is duplicated into `brief.READING_INSTRUCTIONS`, and
+[`tests/test_reading_instructions.py`](tests/test_reading_instructions.py) is what keeps the
+copy honest: add a sixth instruction here and it fails, because a caveat this section states
+and the brief omits is omitted **silently** and the brief still reads as complete
+(`2026-08-03 §C30`). The list is prose here and code there, so a market-week can travel with
 a ledger over it instead of a reader having to hold this page: `§A17` via `ΔD` beside the
 flow state, `§B2` via `add_commonality`, and `§C3` via `stratum.classify`, which turns
 `§C8`'s band rule into a value rather than prose beside code that could check it.

@@ -1,9 +1,11 @@
 # Handoff: step 7's report layer, and whether a `D` can carry its own caveats
 
-**Status:** **complete, all three tasks. §2 (PR #55) gate PASSES at `R=4, E=1`; §3 shipped
-(PR #56) under §5's escape clause; §4 shipped (PR #59), which corrects §9's "do not build"
-and takes the brief to three of five reading instructions carried.** Outcomes as §9, §10 and
-§11, findings `2026-08-03 §C20-§C27` and `§C29`
+**Status:** **complete, all three tasks and §5's adjudication. §2 (PR #55) gate PASSES at
+`R=4, E=1`; §3 shipped (PR #56) under §5's escape clause; §4 shipped (PR #59), which corrects
+§9's "do not build" and takes the brief to three of five reading instructions carried; §5's
+negatives answered (PR #NN), where **#3 was true and undischarged** and the enumeration the
+escape clause is stated over turned out to be an unchecked copy of `README.md`.** Outcomes as
+§9, §10, §11 and §12, findings `2026-08-03 §C20-§C27`, `§C29` and `§C30`
 **Date:** 2026-08-03
 **Drafted against:** `075ad26916dcef41c5e0efcd7cf75671c395048a` (`main`, merge of PR #46)
 **Lives at:** `crowdmon/docs/handoffs/2026-08-03-report-layer.md`
@@ -652,3 +654,75 @@ than dependent on someone remembering a date.
 ### Status
 
 **§2, §3 and §4 all complete.** Nothing in this handoff is open.
+
+---
+
+## 12. Outcome, appended 2026-08-03: §5 adjudicated, and negative #3 was true and open
+
+**§5 is the pre-registered enumeration of negative outcomes, and it was never answered as a
+whole.** §10 discharged negative #4 (the brief ships under the escape clause) and negative #2
+(the assembly is labelled convenience). §9 disposed of #1 by measurement without naming it.
+**Negative #3 was not adjudicated, and it is true.**
+
+Findings: `2026-08-03 §C30`. Reproducer:
+[`../analysis/reproduce_negatives.py`](../analysis/reproduce_negatives.py), which needs no
+store. Pinned by
+[`../../tests/test_reading_instructions.py`](../../tests/test_reading_instructions.py).
+
+### What §5 got structurally right, and one thing it got wrong
+
+Right: naming the negatives in advance is what made this findable at all. #3 says the caveats
+may not be carryable without going stale anyway, "because every candidate mechanism turns out
+to require a hand-maintained string somewhere", and that this is a real finding about the
+class of artifact rather than a shortfall. That is exactly what the brief turned out to rest
+on, and no one would have gone looking for it from the shipped code.
+
+Wrong: **§5 reads as a five-way choice** ("which of the five outcomes is true") and the
+artifact landed on **three of them at once**. Each has its own remedy so nothing misrouted,
+but a session that stops at the first match stops early, and this handoff nearly did: #4 in
+the outcome section, #2 in a subsection under it, #3 nowhere.
+
+### The finding
+
+The brief's ship condition is "carry every misreading on the enumerated list, or name the
+ones you do not". That condition is exactly as good as the enumeration, and the enumeration is
+a **hand-maintained copy of `README.md`'s prose** with nothing checking it. Add a sixth
+reading instruction to README and the brief neither carries it nor names it, and goes on
+printing a five-entry ledger that reads as complete. **That is negative #4 arriving one
+document away from where anyone was watching**, and it fails by staying quiet.
+
+Three copies, counted rather than asserted: `READING_INSTRUCTIONS` (5, from README's prose),
+`SCORE_STATE_NOTES` (5, from `composite.SCORE_STATES`) and `UNWIND_NOTES` (4, from
+`composite.UNWIND_STATES`), plus 5 document paths and 7 reproducer functions cited inside the
+artifact. All 12 citations resolve today. None was checked before this.
+
+**The drift had already begun**, in the one respect nothing was checking: README orders the
+five `§A17, §A21, §A22, §C3, §B2` and the ledger ordered them by date of finding. Harmless,
+and that is the point, because nothing distinguishes a harmless divergence from a dropped
+entry except a diff. `README.md` had drifted from itself as well, saying "Four things" in the
+preamble and "These five are the denominator" in the closing paragraph.
+
+### What shipped
+
+`tests/test_reading_instructions.py`, which resolves the enumeration against `README.md` on
+every run. The pointer fix that worked for `crowdmon_futures_cot_module.md` is not available
+here (a `Caveat` carries a carrier column and a status function, so it is code), so the copy
+is made to fail loudly instead. Four failure modes, each **verified to fire by mutation**
+rather than assumed: a dropped caveat, a declared count that disagrees, a renamed reproducer
+or missing document, and a carrier column with no status function. The parser is guarded too,
+because a regex that stops matching passes every assertion above it.
+
+`README.md`'s section now states the four-instructions-over-five-findings reconciliation and
+names the test that couples it to the code. `brief.py`'s comment states the ordering rule it
+actually follows rather than the one it claimed.
+
+### What this does not change
+
+`E = 1` is unchanged, no caveat moved from `not_carried` to `carried`, and the brief still
+prevents one misreading of five by itself. What changes is that the **denominator** can no
+longer move without saying so, which is the only thing that made the escape clause worth
+anything.
+
+### Status
+
+**§2, §3, §4 and §5 all complete. Nothing in this handoff is open.**
