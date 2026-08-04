@@ -1568,3 +1568,34 @@ not deliver in the one regime the document was written about.
 
 **No reproducer.** Nothing here is measured. The claim is internal inconsistency in two
 documents, checkable by reading them.
+
+### CLOSED 2026-08-03. Fixed in `crucible-stack`, and this section missed two things
+
+`crucible-stack` **#21**, merge `3efc36f`, on their `main`. Recorded here so §C28 does not
+read as an open item: a section that says "not edited" with no outcome is exactly the stale
+marker that invites a second, divergent fix, which is the trap the swap-dealer handoff hit
+on 2026-08-03.
+
+All three of the changes this section asked for landed: defined-risk protection now leads
+(it was already present, offered second as the alternative), widening is demoted to a
+trade-off with both sides named, and "a stop is a trigger, not a guarantee" is stated
+outright.
+
+**Two things this section got wrong by not looking hard enough at the file it was judging.**
+
+- **It missed the §7 preamble**, which promised "stops that survive". That is the same claim
+  in miniature, one screen above the use case, and reading only UC-1 and UC-2 did not reach
+  it. Also fixed in #21. The lesson is narrow and practical: when a claim is wrong, grep the
+  document for the claim rather than fixing the passage you happened to be sent to.
+- **It assumed the trade-off had nowhere to point.** This section said the fix would need
+  "both sides named" and stopped there, because it reasoned from *this* repo, where the
+  classification lives in `§A.10`. The equity spec already had its own: **UC-6, "Classifying
+  a drawdown while it is happening"**, with a two-row signature table separating a
+  positioning unwind (mean-reverts) from a fundamental repricing (does not). So the fix
+  routes the widening decision to UC-6 rather than merely naming two outcomes, which is
+  strictly better than what was proposed here.
+
+**The direction of the error is worth noting.** Reasoning about a sibling document from
+memory of *our* structure produced a fix proposal that was correct but thinner than the
+target document could support. The measure-do-not-assume rule has an obvious extension: read
+the whole of the document you are correcting, not the paragraph you were pointed at.
