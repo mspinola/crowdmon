@@ -217,7 +217,7 @@ def nearest_trigger(symbol: str, *, sigma_daily: float, pool_net: float | None =
 
     **Both sides usually exist at once, and that is the module's own point rather than a
     defect.** The 20-, 60- and 250-day horizons routinely disagree in sign, measured at
-    **27 of 45** markets on 2026-07-28 (`2026-08-04 §D8`). `trigger_horizons_disagree` says
+    **27 of 45** markets on 2026-07-28 (`2026-08-04 §D9`). `trigger_horizons_disagree` says
     so per row, because "the trend book in gold" is not one pool with one trigger.
 
     **The distance carries no price information beyond trailing momentum, and that is an
@@ -226,7 +226,7 @@ def nearest_trigger(symbol: str, *, sigma_daily: float, pool_net: float | None =
 
         move_from_spot = F_{t-k}/F_t - 1 = -r_k / (1 + r_k)
 
-    verified to six decimals on every lookback of every market tested (`2026-08-04 §D8`).
+    verified to six decimals on every lookback of every market tested (`2026-08-04 §D9`).
     So "how far to the trigger" is "how far it has already come", and this function adds
     **the mapping, not the price**: which pool, on which side, is mechanically forced at that
     level. That is the part positioning data supplies and a chart does not.
@@ -271,7 +271,7 @@ def nearest_trigger(symbol: str, *, sigma_daily: float, pool_net: float | None =
     # a trend follower WOULD hold; COT says what levered money DOES hold, and measured on
     # 2026-07-28 they agree on only **65.9%** of the 135 (market, horizon) pairs: 64.4% at
     # 20d, 57.8% at 60d, 75.6% at 250d, with ZW, YM and DX opposite on every horizon
-    # (`2026-08-04 §D9`).
+    # (`2026-08-04 §D10`).
     #
     # Where they disagree the trigger is still a real price level and the pool it would
     # force is not there. Canadian dollar on that week: the levered book is short 102,495
@@ -313,7 +313,7 @@ def add_trigger_distance(frame: pd.DataFrame, *, on: str = "report_date", as_of=
     `pool_column` names the observed net of the forceable category, and supplying it is
     strongly recommended: without it the `*_pool_agrees` flags are null and a reader cannot
     tell whether a trigger describes a book that is actually there. The pool and the signal
-    disagree on a third of (market, horizon) pairs (`2026-08-04 §D9`).
+    disagree on a third of (market, horizon) pairs (`2026-08-04 §D10`).
     """
     needed = {"symbol", "sigma_daily", on}
     if pool_column:

@@ -3,41 +3,134 @@
 Working agreement: measure, do not assume; if a measurement contradicts a doc, fix the doc and
 say so.
 
-Sections here carry a **`D` prefix**, per the per-day convention set in `f194c4e` and stated in
-[README.md](README.md). [`amendments-2026-08-03.md`](amendments-2026-08-03.md) is closed at C24.
-Cross-file references carry the date: `2026-08-02 §B30`.
+Sections here carry a **`D` prefix**, per the per-day convention stated in
+[README.md](README.md): "Each new file gets its own date and its own letter prefix (`B1`,
+`C1`, ...)". [`amendments-2026-08-03.md`](amendments-2026-08-03.md) is closed at C30.
+Cross-file references carry the date: `2026-08-03 §C30`.
 
-> **The letter now collides with the headline output variable, and that is survivable.**
-> `D = C x I x Phi` is the composite, so this file's `§D4` sits in prose beside a `D` that means
-> the damage score. The `§` sigil is the whole distinction, and the collision is not new: `C` has
-> been both the crowding factor and a section prefix since 2026-08-03 without incident. What was
-> NOT survivable without a change is
-> [`../../tests/test_references.py`](../../tests/test_references.py), whose two patterns hard-coded
-> `[ABC]`. A `D` section would have been silently unscanned and every `§D` citation silently
-> unresolvable, which is the exact failure mode that test exists to prevent, arriving through the
-> test itself. Both patterns are widened together and carry a note saying they must be.
-
-Every figure below is reproduced by
-[`../analysis/reproduce_single_number.py`](../analysis/reproduce_single_number.py) against
-`COTDATA_STORE=~/code/cotdata_store`. Blocks are named after the section: §D1 is
-`d1_t_ranking_is_structural`, and so on through `d9_pool_versus_signal`.
-
-**The through-line.** Every section is one question: *what single number should this package
-deliver, and what does it have to be published with?* §D1 says the raw `T` ranking is not that
-number. §D2 and §D3 kill two candidate replacements by construction rather than by measurement.
-§D4 and §D5 are about the composite that already exists. §D6 and §D7 are why the input is TFF and
-not Legacy. §D8 builds the term all of that showed was missing, and §D9 corrects it.
-
-**What none of this settles.** Whether `Phi` belongs in `D` needs an outcome to score against.
-The §10 validation was pre-registered, executed by a session that had written none of the package,
-and returned `uninformative`; the clean episodes are spent. So §D4 measures what `Phi` *does* and
-is silent on whether it is *right*, and no amount of further work in this direction changes that.
+> **Opening this file exposed a hole in the machinery that checks it.**
+> `tests/test_references.py` matched section IDs with `[ABC]`, hardcoded, so the first
+> amendment file of any new day would have defined nothing the resolver could see and every
+> citation into it would have silently stopped being checked. Widened to `[A-Z]` in the same
+> PR as `§D1`. It is the same failure the file exists to catch, one level up: a guard whose
+> pattern stops matching passes every assertion above it.
 
 ---
 
-## D1. The raw `T` ranking is substantially a statement about market structure, not about this week
+## D1. Norgate carries two of the six backlog codes, and the four Henry Hub look-alikes do not exist
 
-**Reproducer:** `docs/analysis/reproduce_single_number.py::d1_t_ranking_is_structural`.
+**§4 of [`../handoffs/2026-08-03-spec-backlog-producer.md`](../handoffs/2026-08-03-spec-backlog-producer.md)
+answered.** That section named one genuine unknown, whether the vendor carries each requested
+contract, and said it could not be settled from the Linux side. It can now: the human supplied
+Norgate's own `FuturesContractDetails.xls`, the workbook the `contract_specs` table is built
+from.
+
+**The answer is the one §4 suspected, for exactly the codes it flagged.** The producer ask
+drops from **six codes to two**.
+
+| CFTC code | market | Norgate |
+|---|---|---|
+| `039601` | ROUGH RICE | **`ZR`, present** (CBOT) |
+| `067411` | CRUDE OIL, LIGHT SWEET-WTI, ICE Futures Europe | **`WBS`, present** |
+| `023A55` | HENRY HUB LAST DAY FIN, NYMEX | **absent** |
+| `03565B` | HENRY HUB, NYMEX | **absent** |
+| `023A56` | HENRY HUB PENULTIMATE FIN, NYMEX | **absent** |
+| `03565C` | HENRY HUB PENULTIMATE NAT GAS, NYMEX | **absent** |
+
+### The absence is enumerated, not searched for
+
+A keyword search coming back empty is weak evidence about a vendor catalogue. This is not
+that. **Norgate's entire energy universe is eight contracts**, so the four absences are read
+off a complete list:
+
+| code | name | exchange | status here |
+|---|---|---|---|
+| `CL` | Crude Oil | NYMEX | covered, `067651` |
+| `HO` | NY Harbor ULSD | NYMEX | covered |
+| `RB` | RBOB Gasoline | NYMEX | covered |
+| `NG` | Henry Hub Natural Gas | NYMEX | covered, `023651` |
+| `BRN` | Brent Crude Oil | ICE Europe | not requested |
+| `WBS` | **WTI Crude Oil** | ICE Europe | **the tranche-1 head** |
+| `GAS` | Low Sulphur Gasoil | ICE Europe | not requested |
+| `GWM` | UK Natural Gas | ICE Europe | not requested |
+
+Norgate lists **one** Henry Hub contract and it is `NG`, which is already covered. §4's rule
+applies as written: report vendor-absent, substitute no proxy, and the four stay in the
+backlog. §9.2's end state moves with them, from 51 covered markets to **47**, and `joinable`
+from 53 of 55 to **49 of 51**.
+
+`§C15`'s conclusion is untouched. It measured that these are a different holder base rather
+than duplicates of `CL` and `NG`, and that remains why they are worth having. They are simply
+not obtainable from this vendor.
+
+### The workbook is the same source as the store, checked rather than assumed
+
+Cross-checked against `$COTDATA_STORE/metadata/contract_specs.parquet`:
+
+- **47 of 47** stored symbols appear in the workbook, none unmatched
+- `Tick Value` and `Point Value` agree exactly on all 47, zero disagreements
+- `Norgate_Symbol` follows `&<CODE>_CCB` on 47 of 47
+
+So it is authoritative for the spec row rather than a marketing summary, and the two survivors
+are both **USD**, which is what `ContractMaster.load()` refuses to assume:
+
+| | `ZR` Rough Rice, CBOT | `WBS` WTI Crude Oil, ICE Europe |
+|---|---|---|
+| contract size | 2000 hundredweight | 1000 barrels |
+| tick size / tick value | 0.5 cent / 10.0 | 1 cent / 10.0 |
+| point value | **20.0** | **1000.0** |
+| currency | USD | USD |
+
+Neither has a registry entry yet; `cotdata/src/cotdata/registry.yaml` carries 49 symbols and
+neither code is among them.
+
+### What the workbook does NOT supply, and it is most of the job
+
+The handoff's §3 asks for three artifacts per symbol. This settles the vendor question and
+supplies most of one of them:
+
+| artifact | supplied here? |
+|---|---|
+| `contract_specs` row | **partly.** Every column but `Margin`, which is not in the workbook. `contract_master.py` reads `float(row["Margin"])` and the stored table has zero nulls across 47 rows, so a null would be the first. Nothing in `src/` computes with margin, so it would not break a `D` |
+| `unadj` series | **no.** Needs the subscription |
+| `backadj` series | **no.** Needs the subscription, and `propadj` is derived from the pair, so both are the precondition for the one rung 4 wants |
+
+`Contract Size` and `Tick Size` are prose in the workbook ("1000 barrels", "0.01 of a dollar")
+where the store holds floats, so they are parsed rather than copied.
+
+### An unsought finding: 58 contracts the store does not carry
+
+The workbook lists 105 contracts against the store's 47. Two of the 58 extras are tranche-2
+candidates the human dropped on 2026-08-03, and **vendor coverage is not why they were
+dropped**: `RS` Canola and `MWE` Hard Red Spring Wheat are both available. If `§C17`'s flow
+test is ever re-run on WHEAT-HRSpring, per §9.3's advice that it is the one worth revisiting,
+the data exists.
+
+The rest is mostly a block of CFTC-reported **financials** the backlog work never examined,
+because `§C14` scoped itself to Disaggregated: `SR3` SOFR, `ZQ` fed funds, `UB`, `TN`, `VX`
+and the four equity micros, among others. Those report on TFF, where `§C17`'s levered-holder
+bar means something different and `§C18`'s within-complex benchmarking would have to be
+re-derived. **Recorded, not proposed**: it is a different question from the one §C19 answered
+and it should not be read as a third tranche.
+
+### Reproducer
+
+The workbook is a Norgate subscriber file and **cannot be committed**, for the same reason the
+price store cannot: it is commercial and this repo is public. So the check is stated rather
+than scripted, and it is two filters a subscriber can re-run in a minute:
+
+    Group == "Energy"                  -> the eight rows above, complete
+    Code in {"ZR", "WBS", "RS", "MWE"} -> present; no Henry Hub row but NG
+
+The durable check is the one already written down in §5 of the handoff, against the store
+after the run: `joinable` moves 47 of 49 to **49 of 51**, with `MFS` and `MME` still the two
+unjoinable.
+
+---
+
+## D2. The raw `T` ranking is substantially a statement about market structure, not about this week
+
+**Reproducer:** `docs/analysis/reproduce_single_number.py::d2_t_ranking_is_structural`.
 
 [`../analysis/2026-07-28-exit-capacity.md`](../analysis/2026-07-28-exit-capacity.md) publishes
 `T = Q / (kappa V)` as a cross-market ranking. That document is correct on every figure and its
@@ -90,9 +183,9 @@ Its figures stand; this is the reading instruction that belongs beside them.
 
 ---
 
-## D2. `T_sell / T_buy` **is** `Q_sell / Q_buy`, so a side-ratio index cannot see joint congestion
+## D3. `T_sell / T_buy` **is** `Q_sell / Q_buy`, so a side-ratio index cannot see joint congestion
 
-**Reproducer:** `docs/analysis/reproduce_single_number.py::d2_the_ratio_is_t_over_t`.
+**Reproducer:** `docs/analysis/reproduce_single_number.py::d3_the_ratio_is_t_over_t`.
 
     T_sell / T_buy  =  [Q_sell / (kV)] / [Q_buy / (kV)]  =  Q_sell / Q_buy
 
@@ -125,9 +218,9 @@ headline than any measurement of its behaviour.
 
 ---
 
-## D3. "At-risk vs not-at-risk" is one series twice, and so is the Legacy pair it would be modelled on
+## D4. "At-risk vs not-at-risk" is one series twice, and so is the Legacy pair it would be modelled on
 
-**Reproducer:** `docs/analysis/reproduce_single_number.py::d3_the_partition_is_degenerate`.
+**Reproducer:** `docs/analysis/reproduce_single_number.py::d4_the_partition_is_degenerate`.
 
 The proposal was an index of leveraged / at-risk TFF categories against non-leveraged / not-at-risk
 ones, by analogy with reading commercials against large specs in Legacy. It cannot work, and the
@@ -168,14 +261,14 @@ Sterling, its record week:
 
 On its most congested week on record, the category pair reads **46 and 62** and notices nothing.
 The two side indices read **100 and 98**. A category net is a difference and stays mid-range while
-both sides' weighted exposure goes to a record; and unlike the ratio in §D2, two side indices *can*
+both sides' weighted exposure goes to a record; and unlike the ratio in §D3, two side indices *can*
 both be maxed, which is the whole point.
 
 ---
 
-## D4. `Phi` is NOT inert in `D`, which refutes the suspicion that prompted the test
+## D5. `Phi` is NOT inert in `D`, which refutes the suspicion that prompted the test
 
-**Reproducer:** `docs/analysis/reproduce_single_number.py::d4_phi_is_not_inert`.
+**Reproducer:** `docs/analysis/reproduce_single_number.py::d5_phi_is_not_inert`.
 
 `2026-08-01 §A22` and `2026-08-03 §C8` establish that `Phi` carries no signal independent of the
 weights, and its within-market standard deviation is 0.082 against roughly 0.29 for the two
@@ -219,9 +312,9 @@ reason.
 
 ---
 
-## D5. `Phi`'s effect on `D_pct` is not monotone, so a lone percentile is uninterpretable
+## D6. `Phi`'s effect on `D_pct` is not monotone, so a lone percentile is uninterpretable
 
-**Reproducer:** `docs/analysis/reproduce_single_number.py::d5_phi_is_not_monotone`.
+**Reproducer:** `docs/analysis/reproduce_single_number.py::d6_phi_is_not_monotone`.
 
 Week ending 2026-07-28:
 
@@ -241,7 +334,7 @@ write.** A single `D_pct` therefore cannot be interpreted even by a reader who k
 
 Sterling is also the case that shows the composite behaving well. Its `I` is 1.000, a record exit
 time, and `D_sell_pct` is only 0.611, because `C` is 0.420: the levered book is mid-range and, per
-§D7, half of `Q_sell` is the dealer book. **`D` correctly discounts a record `T` when the crowd
+§D8, half of `Q_sell` is the dealer book. **`D` correctly discounts a record `T` when the crowd
 driving it is not the fragile crowd.** Without the factors published that reads as the measure
 missing something; with them it reads as the measure working.
 
@@ -249,7 +342,7 @@ missing something; with them it reads as the measure working.
 
 `composite.damage_block` and `futures.report.format_damage_block` publish `C`, `I` and `pct(Phi)`
 beside `D_pct` on every render, with the multiplication written out, the raw `T` in days for the
-§D1 floor, and explicit denials of the probability and monotonicity readings. Five fixture tests in
+§D2 floor, and explicit denials of the probability and monotonicity readings. Five fixture tests in
 [`../../tests/test_composite.py`](../../tests/test_composite.py) pin it, one of them asserting the
 denial text is present so it cannot be edited out silently. Bands are deliberately coarse: `D_pct`
 is a percentile of a product of percentiles and a two-decimal label implies precision the
@@ -257,9 +350,9 @@ construction does not have.
 
 ---
 
-## D6. Legacy and TFF agree on exactly two quantities, and neither is a category
+## D7. Legacy and TFF agree on exactly two quantities, and neither is a category
 
-**Reproducer:** `docs/analysis/reproduce_single_number.py::d6_legacy_and_tff_share_two_things`.
+**Reproducer:** `docs/analysis/reproduce_single_number.py::d7_legacy_and_tff_share_two_things`.
 
 Over 6,279 overlapping market-weeks:
 
@@ -313,9 +406,9 @@ contracts its numerator cannot see on 80% of market-weeks.
 
 ---
 
-## D7. Sterling: the levered book and Legacy non-commercial point opposite ways, 12 weeks running
+## D8. Sterling: the levered book and Legacy non-commercial point opposite ways, 12 weeks running
 
-**Reproducer:** `docs/analysis/reproduce_single_number.py::d7_sterling_sign_conflict`.
+**Reproducer:** `docs/analysis/reproduce_single_number.py::d8_sterling_sign_conflict`.
 
 Legacy reports non-commercial in sterling net **short 64,814** contracts on 2026-07-28. Leveraged
 funds are net **long 41,097**. The short is institutional: asset managers at -140,911.
@@ -323,7 +416,7 @@ funds are net **long 41,097**. The short is institutional: asset managers at -14
 This is not a one-week artifact. The sign conflict holds in **all 12 of the last 12 weeks** and in
 **57 of the 82 weeks** the vintage store holds (69.5%).
 
-It is the sharpest available demonstration of §D6: a Legacy reader is not merely missing detail,
+It is the sharpest available demonstration of §D7: a Legacy reader is not merely missing detail,
 they are pointed at the wrong side of the market, because Legacy nets a large institutional short
 against a smaller levered long and reports one negative number.
 
@@ -339,14 +432,14 @@ against a smaller levered long and reports one negative number.
 
 **Half of sterling's record `T_sell` is the dealer book at weight 0.4**, not a levered-fund crowd.
 The sign contradiction is untouched by this, and it is the claim worth making. The supporting
-duration figure needs the caveat, and §D5 shows the composite already applying it: `D_sell_pct`
+duration figure needs the caveat, and §D6 shows the composite already applying it: `D_sell_pct`
 reads 0.611 rather than tracking the 1.000 illiquidity term.
 
 ---
 
-## D8. The offside term is built, and it belongs beside `D` rather than inside it
+## D9. The offside term is built, and it belongs beside `D` rather than inside it
 
-**Reproducer:** `docs/analysis/reproduce_single_number.py::d8_offside_is_beside_not_inside`.
+**Reproducer:** `docs/analysis/reproduce_single_number.py::d9_offside_is_beside_not_inside`.
 
 The framing that prompted this: crowding has three parts, **lopsided, offside, trapped**. `D`
 has `C` for lopsided and `I` for trapped and nothing for offside. `trigger.py` has computed
@@ -413,7 +506,7 @@ extremity is downstream of the same trend, the two co-move:
 | `fragility` | +0.1134 | +0.2791 |
 
 A fourth factor would compound one signal twice, which is the same defect as fragility sitting
-inside both `I` and `Phi` (§D4). There is no reason to add a third instance knowingly.
+inside both `I` and `Phi` (§D5). There is no reason to add a third instance knowingly.
 
 > **CORRECTED in the same session, before it shipped.** A first pass measured
 > `corr(distance, damage_sell_pct) = -0.017` and concluded the two were **orthogonal**, which
@@ -435,7 +528,7 @@ Close and severe, week ending 2026-07-28: **corn** (0.25 sigma, `D_sell_pct` 0.9
 A product collapses all four cells into one scalar, and close-and-harmless is a genuinely
 different state from far-and-severe.
 
-**§D1's level floor still binds and this shows why.** DJIA sits in the close-and-severe cell on
+**§D2's level floor still binds and this shows why.** DJIA sits in the close-and-severe cell on
 a `T_sell` of **0.27 days**. The quadrant ranks; the level gates.
 
 ### A bug the tests found
@@ -449,16 +542,16 @@ null one row, not abort the panel. It now raises `TriggerError` with the reason,
 
 ---
 
-## D9. The trigger side came from the price signal, and the observed pool disagrees a third of the time
+## D10. The trigger side came from the price signal, and the observed pool disagrees a third of the time
 
-**Reproducer:** `docs/analysis/reproduce_single_number.py::d9_pool_versus_signal`.
+**Reproducer:** `docs/analysis/reproduce_single_number.py::d10_pool_versus_signal`.
 
-**A defect in §D8, found within the hour by rendering two markets by hand.**
+**A defect in §D9, found within the hour by rendering two markets by hand.**
 
 `trigger.py`'s whole departure from §A.7 is that the pool is **observed rather than
 modelled**: §A.7 estimates forced flow from a replicated CTA book with an aggregate capital
 term `A`, and this package refuses to guess `A` and reads the Managed Money / leveraged net
-from COT instead. §D8's `nearest_trigger` then took the **side** from the price signal alone,
+from COT instead. §D9's `nearest_trigger` then took the **side** from the price signal alone,
 which quietly reintroduced the modelled logic the module exists to avoid.
 
 Measured on 45 markets by 3 horizons, week ending 2026-07-28:

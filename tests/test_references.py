@@ -35,18 +35,16 @@ SUFFIXES = {".md", ".py", ".sh", ".yml", ".yaml"}
 SKIP_DIRS = {".git", ".venv", "__pycache__", ".claude", "node_modules", ".ruff_cache"}
 
 #: `## B34. The median asymmetry ...` in a dated amendments file defines `B34`.
-#:
-#: **The letter set grows by one per amendments file** (A = 2026-08-01, B = 08-02, C = 08-03,
-#: D = 08-04) and BOTH patterns below must be widened together. Widening only the reference
-#: pattern makes every new-letter citation unresolvable; widening only the definition pattern
-#: makes them silently unscanned. Neither failure is visible without reading this file, which
-#: is why they sit adjacent.
-_DEFINITION = re.compile(r"(?m)^##\s+([ABCD]\d+)\.")
+#: **Any letter, not `[ABC]`.** The series letter advances with the date (A is 08-01, B is
+#: 08-02, C is 08-03), so a hardcoded set means the first amendment file of a new day defines
+#: nothing this resolver can see and every citation into it silently stops being checked.
+#: Found on 2026-08-04, when `D1` was the first section of a new file (`2026-08-04 §D1`).
+_DEFINITION = re.compile(r"(?m)^##\s+([A-Z]\d+)\.")
 
 #: `§B34`, `§B33-B37`, `§C1-C4`, `§A21-A22`, `§B33-§B37`. Deliberately does NOT match the
 #: appendix's `§A.2`, which is a section of `crowdmon_plain_language_summary.md` and a
 #: different namespace: the dot is the whole distinction and it is load-bearing.
-_REFERENCE = re.compile(r"§§?([ABCD])(\d+)(?:\s*[-–]\s*§?([ABCD])?(\d+))?")
+_REFERENCE = re.compile(r"§§?([A-Z])(\d+)(?:\s*[-–]\s*§?([A-Z])?(\d+))?")
 
 #: Bare IDs that genuinely do not resolve in this checkout, each with where it lives.
 #: An entry here is a RECORDED GAP, not a suppression: the test below also fails if one

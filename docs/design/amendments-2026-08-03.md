@@ -1399,3 +1399,407 @@ question about the rule; it is not grounds to override it after seeing the numbe
 the failure the rule exists to prevent.
 
 Reproducer: [`../analysis/reproduce_report_gate.py`](../analysis/reproduce_report_gate.py)`::c24_already_exposed`.
+
+---
+
+## C25. The brief carries one of the five reading instructions, two at best, and names the rest
+
+**§3 of [`../handoffs/2026-08-03-report-layer.md`](../handoffs/2026-08-03-report-layer.md),
+executed.** §5 of that handoff pre-registered negative #4: a brief that carries some caveats
+and silently omits others is worse than no brief, because a bare frame announces that it is
+bare while a partial one reads as complete. The rule fixed in advance was that the brief
+ships only if it prevents every misreading on `README.md`'s list, **or names in its own
+output the ones it does not carry**.
+
+**It does not prevent them all, so it names them.** Over the enumerated five, on the latest
+current-state week for LIVE CATTLE:
+
+| reading instruction | status | why |
+|---|---|---|
+| `2026-08-01 §A17`, a falling `D` is not safety | **carried** (partial) | `composite.add_unwind_state`, decisive on 40.2% of falling weeks per `§C21` |
+| `2026-08-01 §A21`, `Phi` has no signal independent of the weights | **named** | per-row and identical on every row (`§C22`), so it separates nothing |
+| `2026-08-01 §A22`, the rankings survive wrong weights, not reordering | **named** | a property of a pooled ranking under a sweep of whole weight tables. A row has neither a panel nor variants |
+| `2026-08-02 §B2`, exits are not independent across markets | **carried, but only after `add_commonality`** | `beta` attaches on 100% of rows (`§C24`) and the composite chain does not attach it |
+| `2026-08-03 §C3`, the population is part of the sensitivity result | **named** | needs a population and a sweep, and `§C23` shows no panel holds both a `pct(D)` and the markets `§C8`'s rule points at |
+
+**The default chain carries one of five, not two.** `add_commonality` is not part of the
+composite chain and never will be, because `2026-08-02 §B2` measured `pct(T_eff)` as
+bit-identical to `pct(T)` under a constant `beta_bar`. So a caller assembling a brief the
+obvious way has no `beta`, and the ledger's `not_carried` entry naming `add_commonality` is
+the only thing that says so. One extra call closes it; nothing in the chain makes that call.
+
+**Three of the five are not carryable at all, and none of the three is an effort problem.**
+Each fails for a reason a measurement already established: a value identical on every row, a
+property of a ranking rather than of a row, and a property of a population. That is the
+substantive answer to §2's question, arriving a level below where §2 asked it. §2 classified
+caveats by whether a per-row value exists; §3 finds that for three of the five the honest
+per-row artifact is a **declaration of absence**, which is a different kind of output and had
+to be built as one.
+
+**Consequence, and it is the reason the footer exists.** With `E = 1` from `§C24` and two of
+five carried here, the brief's safety case is thin by construction. `format_brief` states
+that in its own output rather than leaving a reader to infer safety from a full-looking page,
+and there is deliberately no flag to suppress the ledger: a `include_caveats=False` would
+turn the artifact back into the bare number it exists to stop travelling alone.
+
+Reproducer: [`../analysis/reproduce_brief.py`](../analysis/reproduce_brief.py)`::c25_the_ledger_over_the_five`.
+Asserted in [`../../tests/test_brief.py`](../../tests/test_brief.py)`::test_a_frame_with_no_carriers_still_names_all_five`.
+
+---
+
+## C26. A third of market-weeks have no `D` to print, and the blank cell was two states
+
+`§C20` measured the split and this is what it means for an artifact. Of 27,194 current-state
+market-weeks, **8,831 (32.5%)** carry no `damage_sell_pct` at all, so a third of all possible
+briefs have no headline number:
+
+| `score_state_sell` | rows |
+|---|---|
+| `scored` | 18,363 |
+| `no_crowding` | 6,256 |
+| `warmup` | 2,575 |
+
+**Before the state column every one of those 8,831 rendered as a blank cell**, and a blank
+beside three factor columns reads as a low value rather than as an absence. The two causes
+say opposite things: `warmup` is a series that will score later, `no_crowding` is a market
+that may never and whose rung `coverage.drops_at` names. `composite.damage_report` counted
+both across a panel and no column named either on a row, which is the whole of `§C24`'s
+`E = 1`.
+
+**It is not a historical problem.** On the latest week, 2026-07-28, 24 of 25 markets score
+and one does not, so the state is load-bearing on current output and not only on backfill.
+
+`add_score_state` raises rather than guessing when a null has no cause, which is the property
+that makes the column worth trusting: `damage` is the product of three factors and is null
+iff a factor is, so a row labelled `scored` with nothing to score cannot occur unless
+`add_composite` stops propagating null. That is asserted on every computation rather than
+only in tests, matching `fragility`'s `Phi` bound.
+
+Reproducer: [`../analysis/reproduce_brief.py`](../analysis/reproduce_brief.py)`::c26_a_third_of_briefs_have_no_number`.
+Pinned live in [`../../tests/test_brief_live.py`](../../tests/test_brief_live.py).
+
+---
+
+## C27. `indeterminate` has two causes and `§C21` measured only one of them
+
+`§C21` established that the `§A17` marker is silent on 59.8% of falling-`D` weeks because the
+flow state carries nothing, and concluded that silence must be rendered out loud. Building
+the marker surfaced a **second, unrelated** cause of the same verdict, which `§C21` did not
+separate because it only looked at falling weeks.
+
+| cause | rows | share of `indeterminate` |
+|---|---|---|
+| no prior scored week, so there is no `ΔD` to read | **8,856** | 63.4% |
+| `ΔD` exists and the flow state carries nothing | **5,118** | 36.6% |
+
+The second group is `mixed` on 4,985 rows and `gap` on 133, and **every one of them is a
+falling week** — a rising week under a silent flow state is `not_falling`, correctly, because
+`§A17` is a warning about falls only. The 5,118 reproduces `§C21`'s falling-week arithmetic
+exactly: 8,559 falling weeks, 3,441 decisive, 5,118 silent.
+
+**The two are not interchangeable and a reader acts differently on each.** "This series is
+too young to difference" is a statement about coverage and resolves with time; "this week's
+move cannot be interpreted" is a statement about the week and never resolves. Collapsing them
+into one word would be the same error one level down as rendering `warmup` and `no_crowding`
+identically, so `brief.NO_DELTA_NOTE` renders the first and `UNWIND_NOTES` the second, both
+under the same `indeterminate` label because the label is the marker's answer and the note is
+its reason.
+
+**The marker over every row**, for scale: 13,974 `indeterminate`, 9,779 `not_falling`, 1,913
+`falling_not_exit`, 1,528 `mid_exit`. The most common single verdict this carrier gives is
+"I cannot say", which is the honest shape of `§C21`'s finding rather than a defect in it.
+
+Reproducer: [`../analysis/reproduce_brief.py`](../analysis/reproduce_brief.py)`::c27_indeterminate_is_two_states`.
+
+---
+
+## C28. The stop-placement error is in the equity spec too, and there it is a whole use case
+
+**Not a measurement.** This section records a correction made today to
+[`crowdmon_plain_language_summary.md`](crowdmon_plain_language_summary.md) and a matching
+error found in a **sibling checkout**, recorded here rather than edited there, per the
+working agreement on docs that live in another repo.
+
+### What was wrong here
+
+The "What it cannot tell you" list advised **"wider stops, because tight ones get blown
+through in a stampede"**. That is wrong advice, and it is wrong on the mechanism the rest of
+the document spends its length establishing. A stop is a **trigger, not a guarantee**: it
+converts to a market order when touched and fills wherever the market next trades, so in a
+gapping or limit-locked market it fires *because* the cascade happened, not before it.
+Widening it does not buy protection, it moves where you find out.
+
+Replaced with: exit on positioning rather than price; defined-risk protection where gap risk
+is real; and the trade-off stated as a trade-off, since a wide stop keeps you in a
+**positioning unwind** (reverts) and costs you more in a **fundamental repricing**
+(persists), which is exactly the pair [§A.10](crowdmon_plain_language_summary.md) classifies.
+
+### The same error in `crucible-stack`, and it is worse there
+
+`../crucible-stack/docs/design/crowdmon_system_description.md` (workspace-relative, a
+different repo, so no link)
+§7 **UC-2, "Stop placement and gap risk"**, is live (v0.1, on `main`, last touched
+`aab4dea` 2026-07-30) and is named a companion spec by
+[`crowdmon_futures_cot_module.md`](crowdmon_futures_cot_module.md) line 3. Nothing marks it
+superseded. Its action reads:
+
+> a wider stop with a smaller position, sized so the wider stop costs the same dollars
+
+Here the error is not one bullet, it is the **entire use case**: the trigger is "setting a
+stop on a name flagged as crowded" and the primary recommendation is to widen it. Its own
+premise refutes it, in the same paragraph: "the unwind gaps through it and fills far below"
+is true of a wide stop as surely as a tight one. The document already contains the correct
+statement, one use case earlier, and does not notice the tension:
+
+> UC-1: The asymmetry the system is flagging is not "this will fall" — it is "when it falls,
+> it will fall through your stop."
+
+**A stop that will be fallen through is not made into protection by being further away.**
+UC-2's second sentence ("replace the stop entirely with a long put and accept a known
+premium instead of an unknown slippage") is the correct advice and it is offered as the
+alternative rather than the recommendation.
+
+**Not edited**, because it is a shared working tree in another repo. What UC-2 needs when
+someone owns it: lead with the defined-risk structure, demote widening to a trade-off with
+both sides named, and state that a stop is a trigger rather than a guarantee. The sizing
+arithmetic it gives ("sized so the wider stop costs the same dollars") is fine as far as it
+goes and is not the problem; the problem is that it prices a protection the instrument does
+not deliver in the one regime the document was written about.
+
+**No reproducer.** Nothing here is measured. The claim is internal inconsistency in two
+documents, checkable by reading them.
+
+### CLOSED 2026-08-03. Fixed in `crucible-stack`, and this section missed two things
+
+`crucible-stack` **#21**, merge `3efc36f`, on their `main`. Recorded here so §C28 does not
+read as an open item: a section that says "not edited" with no outcome is exactly the stale
+marker that invites a second, divergent fix, which is the trap the swap-dealer handoff hit
+on 2026-08-03.
+
+All three of the changes this section asked for landed: defined-risk protection now leads
+(it was already present, offered second as the alternative), widening is demoted to a
+trade-off with both sides named, and "a stop is a trigger, not a guarantee" is stated
+outright.
+
+**Two things this section got wrong by not looking hard enough at the file it was judging.**
+
+- **It missed the §7 preamble**, which promised "stops that survive". That is the same claim
+  in miniature, one screen above the use case, and reading only UC-1 and UC-2 did not reach
+  it. Also fixed in #21. The lesson is narrow and practical: when a claim is wrong, grep the
+  document for the claim rather than fixing the passage you happened to be sent to.
+- **It assumed the trade-off had nowhere to point.** This section said the fix would need
+  "both sides named" and stopped there, because it reasoned from *this* repo, where the
+  classification lives in `§A.10`. The equity spec already had its own: **UC-6, "Classifying
+  a drawdown while it is happening"**, with a two-row signature table separating a
+  positioning unwind (mean-reverts) from a fundamental repricing (does not). So the fix
+  routes the widening decision to UC-6 rather than merely naming two outcomes, which is
+  strictly better than what was proposed here.
+
+**The direction of the error is worth noting.** Reasoning about a sibling document from
+memory of *our* structure produced a fix proposal that was correct but thinner than the
+target document could support. The measure-do-not-assume rule has an obvious extension: read
+the whole of the document you are correcting, not the paragraph you were pointed at.
+
+---
+
+## C29. `§C8`'s band rule is now enforceable, and the reason it was deferred was half right
+
+**§4 of [`../handoffs/2026-08-03-report-layer.md`](../handoffs/2026-08-03-report-layer.md),
+executed after `§C23` recommended against it.** That recommendation is corrected here rather
+than overturned: its measurement stands and its conclusion did not follow from it.
+
+### What `§C23` established, and it still holds
+
+No panel available today carries both a `pct(D)` and a market on the side `§C8`'s rule names:
+
+| panel | markets | weeks | certificate markets | `pct(D)` computable |
+|---|---|---|---|---|
+| vintage | 346 | 82 | **263** | **no**, 82 < 104 `min_periods` |
+| current-state | 27 | 1,051 | **0** | yes |
+
+So **nobody has to publish a `w_SD` band today**, and that does not change until the vintage
+panel reaches 104 observations, 2026-12-29 at the earliest. `§C23` measured this correctly.
+
+### What did not follow
+
+`§C23` concluded "do not build the classifier, there is nothing to point it at", and §9 of
+the handoff carried that forward as "§4 is dead". The step that does not hold is the move
+from **the obligation is vacuous** to **the classification is worthless**. They are different
+statements about different readers:
+
+- The *obligation* is addressed to whoever publishes a band. It has no audience today.
+- The *classification* answers a question every reader of a single `D` has: **does the band
+  bind on this market?** On a classic outright the answer is `no, and here is why`, which is
+  information rather than an absence.
+
+`§C22` drew exactly this distinction one section earlier and it was not applied here: the
+test is not "can this be computed per row" but "does the value differ between rows where the
+caveat bites and rows where it does not". A constant `outright` on a scoreable panel looks
+like `§A21`'s constant and is not one. `§A21` is identical everywhere *and* the caveat bites
+everywhere equally, so it separates nothing ever. `stratum` is constant on today's scoreable
+panel because the caveat bites **nowhere on it**, and it flips the week a certificate market
+becomes scoreable. One is a property of the construction; the other is a property of current
+coverage.
+
+### The promotion reproduces `§C13` and `§C14` exactly
+
+Moving logic out of an analysis script is only safe if the moved copy cuts where the original
+cut. `crowdmon.futures.stratum.classify` over the vintage panel's latest report week:
+
+| stratum | markets | share |
+|---|---|---|
+| `certificate` | **213** | 76.3% |
+| `outright` | **59** | 21.1% |
+| `differential` | **7** | 2.5% |
+
+`§C14` measured 213 certificates, 7 differentials and 34 uncovered outrights; `§C13` measured
+the 25 covered outrights, and 34 + 25 = 59. On the current-state panel it is **27 of 27
+outright, 0 certificate, 0 differential**, which is `§C13`'s finding that the covered set is
+the complement of the thing that made the panel hard to reason about rather than a sample of
+it.
+
+The seven differentials are the same seven, and each now names the token that caught it:
+
+| code | matched on |
+|---|---|
+| `022A13` UP DOWN GC ULSD VS HO SPR | `VS`, `SPR` |
+| `0676A5` WTI HOUSTON ARGUS/WTI TR MO | `/` |
+| `0676A6` WTI HOUSTON ARGUS/WTI BALMO | `/`, `BALMO` |
+| `067A71` WTI MIDLAND ARGUS VS WTI TRADE | `VS` |
+| `111A34` GULF COAST CBOB GAS A2 PL RBOB | `PL` |
+| `86465A` GULF JET NY HEAT OIL SPR | `SPR` |
+| `86565A` GULF # 6 FUEL OIL CRACK | `CRACK` |
+
+`differential_matches` exists because `DIFFERENTIAL_TOKENS` is pattern matching over a
+display label and nothing more. `/` is broad enough to catch a future outright whose name
+happens to carry a slash, and the audit function is how that would be noticed rather than
+inherited.
+
+### Consequence for the brief
+
+`§C25` reported the brief carrying **one** of `README.md`'s five reading instructions by
+default and two after an `add_commonality` call. With `stratum` attached it carries
+**three**, and the two that remain are the two no per-row value can ever answer: `§A21` is
+identical on every row, `§A22` is a property of a pooled ranking under a weight sweep. That
+is now the floor rather than a status quo, because both were shown un-carryable by
+measurement rather than left unbuilt.
+
+The failure mode §4 named is also closed. `§C11` is its precedent: `rank_markets` documented
+an alignment requirement instead of checking it and the requirement was found unmet. `§C8`'s
+rule was in exactly that position, and a brief that consults it cannot be read by someone who
+never read the prose.
+
+Reproducer: [`../analysis/reproduce_stratum.py`](../analysis/reproduce_stratum.py).
+Pinned live in [`../../tests/test_stratum_live.py`](../../tests/test_stratum_live.py), where
+`test_the_band_obligation_has_the_markets_on_one_panel_and_the_percentile_on_the_other`
+**fails on purpose** the week the vintage panel reaches `min_periods`. That failure is the
+announcement that the obligation has stopped being vacuous.
+
+---
+
+## C30. The brief's safety case rests on three copies of other people's lists, and nothing diffed them
+
+**§5 of [`../handoffs/2026-08-03-report-layer.md`](../handoffs/2026-08-03-report-layer.md),
+the pre-registered negatives, adjudicated.** Three of the four were settled when §3 and §4
+shipped. **Negative #3 was not, and it is true.**
+
+Reproducer: [`../analysis/reproduce_negatives.py`](../analysis/reproduce_negatives.py), which
+needs no store. Pinned by
+[`../../tests/test_reading_instructions.py`](../../tests/test_reading_instructions.py).
+
+### The four outcomes, each answered
+
+| § | pre-registered negative | verdict |
+|---|---|---|
+| #1 | most caveats are not row-computable (`R<=3, E==0`) | **false.** `§C20`-`§C24` measured `R=4, E=1` strict, `R=5, E=2` lenient |
+| #2 | the brief adds nothing the modules do not already give | **true, and discharged.** `E=1`, and `format_brief`'s footer says so (`§C24`) |
+| #3 | the caveats cannot be carried without going stale anyway | **true, and was NOT discharged.** This section |
+| #4 | some caveats carried, others silently omitted | **true of the outcome**, met by §5's escape clause: the ledger names its gaps on every render (`§C25`) |
+
+**More than one is true at once, and the handoff lists them as alternatives.** That is worth
+recording on its own: §5 reads as a five-way choice ("which of the five outcomes is true"),
+and the artifact landed on three of them simultaneously. An enumeration of outcomes that is
+not mutually exclusive still routes correctly, because each has its own remedy, but a session
+that stops at the first match stops early. This one nearly did: #4 was named in the outcome
+section, #2 in a subsection under it, and #3 not at all.
+
+### What negative #3 says, and why it is true here
+
+> Every candidate mechanism turns out to require a hand-maintained string somewhere. That is
+> a real finding about this class of artifact and is worth more than a brief nobody trusts.
+
+`brief.READING_INSTRUCTIONS` is five hand-written `Caveat`s whose comment says they are
+"exactly `README.md`'s five reading instructions". **Nothing checked that.**
+`tests/test_references.py` resolves the `§C3` half of a citation against the amendment files
+and stops; `tests/test_brief.py` asserts each `source` contains `docs/` and `::` as
+substrings, which a renamed reproducer function passes. So the enumeration could gain, lose
+or misname an entry with the whole suite green.
+
+Counted rather than asserted, the brief carries **three** hand-maintained copies:
+
+| copy | entries | source of truth | what a divergence does |
+|---|---|---|---|
+| `READING_INSTRUCTIONS` | 5 | `README.md`, prose | a caveat README states and the ledger drops is omitted **silently** |
+| `SCORE_STATE_NOTES` | 5 | `composite.SCORE_STATES` | `KeyError` on the first row in the new state |
+| `UNWIND_NOTES` | 4 | `composite.UNWIND_STATES` | `KeyError`, same |
+
+plus **5 document paths and 7 reproducer functions** cited inside the artifact itself. All 12
+resolve today; none was checked before this section.
+
+**This is negative #4 arriving one document away from where anyone was watching.** The brief's
+whole ship condition is that it carries every misreading on the enumerated list or names the
+ones it does not. That condition is exactly as good as the enumeration: a sixth reading
+instruction added to `README.md` is not carried and not named, and the brief goes on printing
+a five-entry ledger that reads as complete. The escape clause does not fail loudly, it fails
+by staying quiet, which is the property §5 called the dangerous one.
+
+### The drift had already happened, in the one respect nothing was checking
+
+Measured at the time of writing: the set matched, all 12 citations resolved, and the **order
+did not**. `README.md` runs `§A17, §A21, §A22, §C3, §B2`, interleaving `3b` as a qualifier on
+`3`; the ledger runs `§A17, §A21, §A22, §B2, §C3`, in date order of the finding. Harmless in
+itself, and that is the point: the copy diverged from its stated source within a day of being
+written, in the only respect that was not load-bearing. Nothing distinguishes a harmless
+divergence from a dropped entry except a diff.
+
+The comment now states the ordering rule it actually follows, and the guard is over the set
+and the declared count rather than the sequence, because README's numbering answers to its
+own prose.
+
+### A second drift, in the source rather than the copy
+
+`README.md`'s section said **"Four things"** in its preamble and **"These five are the
+denominator"** in its closing paragraph. Both are correct about different things (four
+numbered instructions, five findings, because `3b` cites a finding of its own), and together
+they are a contradiction a reader meets before reaching either number. The section now states
+the reconciliation, and `test_the_section_declares_the_same_count_the_ledger_carries` pins the
+declared count against `len(READING_INSTRUCTIONS)`.
+
+### The fix, and why it is the second-best one
+
+The precedent is the 104 lines `crowdmon_futures_cot_module.md` lost for a day: duplicating a
+living document opens a silent-regression window that closes only when someone diffs the
+copies. The fix there was **a pointer instead of a copy**, and it is not available here: a
+`Caveat` carries a carrier column and a status function, so it is code and not prose.
+
+So the copy stays and is made to fail loudly instead. `tests/test_reading_instructions.py`
+resolves the enumeration against `README.md` on every run, and each of its four failure modes
+was verified to fire by mutation rather than assumed:
+
+- a caveat dropped from the ledger while README keeps it
+- README's declared count and the ledger's length disagreeing
+- a cited reproducer function or document path that no longer exists
+- a carrier column added with no status function to read it
+
+The parser is checked too (`test_the_parser_would_actually_see_a_sixth_instruction`),
+because a guard whose regex stops matching passes every assertion above it while guarding
+nothing. Same hazard `test_references.py::test_the_scan_actually_reaches_the_documents_it_claims_to`
+exists for, and worth the duplication: this file's entire value is noticing a change in a
+document.
+
+### What this does not close
+
+`E = 1` is unchanged. This adds no caveat to the ledger and moves nothing from `not_carried`
+to `carried`; the brief still prevents one misreading of five by itself and three with the two
+extra calls. What changes is that the **denominator** can no longer move without saying so,
+which is the only thing that made the escape clause worth anything.

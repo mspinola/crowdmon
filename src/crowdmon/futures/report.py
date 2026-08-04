@@ -201,7 +201,8 @@ def format_offside(offside: dict, *, side: str, damage_pct: float | None) -> str
     Two things this block must not let a reader do. It must not read the distance as a
     forecast: it is the level at which a rules-based pool is mechanically forced, not a
     prediction that price gets there. And it must not be combined with `D_pct` into a single
-    ranking, because the two are orthogonal (`2026-08-04 §D8`) and the quadrant is the
+    ranking, because `D` is a conditional severity (A.10) and because the distance is the
+    trailing k-day return, which already drives `C` (`2026-08-04 §D9`). The quadrant is the
     information.
     """
     d_sigma = offside.get("distance_sigma")

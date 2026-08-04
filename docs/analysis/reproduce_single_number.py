@@ -1,4 +1,4 @@
-"""Reproducer for every figure in `docs/design/amendments-2026-08-04.md` (§D1-§D9).
+"""Reproducer for every figure in `docs/design/amendments-2026-08-04.md` (§D2-§D10).
 
     COTDATA_STORE=~/code/cotdata_store python docs/analysis/reproduce_single_number.py
 
@@ -8,20 +8,20 @@ week is quoted; full store history otherwise.
 The through-line is one question: **what single number should this package deliver, and
 what does it have to be published with?** The sections split into three groups.
 
-  §D1  the raw `T` ranking is substantially structural, so it answers a different question
+  §D2  the raw `T` ranking is substantially structural, so it answers a different question
        than a reader hears
-  §D2  `T_sell / T_buy` IS `Q_sell / Q_buy`, so a side-ratio index cannot see joint
+  §D3  `T_sell / T_buy` IS `Q_sell / Q_buy`, so a side-ratio index cannot see joint
        congestion
-  §D3  "at-risk vs not-at-risk" is degenerate, and so is the Legacy pair it is modelled on
-  §D4  `Phi` is NOT inert in `D`, which refutes the suspicion that prompted the test
-  §D5  `Phi`'s effect on `D_pct` is not monotone
-  §D6  Legacy and TFF share exactly two quantities and nothing else
-  §D7  sterling: the levered book and Legacy non-commercial point opposite ways
-  §D8  the offside term: built, and beside `D` rather than inside it
-  §D9  the trigger side is signal-implied and the observed pool disagrees a third
+  §D4  "at-risk vs not-at-risk" is degenerate, and so is the Legacy pair it is modelled on
+  §D5  `Phi` is NOT inert in `D`, which refutes the suspicion that prompted the test
+  §D6  `Phi`'s effect on `D_pct` is not monotone
+  §D7  Legacy and TFF share exactly two quantities and nothing else
+  §D8  sterling: the levered book and Legacy non-commercial point opposite ways
+  §D9  the offside term: built, and beside `D` rather than inside it
+  §D10  the trigger side is signal-implied and the observed pool disagrees a third
        of the time
 
-Blocks are named after their section: §D1 is `d1_t_ranking_is_structural`, and so on. The
+Blocks are named after their section: §D2 is `d2_t_ranking_is_structural`, and so on. The
 panels are expensive to build (every symbol's price history is read for the volume join),
 so they are built once in `main` and passed down rather than rebuilt per block.
 """
@@ -45,14 +45,14 @@ from crowdmon.futures import (
 )
 
 #: The two reports with configured fragility weights. Legacy is deliberately absent, and
-#: §D6 is partly about why.
+#: §D7 is partly about why.
 REPORTS = ("disaggregated", "tff")
 
 #: Codes quoted by name in the amendments file.
 STERLING, CAD, CORN, DJIA = "096742", "090741", "002602", "124603"
 
 #: The trailing window every percentile in this file uses, matching `core.aggregate`.
-#: Stated once so a reader can see that §D1's "own history" and §D4's are the same window.
+#: Stated once so a reader can see that §D2's "own history" and §D5's are the same window.
 WINDOW_YEARS = 3
 
 
@@ -92,8 +92,8 @@ def _one_instrument(frame: pd.DataFrame) -> pd.DataFrame:
             .drop_duplicates(["symbol", "report_date"], keep="last"))
 
 
-# ── §D1 ─────────────────────────────────────────────────────────────────────
-def d1_t_ranking_is_structural(priced: pd.DataFrame) -> None:
+# ── §D2 ─────────────────────────────────────────────────────────────────────
+def d2_t_ranking_is_structural(priced: pd.DataFrame) -> None:
     rule("D1. How much of the T ranking is each market's standing level?")
 
     h = _one_instrument(priced)
@@ -135,8 +135,8 @@ def d1_t_ranking_is_structural(priced: pd.DataFrame) -> None:
                "rank_raw", "rank_pct"]].to_string(float_format=lambda x: f"{x:,.3f}"))
 
 
-# ── §D2 ─────────────────────────────────────────────────────────────────────
-def d2_the_ratio_is_t_over_t(priced: pd.DataFrame) -> None:
+# ── §D3 ─────────────────────────────────────────────────────────────────────
+def d3_the_ratio_is_t_over_t(priced: pd.DataFrame) -> None:
     rule("D2. T_sell / T_buy IS Q_sell / Q_buy: the volume term cancels")
 
     st = (priced[priced.market_code == STERLING].dropna(subset=["dtl_sell"])
@@ -161,8 +161,8 @@ def d2_the_ratio_is_t_over_t(priced: pd.DataFrame) -> None:
     print("moved AGAINST the long side even as the long side set a record.")
 
 
-# ── §D3 ─────────────────────────────────────────────────────────────────────
-def d3_the_partition_is_degenerate(priced: pd.DataFrame) -> None:
+# ── §D4 ─────────────────────────────────────────────────────────────────────
+def d4_the_partition_is_degenerate(priced: pd.DataFrame) -> None:
     rule("D3. 'At-risk vs not-at-risk' is one series twice, and so is the Legacy pair")
 
     from cotdata import vintage_ingest as vi
@@ -221,7 +221,7 @@ def d3_the_partition_is_degenerate(priced: pd.DataFrame) -> None:
           f"{idx.T_sell_idx.corr(idx.T_buy_idx):.4f}  not mirrors, and both can be high")
 
 
-# ── §D4 and §D5 ─────────────────────────────────────────────────────────────
+# ── §D5 and §D6 ─────────────────────────────────────────────────────────────
 def _with_d2(scored: pd.DataFrame) -> pd.DataFrame:
     """Add `D2 = C x I` beside the shipped `D3 = C x I x Phi`, both percentile-ised."""
     s = scored.sort_values(["report_date", "market_code"]).copy()
@@ -237,7 +237,7 @@ def _with_d2(scored: pd.DataFrame) -> pd.DataFrame:
     return s
 
 
-def d4_phi_is_not_inert(scored: pd.DataFrame) -> None:
+def d5_phi_is_not_inert(scored: pd.DataFrame) -> None:
     rule("D4. Does Phi do any work? (the test was run expecting 'no')")
 
     s = _with_d2(scored)
@@ -274,7 +274,7 @@ def d4_phi_is_not_inert(scored: pd.DataFrame) -> None:
     print("there is no outcome to score against, and the section 10 validation is spent.")
 
 
-def d5_phi_is_not_monotone(scored: pd.DataFrame) -> None:
+def d6_phi_is_not_monotone(scored: pd.DataFrame) -> None:
     rule("D5. Phi's effect on D_pct is not monotone, so it cannot be described in words")
 
     s = _with_d2(scored)
@@ -294,8 +294,8 @@ def d5_phi_is_not_monotone(scored: pd.DataFrame) -> None:
           f"on T_sell {t.loc['YM DJIA', 'dtl_sell']:.2f} days.")
 
 
-# ── §D6 ─────────────────────────────────────────────────────────────────────
-def d6_legacy_and_tff_share_two_things() -> None:
+# ── §D7 ─────────────────────────────────────────────────────────────────────
+def d7_legacy_and_tff_share_two_things() -> None:
     rule("D6. Legacy and TFF agree on open interest and non-reportables, and nothing else")
 
     from cotdata import vintage_ingest as vi
@@ -377,8 +377,8 @@ def d6_legacy_and_tff_share_two_things() -> None:
               f"{len(x):,} market-weeks; median residual {x.resid.median():,.0f}")
 
 
-# ── §D7 ─────────────────────────────────────────────────────────────────────
-def d7_sterling_sign_conflict(priced: pd.DataFrame) -> None:
+# ── §D8 ─────────────────────────────────────────────────────────────────────
+def d8_sterling_sign_conflict(priced: pd.DataFrame) -> None:
     rule("D7. Sterling: the levered book and Legacy non-commercial point opposite ways")
 
     from cotdata import vintage_ingest as vi
@@ -415,9 +415,9 @@ def d7_sterling_sign_conflict(priced: pd.DataFrame) -> None:
     print("sign contradiction is unaffected; the supporting T figure needs the caveat.")
 
 
-# ── §D8 ─────────────────────────────────────────────────────────────────────
-def d8_offside_is_beside_not_inside() -> None:
-    """§D8: the trigger distance, why it is not a fourth factor, and the identity."""
+# ── §D9 ─────────────────────────────────────────────────────────────────────
+def d9_offside_is_beside_not_inside() -> None:
+    """§D9: the trigger distance, why it is not a fourth factor, and the identity."""
     import cotdata
 
     from crowdmon.futures import add_trigger_distance, trigger_prices
@@ -483,13 +483,13 @@ def d8_offside_is_beside_not_inside() -> None:
     print("\nCLOSE and SEVERE:")
     print(hot.assign(market_name=hot.market_name.str.slice(0, 24)).to_string(
         index=False, float_format=lambda x: f"{x:,.3f}"))
-    print("\nDJIA is in that cell on a T_sell of 0.27 days, so §D1's level floor still")
+    print("\nDJIA is in that cell on a T_sell of 0.27 days, so §D2's level floor still")
     print("binds: the quadrant ranks, the level gates.")
 
 
-# ── §D9 ─────────────────────────────────────────────────────────────────────
-def d9_pool_versus_signal() -> None:
-    """§D9: does the OBSERVED pool sit on the side the price signal implies?"""
+# ── §D10 ────────────────────────────────────────────────────────────────────
+def d10_pool_versus_signal() -> None:
+    """§D10: does the OBSERVED pool sit on the side the price signal implies?"""
     from crowdmon.futures import trigger_prices
 
     rule("D9. The trigger side is signal-implied; the pool is observed. Do they agree?")
@@ -546,15 +546,15 @@ def main() -> None:
     priced = pd.concat([_priced(rt) for rt in REPORTS], ignore_index=True)
     scored = pd.concat([_scored(rt) for rt in REPORTS], ignore_index=True)
 
-    d1_t_ranking_is_structural(priced)
-    d2_the_ratio_is_t_over_t(priced)
-    d3_the_partition_is_degenerate(priced)
-    d4_phi_is_not_inert(scored)
-    d5_phi_is_not_monotone(scored)
-    d6_legacy_and_tff_share_two_things()
-    d7_sterling_sign_conflict(priced)
-    d8_offside_is_beside_not_inside()
-    d9_pool_versus_signal()
+    d2_t_ranking_is_structural(priced)
+    d3_the_ratio_is_t_over_t(priced)
+    d4_the_partition_is_degenerate(priced)
+    d5_phi_is_not_inert(scored)
+    d6_phi_is_not_monotone(scored)
+    d7_legacy_and_tff_share_two_things()
+    d8_sterling_sign_conflict(priced)
+    d9_offside_is_beside_not_inside()
+    d10_pool_versus_signal()
 
 
 if __name__ == "__main__":

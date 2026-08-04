@@ -255,9 +255,13 @@ Three refusals worth knowing before reading any output:
 
 ### Reading `D` on live output
 
-Four things, and none of them is discoverable from the number itself. They were measured
-separately and are gathered here because together they are the reading instructions. The
-third carries a qualifier (`3b`) that arrived later and narrows it rather than adding a fifth.
+**Four numbered instructions over five findings, and the denominator is the five.** None of
+them is discoverable from the number itself. They were measured separately and are gathered
+here because together they are the reading instructions. The third carries a qualifier
+(`3b`) that arrived later and narrows it rather than adding a fifth *instruction*; it cites a
+finding of its own, so the ledger the brief prints is over five. This section said "four" at
+the top and "five" at the bottom for a day, both defensible and together a contradiction a
+reader meets before reaching either number (`2026-08-03 §C30`).
 
 **1. `D` falls during an unwind, and that is correct.** It describes a pre-condition, and both
 the position and the forceable holders it describes leave while the event happens. Across
@@ -294,6 +298,42 @@ and hogs near 0.07 (their own door) against the wheats above 1.0 (the same door 
 **Read `commonality_betas` beside `D`, not inside it.** A high `D` in a market with
 `beta` near 1.0 is worse than the same `D` at 0.07, and nothing in the composite says so.
 (`2026-08-02 §B2`)
+
+**These five are the denominator, and `futures/brief.py` carries three of them.** The list
+above is duplicated into `brief.READING_INSTRUCTIONS`, and
+[`tests/test_reading_instructions.py`](tests/test_reading_instructions.py) is what keeps the
+copy honest: add a sixth instruction here and it fails, because a caveat this section states
+and the brief omits is omitted **silently** and the brief still reads as complete
+(`2026-08-03 §C30`). The list is prose here and code there, so a market-week can travel with
+a ledger over it instead of a reader having to hold this page: `§A17` via `ΔD` beside the
+flow state, `§B2` via `add_commonality`, and `§C3` via `stratum.classify`, which turns
+`§C8`'s band rule into a value rather than prose beside code that could check it.
+
+**The remaining two are not properties of a market-week at all**, and both were shown so by
+measurement rather than left unbuilt: `§A21` is identical on every row, and `§A22` is a
+property of a pooled ranking under a weight sweep. The brief **names** them in its own output
+rather than omitting them, which is the pre-registered condition it ships under, and its
+footer says the assembly is convenience with one genuine gap closed rather than a safety
+guarantee.
+
+```python
+from crowdmon.futures import (add_score_state, add_unwind_state, classify,
+                              coverage_ladder, decompose)
+from crowdmon.futures.brief import format_brief, market_brief
+
+scored = classify(add_unwind_state(add_score_state(scored), decompose(panel)))
+print(format_brief(market_brief(scored, "057642",
+                                ladder=coverage_ladder(per_category, scored))))
+```
+
+Only `stratum` and `score_state` come for free; `beta` needs `add_commonality`, which the
+composite chain never calls (`2026-08-02 §B2`), so a brief assembled without it declares the
+gap rather than passing over it.
+
+`add_score_state` is the one caveat no other output stated (`2026-08-03 §C20`, `§C24`): a
+third of market-weeks carry no `D`, for two causes that mean opposite things, and both
+rendered as the same blank cell. Detail in `2026-08-03 §C25-§C27`, reproducer
+[`docs/analysis/reproduce_brief.py`](docs/analysis/reproduce_brief.py).
 
 ### First results
 

@@ -1,7 +1,11 @@
 # Handoff: step 7's report layer, and whether a `D` can carry its own caveats
 
-**Status:** **§2 complete (PR #55), gate PASSES at `R=4, E=1`. §3 open and unclaimed.
-§4 will not run before 2026-12-29.** Outcome as §9, findings `2026-08-03 §C20-§C24`
+**Status:** **complete, all three tasks and §5's adjudication. §2 (PR #55) gate PASSES at
+`R=4, E=1`; §3 shipped (PR #56) under §5's escape clause; §4 shipped (PR #59), which corrects
+§9's "do not build" and takes the brief to three of five reading instructions carried; §5's
+negatives answered (PR #60), where **#3 was true and undischarged** and the enumeration the
+escape clause is stated over turned out to be an unchecked copy of `README.md`.** Outcomes as
+§9, §10, §11 and §12, findings `2026-08-03 §C20-§C27`, `§C29` and `§C30`
 **Date:** 2026-08-03
 **Drafted against:** `075ad26916dcef41c5e0efcd7cf75671c395048a` (`main`, merge of PR #46)
 **Lives at:** `crowdmon/docs/handoffs/2026-08-03-report-layer.md`
@@ -506,3 +510,219 @@ completeness.
 
 **§2 complete. §3 open and unclaimed. §4 will not run before 2026-12-29.** This handoff stays
 `open` on that basis, and the next session takes §3 rather than re-running the gate.
+
+---
+
+## 10. Outcome, appended 2026-08-03: §3 executed, the brief ships under §5's escape clause
+
+**§3 is done. §4 remains dead** for `§C23`'s reason and is not re-examined here.
+
+Claimed and executed in the same session, which is normal practice for a build handoff here
+and is not the case the cold-session rule covers. The claim is this section: nothing else was
+in flight on the report layer when it started, and `docs/handoffs/README.md` carried §3 as
+open and unclaimed since PR #55.
+
+Findings: `2026-08-03 §C25` through `§C27`. Reproducer:
+[`../analysis/reproduce_brief.py`](../analysis/reproduce_brief.py). Pinned live in
+[`../../tests/test_brief_live.py`](../../tests/test_brief_live.py).
+
+### The misreading check, which is the deliverable
+
+§3 required the enumeration *before* building, so the denominator could not be chosen to fit
+the result. It is `README.md`'s five reading instructions, and it is now
+`brief.READING_INSTRUCTIONS` rather than prose, so the check runs on every render.
+
+**The brief prevents one of the five, two after one extra call, and names the rest.** It does
+not clear the "prevents every misreading" bar, so it ships under the second clause of §5's
+pre-registered rule: it **names in its own output** the ones it does not carry, on every
+render, with a path and a reproducer for each.
+
+**Three of the five cannot be carried per row at all**, and that is the substantive finding
+rather than a shortfall (`§C25`). `§A21` is computable on every row and identical on every
+row. `§A22` is a property of a pooled ranking under a sweep of whole weight tables. `§C3` is
+a property of a population. None is an effort problem and none becomes carryable with more
+work on the artifact.
+
+### What was built, and what was deliberately not
+
+| where | what | why there |
+|---|---|---|
+| `futures/composite.py` | `add_score_state`, `add_unwind_state` | `composite` owns `D`. §6: a derivation in the rendering is how the next engine gets built by accident |
+| `futures/brief.py` | `market_brief`, `format_brief`, `caveat_ledger`, `READING_INSTRUCTIONS` | pure selection and rendering. It computes nothing |
+
+Both derivations are on §6's allowed list as written: a classification of existing rows, and
+a first difference of a series a shipped module returns. No new formula, estimator,
+threshold or configured constant was added, and `core/config.py` is untouched.
+
+`add_score_state` is the `E = 1` gap `§C24` identified and the only thing here that closes a
+caveat no other output states. `add_unwind_state` is the §A17 carrier §2 said to test rather
+than assign; §9 above required it to render `indeterminate` out loud, and it does.
+
+### Three things §9 did not anticipate
+
+**`indeterminate` has two causes, not one** (`§C27`). `§C21` measured the flow state carrying
+nothing on 59.8% of falling weeks. It did not separate the other way a marker goes silent: no
+prior scored week, so there is no `ΔD` at all. That is 8,856 rows against 5,118, so the
+**larger** cause was the unmeasured one. Both render as `indeterminate` with different
+reasons, because collapsing them would be the `warmup`/`no_crowding` error one level down.
+
+**The `§B2` carrier is one call away and the chain does not make it** (`§C25`). `beta`
+attaches on 100% of rows, and `add_commonality` is not part of the composite chain and never
+will be (`2026-08-02 §B2`). So the obvious assembly carries **one** of five, and the ledger's
+declaration is the only thing that says the fifth is missing rather than inapplicable.
+
+**A third of all possible briefs have no number** (`§C26`). 8,831 of 27,194 market-weeks
+carry no `damage_sell_pct`, and every one of them previously rendered as a blank cell beside
+three populated factor columns. That is the degenerate input §2 listed first, and it is the
+common case rather than an edge.
+
+### On negative #2, which also applies
+
+§5's negative #2 says a brief that adds nothing the modules do not already give should ship
+labelled as convenience rather than as safety. With `E = 1` and one carried caveat of five,
+that label is earned, and `format_brief` prints it in its own footer rather than leaving it
+in this handoff. There is deliberately no flag to suppress the ledger.
+
+### Status
+
+**§2 complete. §3 complete. §4 will not run before 2026-12-29.** Nothing in this handoff is
+open.
+
+---
+
+## 11. Outcome, appended 2026-08-03: §4 executed after all, and §9's reason was half right
+
+**§4 is done.** This section corrects §9 of this same file, which said "Do not build §4.
+Re-check after that date." The measurement §9 rested on stands; the conclusion did not follow
+from it.
+
+Findings: `2026-08-03 §C29`. Reproducer:
+[`../analysis/reproduce_stratum.py`](../analysis/reproduce_stratum.py). Pinned live in
+[`../../tests/test_stratum_live.py`](../../tests/test_stratum_live.py).
+
+### Why it ran despite §9
+
+§4's own gate is "only if §3 ships and §2 found the stratum to be row-computable". Both are
+true: §3 shipped, and `§C23` found `venue` parses on 100% of rows. §9's "do not build" was a
+judgement about value, not a pre-registered stop, and the distinction matters because this
+directory treats pre-registered thresholds as binding and session judgement as revisable.
+
+### The step that did not hold
+
+`§C23` established that no panel today carries both a `pct(D)` and a market on the
+band-required side, so **nobody has to publish a `w_SD` band**. That is still true and
+unchanged. What does not follow is that the classification is therefore worthless. Two
+different readers:
+
+- the *obligation* addresses whoever publishes a band, and has no audience today
+- the *classification* answers what a reader holding one `D` actually asks, **does the band
+  bind on this market?**, and `no, this is a classic outright` is information rather than an
+  absence
+
+`§C22` had drawn exactly that distinction one section earlier and it was not applied. A
+constant `outright` on today's scoreable panel is constant because the caveat **bites
+nowhere on it**, not because the value says nothing, and it flips the week a certificate
+market becomes scoreable. `§A21`'s constant is the other kind and stays un-carryable.
+
+### What shipped
+
+`futures/stratum.py`: `classify`, `stratum_summary`, `differential_matches`, `format_strata`,
+`venue`, and `BAND_ADVICE` as `§C8`'s rule in value form. `brief.py` consults it, so the
+`§C3` entry in the ledger moves from **named** to **carried**, and the brief now carries
+three of the five reading instructions rather than one.
+
+Three of §4's own conditions, met explicitly:
+
+- **No hardcoded count.** §4 says a classifier carrying one is wrong on arrival, because the
+  covered universe is report-week dependent and spans two report types (`§C12`).
+  `stratum_summary` derives the split from whatever frame it is handed and prints it.
+- **Three populations, not two.** A venue split alone puts the seven differentials on the
+  outright side (`§C14`), and a differential is not a small outright: the ladder computes a
+  position value and a spread does not have one.
+- **The promotion is verified, not asserted.** The moved classifier reproduces `§C13` and
+  `§C14` exactly, to the individual code, which is the only thing that makes moving logic out
+  of an analysis script safe.
+
+### What is still not true
+
+**The obligation remains vacuous** and this changes nothing about that.
+`test_the_band_obligation_has_the_markets_on_one_panel_and_the_percentile_on_the_other`
+fails on purpose the week the vintage panel reaches `min_periods`, which is the announcement
+that it has stopped being vacuous. That is the re-check §9 asked for, now automatic rather
+than dependent on someone remembering a date.
+
+### Status
+
+**§2, §3 and §4 all complete.** Nothing in this handoff is open.
+
+---
+
+## 12. Outcome, appended 2026-08-03: §5 adjudicated, and negative #3 was true and open
+
+**§5 is the pre-registered enumeration of negative outcomes, and it was never answered as a
+whole.** §10 discharged negative #4 (the brief ships under the escape clause) and negative #2
+(the assembly is labelled convenience). §9 disposed of #1 by measurement without naming it.
+**Negative #3 was not adjudicated, and it is true.**
+
+Findings: `2026-08-03 §C30`. Reproducer:
+[`../analysis/reproduce_negatives.py`](../analysis/reproduce_negatives.py), which needs no
+store. Pinned by
+[`../../tests/test_reading_instructions.py`](../../tests/test_reading_instructions.py).
+
+### What §5 got structurally right, and one thing it got wrong
+
+Right: naming the negatives in advance is what made this findable at all. #3 says the caveats
+may not be carryable without going stale anyway, "because every candidate mechanism turns out
+to require a hand-maintained string somewhere", and that this is a real finding about the
+class of artifact rather than a shortfall. That is exactly what the brief turned out to rest
+on, and no one would have gone looking for it from the shipped code.
+
+Wrong: **§5 reads as a five-way choice** ("which of the five outcomes is true") and the
+artifact landed on **three of them at once**. Each has its own remedy so nothing misrouted,
+but a session that stops at the first match stops early, and this handoff nearly did: #4 in
+the outcome section, #2 in a subsection under it, #3 nowhere.
+
+### The finding
+
+The brief's ship condition is "carry every misreading on the enumerated list, or name the
+ones you do not". That condition is exactly as good as the enumeration, and the enumeration is
+a **hand-maintained copy of `README.md`'s prose** with nothing checking it. Add a sixth
+reading instruction to README and the brief neither carries it nor names it, and goes on
+printing a five-entry ledger that reads as complete. **That is negative #4 arriving one
+document away from where anyone was watching**, and it fails by staying quiet.
+
+Three copies, counted rather than asserted: `READING_INSTRUCTIONS` (5, from README's prose),
+`SCORE_STATE_NOTES` (5, from `composite.SCORE_STATES`) and `UNWIND_NOTES` (4, from
+`composite.UNWIND_STATES`), plus 5 document paths and 7 reproducer functions cited inside the
+artifact. All 12 citations resolve today. None was checked before this.
+
+**The drift had already begun**, in the one respect nothing was checking: README orders the
+five `§A17, §A21, §A22, §C3, §B2` and the ledger ordered them by date of finding. Harmless,
+and that is the point, because nothing distinguishes a harmless divergence from a dropped
+entry except a diff. `README.md` had drifted from itself as well, saying "Four things" in the
+preamble and "These five are the denominator" in the closing paragraph.
+
+### What shipped
+
+`tests/test_reading_instructions.py`, which resolves the enumeration against `README.md` on
+every run. The pointer fix that worked for `crowdmon_futures_cot_module.md` is not available
+here (a `Caveat` carries a carrier column and a status function, so it is code), so the copy
+is made to fail loudly instead. Four failure modes, each **verified to fire by mutation**
+rather than assumed: a dropped caveat, a declared count that disagrees, a renamed reproducer
+or missing document, and a carrier column with no status function. The parser is guarded too,
+because a regex that stops matching passes every assertion above it.
+
+`README.md`'s section now states the four-instructions-over-five-findings reconciliation and
+names the test that couples it to the code. `brief.py`'s comment states the ordering rule it
+actually follows rather than the one it claimed.
+
+### What this does not change
+
+`E = 1` is unchanged, no caveat moved from `not_carried` to `carried`, and the brief still
+prevents one misreading of five by itself. What changes is that the **denominator** can no
+longer move without saying so, which is the only thing that made the escape clause worth
+anything.
+
+### Status
+
+**§2, §3, §4 and §5 all complete. Nothing in this handoff is open.**

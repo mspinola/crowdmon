@@ -32,8 +32,8 @@ not about next week's return. Positioning extremes persist for quarters.
 | [`crowdmon_futures_cot_module.md`](docs/design/crowdmon_futures_cot_module.md) — the primary spec, §13 build order | here |
 | [`amendments-2026-08-01.md`](docs/design/amendments-2026-08-01.md) — A1-A22, **closed** | here |
 | [`amendments-2026-08-02.md`](docs/design/amendments-2026-08-02.md) — B1-B37, commonality through the template follow-ups and §A.2's real worked example. **Closed** | here |
-| [`amendments-2026-08-03.md`](docs/design/amendments-2026-08-03.md) — C1-C24, template classification stability and the `w_SD` sweep. **Closed** | here |
-| [`amendments-2026-08-04.md`](docs/design/amendments-2026-08-04.md) — D1 onward, what single number the package delivers. **The open file** | here |
+| [`amendments-2026-08-03.md`](docs/design/amendments-2026-08-03.md) — C1-C30, template classification stability, the `w_SD` sweep, the report-layer gate, the brief and the stratum. **Closed** | here |
+| [`amendments-2026-08-04.md`](docs/design/amendments-2026-08-04.md) — D1 the Norgate vendor-coverage answer, D2-D10 what single number the package delivers. **The open file** | here |
 | `crowdmon_step2_normalisation.md` — layer 2, **accepted and shipped**. History, not instructions | `../cotdata/docs/design/` |
 | `cot_vintage.md` — the vintage store this reads | `../cotdata/docs/design/` |
 
@@ -86,6 +86,17 @@ paragraph said it did.
 > a silent-regression window that closes only when someone diffs the copies**, and the only
 > reason anyone diffed these was an unrelated cleanup task. If a document must appear in two
 > repos, one of them is a pointer from the first commit, not eventually.
+>
+> **The second instance is a document copied into CODE, where the pointer fix is not
+> available** (`2026-08-03 §C30`). `README.md`'s five reading instructions for `D` are
+> duplicated as `futures/brief.py`'s `READING_INSTRUCTIONS`, and they cannot be a pointer
+> because each entry carries a carrier column and a status function. Nothing diffed them for
+> a day, and the copy had already drifted from its stated order. The remedy for a copy that
+> must stay a copy is to make it **fail loudly**:
+> [`tests/test_reading_instructions.py`](tests/test_reading_instructions.py) resolves the
+> enumeration against README on every run. This matters more than it sounds: the brief ships
+> under a pre-registered rule stated over that enumeration, so an unchecked denominator makes
+> the rule unenforceable while it still reads as satisfied.
 
 ## Doc lifecycle — four directories, four different rules
 
@@ -197,7 +208,9 @@ src/crowdmon/
     volume.py               A.5 denominator: whole-market ADV + stress V. Refuses anything
                             but "front", because `reconstructed` is not whole-market
     pressure.py             A.5 exit capacity. T = Q/(kappa V) is a real duration now
-    composite.py            A.9 D = C x I x Phi. The whole system in one number
+    composite.py            A.9 D = C x I x Phi. The whole system in one number, plus the
+                            two per-row caveat carriers: `add_score_state` (why a null D is
+                            null) and `add_unwind_state` (A17, and it says `indeterminate`)
     reflexivity.py          A.8 cascade. g is a STAIRCASE, and up/down never merge
     macro_pca.py            §7 cross-market. PC1 is the SUBJECT, and differs by report type
     clustering.py           §369 correlation clusters, not sector labels. Finds the yen carry
@@ -205,7 +218,11 @@ src/crowdmon/
     roll.py                 roll-window volume, NOT §379: all three of its parts are blocked
     coverage.py             which markets can be scored at all, and at which rung they die
     continuity.py           a market code is not an instrument. Migrations, keyed on the code
+    stratum.py              outright / certificate / differential, so C8's band rule is a
+                            value a consumer reads. Classifies, never gates
     report.py               the COT-specific half of the report layer. Knows categories
+    brief.py                one market-week, assembled. Computes NOTHING, and NAMES the
+                            reading instructions it cannot carry rather than omitting them
 ```
 
 `riskunits.py` sits **here beside `notional.py`, not in `core/`**: it needs `propadj` where
@@ -316,14 +333,14 @@ COTDATA_STORE=/tmp/crowdmon_test .venv/bin/python -m pytest tests/ -q -rs
 .venv/bin/python -m ruff check src tests bin
 ```
 
-**That fixture run skips 67 assertions, and they are the valuable ones.** Every
+**That fixture run skips 75 assertions, and they are the valuable ones.** Every
 `tests/*_live.py` needs the real store, so CI has never executed the layer-2 trap-table
 figures, the appendix's live-cattle arithmetic (`test_appendix_live.py`, `2026-08-02 §B37`),
 the volume and trigger measurements, or
 `2026-08-03 §C1-C8` (`test_supplemental_live.py`, the most exposed of the set: three of its
 assertions read `cot_supplemental`, a domain one release old). From the
-**main checkout**, against `~/code/cotdata_store`, the same suite is **555 passed / 5
-skipped** rather than **488 / 72**.
+**main checkout**, against `~/code/cotdata_store`, the same suite is **613 passed / 5
+skipped** rather than **538 / 80**.
 
 **These four numbers are measured, so re-measure them rather than adjusting them by hand.**
 Any PR that adds or removes a `tests/*_live.py` assertion moves all four, and two PRs in
@@ -338,14 +355,17 @@ second re-runs both commands and updates this paragraph, `bin/check_skips.py`'s 
 > test moves all four as surely as a live one does, and the paragraph above named only
 > `tests/*_live.py`; it is the total that is quoted, so any added test counts.
 >
-> Moved three times on **2026-08-04**, +5 then +8 then +3, by the fixture tests
-> `test_composite.py` and `test_trigger.py` add for `damage_block` /
-> `format_damage_block`, then for the offside term, then for the two defects `§D9`
-> records. The **67** live-only assertions are unchanged through both, because none of the
-> sixteen needs the store: that count is the difference between the two skip figures
-> (72 - 5), not the total, so a fixture test moves the four totals and leaves it alone.
+> Moved three times on **2026-08-04** by `§D2-§D10`'s branch, +5 then +8 then +3, for
+> `damage_block` / `format_damage_block`, the offside term, and the two defects `§D10`
+> records. Those sixteen are all fixture tests, so the live-only count was unmoved by them;
+> it is **75** rather than 67 because `§D1`'s branch added live assertions in parallel.
+> **That is the collision this paragraph warns about, and it happened again**: both
+> branches re-measured from a base that did not include the other, and the figures above
+> are a third measurement taken after the merge rather than either branch's arithmetic.
+> The live-only count is the difference between the two skip figures (80 - 5), never a
+> total, so a fixture test moves the four totals and leaves it alone.
 
-> **From a worktree those two figures are 553 / 7 and 486 / 74**, because `test_boundaries`
+> **From a worktree those two figures are 611 / 7 and 536 / 82**, because `test_boundaries`
 > resolves `../cotdata` and `../marketdata` relative to the test file and finds neither,
 > so the two producer-direction checks skip. Quote the main-checkout numbers: a worktree
 > reports two fewer passes and has one real seam unguarded. This note exists because an
@@ -359,7 +379,7 @@ subscription and this repo is public, and the vintage store accumulates forward 
 2026-07-31 so no download reconstructs it. The split is therefore permanent:
 
 ```bash
-bin/live-tests.sh          # the 67, against the real store. Scheduled 09:15 daily
+bin/live-tests.sh          # the 75, against the real store. Scheduled 09:15 daily
 ```
 
 `--profile live` is the load-bearing part. A run whose store is missing or unsynced would
