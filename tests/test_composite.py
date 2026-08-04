@@ -9,7 +9,16 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from crowdmon.futures import add_composite, damage_report, top_damage
+from crowdmon.futures import (
+    FLOW_STATES,
+    SCORE_STATES,
+    UNWIND_STATES,
+    add_composite,
+    add_score_state,
+    add_unwind_state,
+    damage_report,
+    top_damage,
+)
 from crowdmon.futures.composite import CompositeError
 
 WEEKS = 260  # five years, enough for a three-year window plus warm-up
@@ -208,3 +217,130 @@ def test_top_damage_shows_every_factor_beside_the_score():
         assert column in top.columns
     with pytest.raises(CompositeError, match="'sell' or 'buy'"):
         top_damage(out, side="both")
+
+
+# ── The two per-row caveat carriers, `2026-08-03 §C20` and `§C21` ───────────
+def test_score_state_separates_the_two_null_causes_with_no_exceptions():
+    """`§C20`'s rule: all three terms present AND the percentile null means warm-up.
+
+    The two causes mean opposite things. A young series will score later; a market missing
+    a factor may never, and `coverage.drops_at` names the rung. Rendered identically they
+    read the same, which is the first degenerate input the report-layer handoff lists.
+    """
+    fragility, extremity = _frames()
+    out = add_score_state(add_composite(fragility, extremity, min_periods=52))
+
+    assert set(out["score_state_sell"]) <= set(SCORE_STATES)
+    scored = out["damage_sell_pct"].notna()
+    assert (out.loc[scored, "score_state_sell"] == "scored").all()
+    assert not (out.loc[~scored, "score_state_sell"] == "scored").any()
+
+    warm = out["score_state_sell"] == "warmup"
+    assert warm.any(), "260 weeks against a 52-week min_periods must warm up somewhere"
+    terms = ["crowding_long", "illiquidity_sell", "fragility"]
+    assert out.loc[warm, terms].notna().all().all(), (
+        "a warm-up row has every factor and only lacks history; a row missing a factor is a "
+        "different state and must not be labelled warm-up")
+
+
+def test_a_null_percentile_with_no_missing_term_and_no_warm_up_is_refused():
+    """The invariant that makes the state trustworthy: every null carries a reason."""
+    fragility, extremity = _frames()
+    out = add_composite(fragility, extremity, min_periods=52)
+    # `damage_sell` is the product of three factors, so it is null iff a factor is. Break
+    # that and the state column would have to guess, which is what it exists not to do.
+    out.loc[out["damage_sell_pct"].isna(), "damage_sell"] = pd.NA
+    with pytest.raises(CompositeError, match="stopped propagating null"):
+        add_score_state(out, sides=("sell",))
+
+
+def test_score_state_names_the_first_missing_factor():
+    """`SCORE_TERMS` order decides a row missing more than one, and crowding comes first.
+
+    Early weeks are missing crowding anyway (`pct(z)` stacks two windows), so the label
+    there is `no_crowding` even once illiquidity is knocked out too. That is the documented
+    behaviour and not a tie-break to be surprised by later: the frame still carries all
+    three columns for a reader who wants the rest.
+    """
+    fragility, extremity = _frames()
+    out = add_composite(fragility, extremity, min_periods=52)
+    for column in ("illiquidity_sell", "damage_sell", "damage_sell_pct"):
+        out[column] = np.nan
+    state = add_score_state(out, sides=("sell",))["score_state_sell"]
+
+    has_crowding = out["crowding_long"].notna()
+    assert has_crowding.any() and (~has_crowding).any()
+    assert (state[has_crowding] == "no_illiquidity").all()
+    assert (state[~has_crowding] == "no_crowding").all()
+
+
+def test_every_flow_state_is_either_decisive_or_silent():
+    """A state added to `flow.py` must be classified here, not land in a bucket by luck."""
+    from crowdmon.futures.composite import DECISIVE_FLOW_STATES, SILENT_FLOW_STATES
+
+    assert DECISIVE_FLOW_STATES | SILENT_FLOW_STATES == set(FLOW_STATES)
+    assert not DECISIVE_FLOW_STATES & SILENT_FLOW_STATES
+
+
+def test_unwind_state_speaks_on_liquidation_and_says_indeterminate_on_mixed():
+    """`§C21`: right at the extremes, silent on 3 falling weeks in 5, and it says so."""
+    fragility, extremity = _frames()
+    scored = add_composite(fragility, extremity, min_periods=52)
+
+    for state, expected in (("long_liquidation", "mid_exit"),
+                            ("new_longs", "falling_not_exit"),
+                            ("mixed", "indeterminate"),
+                            ("quiet", "indeterminate"),
+                            ("gap", "indeterminate")):
+        out = add_unwind_state(scored, _flow_frame(scored, state))
+        falling = out["d_damage_sell_pct"] < 0
+        assert falling.any(), f"no falling week to classify under {state}"
+        assert (out.loc[falling, "unwind_state_sell"] == expected).all()
+        rising = out["d_damage_sell_pct"] >= 0
+        assert (out.loc[rising, "unwind_state_sell"] == "not_falling").all()
+        assert set(out["unwind_state_sell"]) <= set(UNWIND_STATES)
+
+
+def test_the_buy_side_reads_short_covering_rather_than_long_liquidation():
+    """`damage_buy` is a crowded SHORT forced to buy, so its exit is the shorts covering."""
+    fragility, extremity = _frames()
+    scored = add_composite(fragility, extremity, min_periods=52)
+
+    covering = add_unwind_state(scored, _flow_frame(scored, "short_covering"), side="buy")
+    falling = covering["d_damage_buy_pct"] < 0
+    assert falling.any()
+    assert (covering.loc[falling, "unwind_state_buy"] == "mid_exit").all()
+
+    liquidation = add_unwind_state(scored, _flow_frame(scored, "long_liquidation"),
+                                   side="buy")
+    assert (liquidation.loc[falling, "unwind_state_buy"] == "falling_not_exit").all()
+
+
+def test_the_difference_never_crosses_a_market_boundary():
+    """`ΔD` is per market. A diff taken across a concatenated frame invents a change."""
+    fragility, extremity = _frames()
+    other_f = fragility.assign(market_code="TEST02")
+    other_e = extremity.assign(market_code="TEST02")
+    scored = add_composite(pd.concat([fragility, other_f], ignore_index=True),
+                           pd.concat([extremity, other_e], ignore_index=True),
+                           min_periods=52)
+    out = add_unwind_state(scored, _flow_frame(scored, "mixed"))
+
+    first = out.sort_values("report_date").groupby("market_code").head(1)
+    assert first["d_damage_sell_pct"].isna().all(), (
+        "each market's first week has no predecessor of its own")
+
+
+def test_a_flows_frame_with_two_rows_per_market_week_is_refused():
+    fragility, extremity = _frames()
+    scored = add_composite(fragility, extremity, min_periods=52)
+    flows = _flow_frame(scored, "mixed")
+    with pytest.raises(CompositeError, match="more than one"):
+        add_unwind_state(scored, pd.concat([flows, flows], ignore_index=True))
+
+
+def _flow_frame(scored: pd.DataFrame, state: str) -> pd.DataFrame:
+    return pd.DataFrame({
+        "report_date": scored["report_date"], "market_code": scored["market_code"],
+        "category": "managed_money", "flow_state": state,
+    })

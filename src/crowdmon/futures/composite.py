@@ -114,6 +114,7 @@ from ..core.aggregate import (
     rolling_percentile,
     standardise,
 )
+from .flow import FLOW_STATES, GAP, LONG_LIQUIDATION, MIXED, QUIET, SHORT_COVERING
 
 #: One row per market-week: `Phi` and `T` are market properties.
 MARKET_KEY = ["report_date", "market_code", "report_type", "combined"]
@@ -128,6 +129,40 @@ CROWDING_CATEGORY = {"disaggregated": "managed_money", "tff": "leveraged"}
 COMPOSITE_COLUMNS = ["crowding_long", "crowding_short", "illiquidity_sell",
                      "illiquidity_buy", "phi", "phi_pct", "fragility",
                      "damage_sell", "damage_buy", "damage_sell_pct", "damage_buy_pct"]
+
+#: Why a `damage_*_pct` cell is not a number, when it is not one. `warmup` and the three
+#: `no_*` states are the two unrelated causes `2026-08-03 §C20` separates, and they mean
+#: opposite things to a reader: a young series that will score later, against a market that
+#: is missing a term and may never.
+SCORE_STATES = ("scored", "warmup", "no_crowding", "no_illiquidity", "no_fragility")
+
+#: The term behind each `no_*` state, in the order a tie is resolved. Order matters only
+#: when more than one is absent at once; the label names the first, and the frame still
+#: carries all three columns for a reader who wants the rest.
+SCORE_TERMS = (("crowding", "no_crowding"), ("illiquidity", "no_illiquidity"),
+               ("fragility", "no_fragility"))
+
+#: What a falling `D` means, per `2026-08-01 §A17`, once the flow state is beside it.
+UNWIND_STATES = ("not_falling", "mid_exit", "falling_not_exit", "indeterminate")
+
+#: The flow state that IS the crowded holder leaving, per side. `damage_sell` is a crowded
+#: LONG forced to sell, so its exit shows up as `long_liquidation`; `damage_buy` is a
+#: crowded short forced to buy, which is `short_covering`.
+EXIT_FLOW_STATE = {"sell": LONG_LIQUIDATION, "buy": SHORT_COVERING}
+
+#: Flow states that carry nothing about whether a fall is an exit, so a marker resting on
+#: them must say `indeterminate` out loud rather than go blank.
+#:
+#: `gap` and `quiet` are `flow.py`'s own two honest refusals. `mixed` is a real flow state
+#: and is here on measurement rather than by definition: `2026-08-03 §C21` puts it at 58.2%
+#: of falling-`D` weeks with a median `ΔD` of exactly 0.0000 and a 46.6% falling share,
+#: which is a coin flip. Reproducer
+#: `docs/analysis/reproduce_report_gate.py::c21_a17_is_partial`.
+SILENT_FLOW_STATES = frozenset({MIXED, QUIET, GAP})
+
+#: Every state left over answers the question. Derived rather than listed, so a new state
+#: added to `flow.py` has to be classified here instead of landing in one bucket by luck.
+DECISIVE_FLOW_STATES = frozenset(FLOW_STATES) - SILENT_FLOW_STATES
 
 
 class CompositeError(ValueError):
@@ -203,6 +238,130 @@ def add_composite(fragility: pd.DataFrame, extremity: pd.DataFrame, *,
     return out
 
 
+def add_score_state(scored: pd.DataFrame, *,
+                    sides: tuple[str, ...] = ("sell", "buy")) -> pd.DataFrame:
+    """Name why each `damage_*_pct` cell is null, per row, rather than per panel.
+
+    **The one caveat this package had measured and no output stated** (`2026-08-03 §C20`,
+    `§C24`). `damage_report` already counts the causes across a panel and no column names
+    the cause of a particular cell, so a reader holding one market-week has to supply the
+    inference rule from prose. That is the entire `E = 1` of the §2 gate in
+    [`../../../docs/handoffs/2026-08-03-report-layer.md`](../../../docs/handoffs/2026-08-03-report-layer.md);
+    every other row-computable caveat is already attached by a shipped function.
+
+    **The two causes mean opposite things and a blank cell says neither.** A null because the
+    third rolling window has not filled is a young series that will score later. A null
+    because a term is missing is a market that may never score, and `coverage.drops_at`
+    names the rung. Rendered identically, "not yet scoreable" reads as "scored, and low",
+    which is the first degenerate input §2 of that handoff lists.
+
+    The separating rule is `all three terms present AND the percentile null => warm-up`, and
+    `§C20` measures **zero exceptions** on the 27,194-week current-state panel: after the
+    `damage_sell_pct` floor, 797 of 19,160 rows are still null and none of them has all three
+    terms. Nothing here is fitted or thresholded; it is a classification of columns the frame
+    already carries.
+
+    Adds `score_state_<side>` per side, taking one of `SCORE_STATES`. Reproducer:
+    `docs/analysis/reproduce_report_gate.py::c20_warmup_is_row_computable`.
+    """
+    out = scored.copy()
+    for side in sides:
+        if side not in ("sell", "buy"):
+            raise CompositeError(f"side must be 'sell' or 'buy', got {side!r}")
+        crowding = "crowding_long" if side == "sell" else "crowding_short"
+        columns = {"crowding": crowding, "illiquidity": f"illiquidity_{side}",
+                   "fragility": "fragility"}
+        _require(out, [f"damage_{side}", f"damage_{side}_pct", *columns.values()],
+                 "scored")
+
+        pct = pd.to_numeric(out[f"damage_{side}_pct"], errors="coerce")
+        raw = pd.to_numeric(out[f"damage_{side}"], errors="coerce")
+        state = pd.Series("scored", index=out.index, dtype=object)
+        state[pct.isna() & raw.notna()] = "warmup"
+        # Reversed so the FIRST term in `SCORE_TERMS` wins a row missing more than one.
+        for term, label in reversed(SCORE_TERMS):
+            missing = pd.to_numeric(out[columns[term]], errors="coerce").isna()
+            state[pct.isna() & missing] = label
+        _assert_states_explain_the_nulls(state, pct, side)
+        out[f"score_state_{side}"] = state
+    return out
+
+
+def add_unwind_state(scored: pd.DataFrame, flows: pd.DataFrame, *,
+                     side: str = "sell",
+                     category: str | None = None) -> pd.DataFrame:
+    """`2026-08-01 §A17` as a per-row marker: is this fall a market mid-exit?
+
+    §A17 is the reading instruction that a falling `D` is **not** a market getting safer, it
+    may be a market halfway out of the door. The proposed carrier was `ΔD` beside the
+    crowding category's flow state, and §2 of
+    [`../../../docs/handoffs/2026-08-03-report-layer.md`](../../../docs/handoffs/2026-08-03-report-layer.md)
+    said to test that rather than assign it. `2026-08-03 §C21` tested it and it is **half
+    right**, which is why this function emits an explicit `indeterminate` rather than a
+    blank.
+
+    - **Right at the extremes.** `long_liquidation` weeks fall 84% of the time against
+      `new_longs` at 15%, with opposite median `ΔD`. A fall under liquidation is a different
+      event from a fall under accumulation, exactly as §A17 says.
+    - **Silent three times in five.** `mixed` covers 58.2% of falling-`D` weeks at a median
+      `ΔD` of exactly 0.0000, and `quiet` (the "genuinely safer" arm the handoff named)
+      occurs 3 times in 27,167 market-weeks and never on a falling week. Only 40.2% of
+      falling weeks carry a decisive state.
+
+    A marker that is right when it speaks and blank otherwise reads as complete, which is
+    §5's negative #4 arriving one level down. So `indeterminate` is a value here, not an
+    absence, and `format_brief` prints it.
+
+    `flows` is a `decompose(panel)` frame. `category` defaults to the same one that supplies
+    `C` (`CROWDING_CATEGORY`), because the crowd whose exit §A17 describes is the crowd `C`
+    measures. Adds `d_damage_<side>_pct`, `flow_state` and `unwind_state_<side>`.
+    Reproducer: `docs/analysis/reproduce_report_gate.py::c21_a17_is_partial`.
+    """
+    if side not in ("sell", "buy"):
+        raise CompositeError(f"side must be 'sell' or 'buy', got {side!r}")
+    _require(scored, [f"damage_{side}_pct", *MARKET_KEY], "scored")
+    _require(flows, ["report_date", "market_code", "category", "flow_state"], "flows")
+
+    wanted = category or CROWDING_CATEGORY.get(_single_report_type(scored))
+    if wanted is None:
+        raise CompositeError(
+            f"no crowding category configured for this report type; "
+            f"have {sorted(CROWDING_CATEGORY)}. Pass category= explicitly.")
+    available = set(flows["category"].dropna().unique())
+    if wanted not in available:
+        raise CompositeError(
+            f"category {wanted!r} is absent from the flows frame (have {sorted(available)}), "
+            f"so §A17's marker has no flow state to read.")
+
+    out = scored.copy()
+    out["report_date"] = pd.to_datetime(out["report_date"])
+    ordered = out.sort_values(["market_code", "report_date"], kind="mergesort")
+    values = pd.to_numeric(ordered[f"damage_{side}_pct"], errors="coerce")
+    delta = values.groupby([ordered["market_code"], ordered["report_type"],
+                            ordered["combined"]], dropna=False, sort=False).diff()
+    out[f"d_damage_{side}_pct"] = delta.reindex(out.index)
+
+    state = flows[flows["category"] == wanted][["report_date", "market_code", "flow_state"]]
+    state = state.copy()
+    state["report_date"] = pd.to_datetime(state["report_date"])
+    if state.duplicated(subset=["report_date", "market_code"]).any():
+        raise CompositeError(
+            f"the flows frame has more than one {wanted!r} row per market-week, so the join "
+            f"would multiply rows. Pass a single report type and `combined` setting.")
+    out = out.drop(columns=["flow_state"], errors="ignore").merge(
+        state, on=["report_date", "market_code"], how="left")
+
+    d = pd.to_numeric(out[f"d_damage_{side}_pct"], errors="coerce")
+    flow = out["flow_state"]
+    unwind = pd.Series("indeterminate", index=out.index, dtype=object)
+    decisive = flow.isin(DECISIVE_FLOW_STATES)
+    unwind[d.notna() & (d >= 0)] = "not_falling"
+    unwind[d.notna() & (d < 0) & decisive] = "falling_not_exit"
+    unwind[d.notna() & (d < 0) & (flow == EXIT_FLOW_STATE[side])] = "mid_exit"
+    out[f"unwind_state_{side}"] = unwind
+    return out
+
+
 def damage_report(scored: pd.DataFrame) -> pd.DataFrame:
     """Coverage, and which factor is responsible for each gap.
 
@@ -273,6 +432,22 @@ def _single_report_type(frame: pd.DataFrame) -> str:
             f"frame spans report types {sorted(kinds)}. The crowding category differs per "
             f"report and the categories do not correspond, so one call cannot cover both.")
     return str(kinds[0])
+
+
+def _assert_states_explain_the_nulls(state: pd.Series, pct: pd.Series, side: str) -> None:
+    """Every null percentile carries a reason, checked on each computation.
+
+    The point of the state column is that a reader never has to guess, so a row labelled
+    `scored` with nothing to score would be worse than the blank cell it replaces. It cannot
+    happen while `damage` is the product of three terms (null iff a term is null), which is
+    exactly the property a future change to `add_composite` might break.
+    """
+    unexplained = int((pct.isna() & (state == "scored")).sum())
+    if unexplained:
+        raise CompositeError(
+            f"{unexplained} rows have a null damage_{side}_pct and no missing term, so "
+            f"neither warm-up nor a missing factor explains them. `damage_{side}` is the "
+            f"product of three factors, so this means one of them stopped propagating null.")
 
 
 def _assert_bounds(out: pd.DataFrame) -> None:

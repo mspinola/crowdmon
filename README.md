@@ -295,6 +295,31 @@ and hogs near 0.07 (their own door) against the wheats above 1.0 (the same door 
 `beta` near 1.0 is worse than the same `D` at 0.07, and nothing in the composite says so.
 (`2026-08-02 §B2`)
 
+**These five are the denominator, and `futures/brief.py` carries one of them.** The list
+above is now `brief.READING_INSTRUCTIONS` as well as prose, so a market-week can travel with
+a ledger over it instead of a reader having to hold this page. It carries **one** of the five
+by default (`§A17`, via `ΔD` beside the flow state) and a second after an `add_commonality`
+call the composite chain does not make (`§B2`). **The other three are not properties of a
+market-week at all**: `§A21` is identical on every row, `§A22` is a property of a pooled
+ranking under a weight sweep, and `§C3` is a property of a population. So the brief **names**
+them in its own output rather than omitting them, which is the pre-registered condition it
+ships under, and its footer says the assembly is convenience with one genuine gap closed
+rather than a safety guarantee.
+
+```python
+from crowdmon.futures import add_score_state, add_unwind_state, coverage_ladder, decompose
+from crowdmon.futures.brief import format_brief, market_brief
+
+scored = add_unwind_state(add_score_state(scored), decompose(panel))
+print(format_brief(market_brief(scored, "057642",
+                                ladder=coverage_ladder(per_category, scored))))
+```
+
+`add_score_state` is the one caveat no other output stated (`2026-08-03 §C20`, `§C24`): a
+third of market-weeks carry no `D`, for two causes that mean opposite things, and both
+rendered as the same blank cell. Detail in `2026-08-03 §C25-§C27`, reproducer
+[`docs/analysis/reproduce_brief.py`](docs/analysis/reproduce_brief.py).
+
 ### First results
 
 [`docs/analysis/`](docs/analysis/) holds the first run over real data, ranked rather than
