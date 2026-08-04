@@ -339,8 +339,8 @@ figures, the appendix's live-cattle arithmetic (`test_appendix_live.py`, `2026-0
 the volume and trigger measurements, or
 `2026-08-03 §C1-C8` (`test_supplemental_live.py`, the most exposed of the set: three of its
 assertions read `cot_supplemental`, a domain one release old). From the
-**main checkout**, against `~/code/cotdata_store`, the same suite is **613 passed / 5
-skipped** rather than **538 / 80**.
+**main checkout**, against `~/code/cotdata_store`, the same suite is **615 passed / 5
+skipped** rather than **538 / 82**.
 
 **These four numbers are measured, so re-measure them rather than adjusting them by hand.**
 Any PR that adds or removes a `tests/*_live.py` assertion moves all four, and two PRs in
@@ -358,14 +358,15 @@ second re-runs both commands and updates this paragraph, `bin/check_skips.py`'s 
 > Moved three times on **2026-08-04** by `§D2-§D10`'s branch, +5 then +8 then +3, for
 > `damage_block` / `format_damage_block`, the offside term, and the two defects `§D10`
 > records. Those sixteen are all fixture tests, so the live-only count was unmoved by them;
-> it is **75** rather than 67 because `§D1`'s branch added live assertions in parallel.
+> it is **77** rather than 67 because the `§D1` lineage added two live assertions in
+> parallel (`§D11`, the backlog tranche).
 > **That is the collision this paragraph warns about, and it happened again**: both
 > branches re-measured from a base that did not include the other, and the figures above
 > are a third measurement taken after the merge rather than either branch's arithmetic.
 > The live-only count is the difference between the two skip figures (80 - 5), never a
 > total, so a fixture test moves the four totals and leaves it alone.
 
-> **From a worktree those two figures are 611 / 7 and 536 / 82**, because `test_boundaries`
+> **From a worktree those two figures are 613 / 7 and 536 / 84**, because `test_boundaries`
 > resolves `../cotdata` and `../marketdata` relative to the test file and finds neither,
 > so the two producer-direction checks skip. Quote the main-checkout numbers: a worktree
 > reports two fewer passes and has one real seam unguarded. This note exists because an
