@@ -65,6 +65,12 @@ DATA_ABSENT = (
     "no readable vintage store",
     "store does not carry the appendix's market-week",
     "store has no LE volume",
+    # test_publish_live.py. ONE guard for the whole chain rather than one per input, because
+    # the published panel joins COT, contract specs, two price tiers, volume and an Amihud
+    # panel, and a store missing any of them yields no panel rather than a short one. The
+    # publisher itself refuses a short panel (`publish._refuse_a_short_panel`), so a partial
+    # store cannot reach this file as a passing run with fewer markets.
+    "the damage panel cannot be built from this store",
 )
 
 PROFILES = {"ci": INTENTIONAL + DATA_ABSENT, "live": INTENTIONAL}
