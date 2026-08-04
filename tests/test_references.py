@@ -50,6 +50,13 @@ _REFERENCE = re.compile(r"§§?([A-Z])(\d+)(?:\s*[-–]\s*§?([A-Z])?(\d+))?")
 #: An entry here is a RECORDED GAP, not a suppression: the test below also fails if one
 #: becomes resolvable, so a merge that closes a gap forces the note to be removed.
 KNOWN_UNRESOLVED: dict[str, str] = {
+    # Recorded per this file's own instruction: found before being listed, and where it
+    # went is named. `D11` is taken by crowdmon#63 (branch
+    # `claude/backlog-tranche-landed`, "handoff §6: the tranche landed"), open and unmerged
+    # when `§D12` was written. Both branches could see the number was claimed, so `§D12`
+    # skips it rather than creating the fifth counter collision this repo has had. When #63
+    # merges, `test_the_known_gaps_are_still_gaps` fails and forces this line out.
+    "D11": "crowdmon#63, branch claude/backlog-tranche-landed, unmerged. See §D12's header.",
     # Empty, and that is the healthy state. The last entry was `C5`, which lived on
     # crowdmon#42 while this test was being written and resolved when that PR merged, at
     # which point `test_the_known_gaps_are_still_gaps` failed and forced its removal. That
