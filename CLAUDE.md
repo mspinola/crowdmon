@@ -85,6 +85,17 @@ paragraph said it did.
 > a silent-regression window that closes only when someone diffs the copies**, and the only
 > reason anyone diffed these was an unrelated cleanup task. If a document must appear in two
 > repos, one of them is a pointer from the first commit, not eventually.
+>
+> **The second instance is a document copied into CODE, where the pointer fix is not
+> available** (`2026-08-03 §C30`). `README.md`'s five reading instructions for `D` are
+> duplicated as `futures/brief.py`'s `READING_INSTRUCTIONS`, and they cannot be a pointer
+> because each entry carries a carrier column and a status function. Nothing diffed them for
+> a day, and the copy had already drifted from its stated order. The remedy for a copy that
+> must stay a copy is to make it **fail loudly**:
+> [`tests/test_reading_instructions.py`](tests/test_reading_instructions.py) resolves the
+> enumeration against README on every run. This matters more than it sounds: the brief ships
+> under a pre-registered rule stated over that enumeration, so an unchecked denominator makes
+> the rule unenforceable while it still reads as satisfied.
 
 ## Doc lifecycle — four directories, four different rules
 
@@ -327,8 +338,8 @@ figures, the appendix's live-cattle arithmetic (`test_appendix_live.py`, `2026-0
 the volume and trigger measurements, or
 `2026-08-03 §C1-C8` (`test_supplemental_live.py`, the most exposed of the set: three of its
 assertions read `cot_supplemental`, a domain one release old). From the
-**main checkout**, against `~/code/cotdata_store`, the same suite is **590 passed / 5
-skipped** rather than **515 / 80**.
+**main checkout**, against `~/code/cotdata_store`, the same suite is **597 passed / 5
+skipped** rather than **522 / 80**.
 
 **These four numbers are measured, so re-measure them rather than adjusting them by hand.**
 Any PR that adds or removes a `tests/*_live.py` assertion moves all four, and two PRs in
@@ -343,7 +354,7 @@ second re-runs both commands and updates this paragraph, `bin/check_skips.py`'s 
 > test moves all four as surely as a live one does, and the paragraph above named only
 > `tests/*_live.py`; it is the total that is quoted, so any added test counts.
 
-> **From a worktree those two figures are 588 / 7 and 513 / 82**, because `test_boundaries`
+> **From a worktree those two figures are 595 / 7 and 520 / 82**, because `test_boundaries`
 > resolves `../cotdata` and `../marketdata` relative to the test file and finds neither,
 > so the two producer-direction checks skip. Quote the main-checkout numbers: a worktree
 > reports two fewer passes and has one real seam unguarded. This note exists because an
