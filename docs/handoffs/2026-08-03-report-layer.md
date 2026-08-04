@@ -1,6 +1,6 @@
 # Handoff: step 7's report layer, and whether a `D` can carry its own caveats
 
-**Status:** **complete. §2 (PR #55) gate PASSES at `R=4, E=1`; §3 shipped (PR #NN) under
+**Status:** **complete. §2 (PR #55) gate PASSES at `R=4, E=1`; §3 shipped (PR #56) under
 §5's escape clause, carrying one of five reading instructions and naming the rest; §4 will
 not run before 2026-12-29.** Outcomes as §9 and §10, findings `2026-08-03 §C20-§C27`
 **Date:** 2026-08-03
