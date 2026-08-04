@@ -20,13 +20,13 @@ Cross-file references carry the date: `2026-08-02 §B30`.
 Every figure below is reproduced by
 [`../analysis/reproduce_single_number.py`](../analysis/reproduce_single_number.py) against
 `COTDATA_STORE=~/code/cotdata_store`. Blocks are named after the section: §D1 is
-`d1_t_ranking_is_structural`, and so on through `d8_offside_is_beside_not_inside`.
+`d1_t_ranking_is_structural`, and so on through `d9_pool_versus_signal`.
 
 **The through-line.** Every section is one question: *what single number should this package
 deliver, and what does it have to be published with?* §D1 says the raw `T` ranking is not that
 number. §D2 and §D3 kill two candidate replacements by construction rather than by measurement.
 §D4 and §D5 are about the composite that already exists. §D6 and §D7 are why the input is TFF and
-not Legacy. §D8 builds the term all of that showed was missing.
+not Legacy. §D8 builds the term all of that showed was missing, and §D9 corrects it.
 
 **What none of this settles.** Whether `Phi` belongs in `D` needs an outcome to score against.
 The §10 validation was pre-registered, executed by a session that had written none of the package,
@@ -446,3 +446,64 @@ matters because `add_trigger_distance` iterates over whatever symbols a frame ho
 coverage ladder is explicit that markets die at the price join: one unresolvable symbol should
 null one row, not abort the panel. It now raises `TriggerError` with the reason, and
 `add_trigger_distance` catches it per symbol.
+
+---
+
+## D9. The trigger side came from the price signal, and the observed pool disagrees a third of the time
+
+**Reproducer:** `docs/analysis/reproduce_single_number.py::d9_pool_versus_signal`.
+
+**A defect in §D8, found within the hour by rendering two markets by hand.**
+
+`trigger.py`'s whole departure from §A.7 is that the pool is **observed rather than
+modelled**: §A.7 estimates forced flow from a replicated CTA book with an aggregate capital
+term `A`, and this package refuses to guess `A` and reads the Managed Money / leveraged net
+from COT instead. §D8's `nearest_trigger` then took the **side** from the price signal alone,
+which quietly reintroduced the modelled logic the module exists to avoid.
+
+Measured on 45 markets by 3 horizons, week ending 2026-07-28:
+
+| horizon | observed pool sign agrees with the trend signal |
+|---|---:|
+| 20d | **64.4%** |
+| 60d | **57.8%** |
+| 250d | 75.6% |
+| **pooled** | **65.9%** of 135 pairs |
+
+Three markets (**WHEAT-SRW, DJIA, USD INDEX**) have the pool opposite the signal on **every**
+horizon.
+
+### What that does to a reading
+
+Canadian dollar is the worked case. Leveraged funds are net **short 102,495** contracts while
+the **20-day signal is long**, so the nearest "forced selling" level sits 2.4 sigma away and
+describes a long book that **is not there**. The level is real; the pool it would force is
+not.
+
+Lumber is the counter-case and shows the flag is not merely pessimistic: Managed Money is net
+**long 1,954** and the 20-day signal is long, so its 0.8-sigma forced-sell trigger is a level
+at which an actually-held book gets forced.
+
+### Fixed
+
+`nearest_trigger` takes an optional `pool_net` and `add_trigger_distance` an optional
+`pool_column`, producing `trigger_{side}_pool_agrees` as a **tri-state**: `True`, `False`, or
+`None` for "no pool supplied". Collapsing the last two would be a real error, because "the
+pool is on the other side" and "nobody checked" carry opposite implications.
+
+`report.format_offside` prints the disagreement and **suppresses the quadrant** when it fires,
+because labelling such a row CLOSE and SEVERE is precisely wrong.
+
+### Also fixed, same pass: a null `D_pct` rendered a broken sentence
+
+`format_damage_block` interpolated an empty percentage, producing "of the last 3 years of
+weeks in this market,  looked less dangerous". Lumber is the live case, and it is worth having
+rather than an edge case: `C = pct(z)` stacks two three-year windows and needs six years of
+prices, lumber has four, so `I` (0.777) and `Phi` (0.599) exist and `D` cannot be formed. An
+unscored row now names which factor is null and says the surviving factors are readable on
+their own.
+
+**The general lesson is about where the check belonged.** Both defects were invisible to the
+fixture tests and to the panel-level reproducer, and both appeared immediately on rendering
+**two named markets by hand**. A per-market block is the level at which a reader meets the
+output, and it is therefore the level at which nonsense shows up.

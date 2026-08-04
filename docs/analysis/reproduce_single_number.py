@@ -1,4 +1,4 @@
-"""Reproducer for every figure in `docs/design/amendments-2026-08-04.md` (§D1-§D7).
+"""Reproducer for every figure in `docs/design/amendments-2026-08-04.md` (§D1-§D9).
 
     COTDATA_STORE=~/code/cotdata_store python docs/analysis/reproduce_single_number.py
 
@@ -18,6 +18,8 @@ what does it have to be published with?** The sections split into three groups.
   §D6  Legacy and TFF share exactly two quantities and nothing else
   §D7  sterling: the levered book and Legacy non-commercial point opposite ways
   §D8  the offside term: built, and beside `D` rather than inside it
+  §D9  the trigger side is signal-implied and the observed pool disagrees a third
+       of the time
 
 Blocks are named after their section: §D1 is `d1_t_ranking_is_structural`, and so on. The
 panels are expensive to build (every symbol's price history is read for the volume join),
@@ -485,6 +487,57 @@ def d8_offside_is_beside_not_inside() -> None:
     print("binds: the quadrant ranks, the level gates.")
 
 
+# ── §D9 ─────────────────────────────────────────────────────────────────────
+def d9_pool_versus_signal() -> None:
+    """§D9: does the OBSERVED pool sit on the side the price signal implies?"""
+    from crowdmon.futures import trigger_prices
+
+    rule("D9. The trigger side is signal-implied; the pool is observed. Do they agree?")
+
+    fragile = {"tff": "leveraged", "disaggregated": "managed_money"}
+    rows = []
+    for rt in REPORTS:
+        panel = ContractMaster.load().annotate(from_current_store(report_type=rt))
+        panel = panel[panel.report_date == panel.report_date.max()]
+        c = contributions(panel, report_type=rt)
+        net = c[c.category == fragile[rt]].set_index("market_code")["net"]
+        sym = panel.drop_duplicates("market_code").set_index("market_code")["symbol"]
+        for code, n in net.items():
+            s = sym.get(code)
+            if pd.isna(s) or n == 0:
+                continue
+            try:
+                tp = trigger_prices(str(s), as_of="2026-07-28").dropna(
+                    subset=["flip_price"])
+            except Exception:                                          # noqa: BLE001
+                continue
+            for _, r in tp.iterrows():
+                rows.append({"symbol": s, "k": int(r.lookback_days),
+                             "signal": int(r.signal), "pool_net": float(n),
+                             "agree": (n > 0) == (r.signal > 0)})
+
+    d = pd.DataFrame(rows)
+    print(f"{d.symbol.nunique()} markets x {d.k.nunique()} horizons = {len(d)} pairs")
+    print(f"pooled agreement: {d.agree.mean():.1%}\n")
+    print(d.groupby("k").agree.agg(["mean", "size"]).to_string())
+
+    per = d.groupby("symbol").agree.mean()
+    never = sorted(per[per == 0].index)
+    print(f"\nopposite on EVERY horizon: {never}")
+
+    print("\n--- the worked case and its counter-case ---")
+    for s in ("6C", "LBR"):
+        g = d[d.symbol == s]
+        if g.empty:
+            continue
+        sig = ", ".join(f"{int(r.k)}d {'long' if r.signal > 0 else 'short'}"
+                        for _, r in g.iterrows())
+        print(f"  {s}: observed pool {g.pool_net.iloc[0]:>+10,.0f}   signals {sig}")
+    print("\n6C: pool short while the 20d signal is long, so its nearest forced-SELL level")
+    print("describes a long book that is not there. LBR: pool long and the 20d signal long,")
+    print("so its 0.8-sigma level would force a book that is actually held.")
+
+
 def main() -> None:
     warnings.filterwarnings("ignore")
     pd.set_option("display.width", 240)
@@ -501,6 +554,7 @@ def main() -> None:
     d6_legacy_and_tff_share_two_things()
     d7_sterling_sign_conflict(priced)
     d8_offside_is_beside_not_inside()
+    d9_pool_versus_signal()
 
 
 if __name__ == "__main__":

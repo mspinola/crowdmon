@@ -144,15 +144,26 @@ def format_damage_block(block: dict) -> str:
     ]
     if None not in (c, i, f):
         lines += [f"    D   = {c:.3f} x {i:.3f} x {f:.3f} = {d:.4f}", ""]
-    lines += [
-        f"    D_pct = {_n(dp)}   <- the delivered number ({damage_band(dp)})",
-        "",
-        f"  Read as: of the last 3 years of weeks in this market, "
-        f"{'' if dp is None else f'{dp:.0%}'} looked less",
-        f"  dangerous than now for {forced}. It is a rank among this market's own past,",
-        "  not a probability, not a forecast, and not comparable as a level to another",
-        "  market's days-to-liquidate.",
-    ]
+    lines += [f"    D_pct = {_n(dp)}   <- the delivered number ({damage_band(dp)})", ""]
+    if dp is None:
+        # An empty percentage inside the sentence below rendered as "in this market,
+        # looked less dangerous", which is not a sentence. A market with a null factor
+        # gets its own reading, and lumber is the live case: four years of prices against
+        # the six that `C = pct(z)` needs, so `D` cannot be formed while `I` and `Phi` can.
+        missing = [n for n, v in (("C", c), ("I", i), ("Phi", f)) if v is None]
+        lines += [
+            f"  UNSCORED: {', '.join(missing)} {'is' if len(missing) == 1 else 'are'} "
+            f"null, so D cannot be formed. The factors that DO",
+            "  exist are above and are readable on their own; the product is not.",
+            "  Usually too little history: C stacks two 3-year windows and needs six.",
+        ]
+    else:
+        lines += [
+            f"  Read as: of the last 3 years of weeks in this market, {dp:.0%} looked less",
+            f"  dangerous than now for {forced}. It is a rank among this market's own past,",
+            "  not a probability, not a forecast, and not comparable as a level to another",
+            "  market's days-to-liquidate.",
+        ]
     if raw.get("dtl") is not None:
         lines.append(
             f"  Level check: T_{side} = {raw['dtl']:.2f} days. A percentile cannot tell "
@@ -201,7 +212,18 @@ def format_offside(offside: dict, *, side: str, damage_pct: float | None) -> str
         f"    offside      {d_sigma:.1f} sigma   nearest {k:.0f}d flip that forces "
         f"{forced}, {d_pct:.2%} away",
     ]
-    if damage_pct is not None:
+    # The observed pool must actually be on the side the signal implies, or the level is
+    # real and the book it would force is not. They disagree on a third of (market,
+    # horizon) pairs, so this is the common case rather than the exotic one.
+    agrees = offside.get("pool_agrees")
+    if agrees is False:
+        out.append("                 !! the OBSERVED pool is on the OTHER side, so this "
+                   "level would\n                    force a book that is not there. "
+                   "Signal-implied, not held.")
+    elif agrees is None:
+        out.append("                 (no pool supplied, so whether anyone is actually "
+                   "positioned\n                    this way is unchecked)")
+    if damage_pct is not None and agrees is not False:
         cell = QUADRANT[(d_sigma <= CLOSE_SIGMA, damage_pct >= 0.75)]
         out.append(f"                 -> {cell}")
     out += [

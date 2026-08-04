@@ -194,14 +194,14 @@ def vol_shock_reduction(sigma_now: float, sigma_shocked: float) -> float:
 #: a rules-based flip is all that is measurable. A holder can be deeply underwater and
 #: nowhere near their trigger, and vice versa.
 TRIGGER_DISTANCE_COLUMNS = [
-    "trigger_sell_pct", "trigger_sell_sigma", "trigger_sell_k",
-    "trigger_buy_pct", "trigger_buy_sigma", "trigger_buy_k",
+    "trigger_sell_pct", "trigger_sell_sigma", "trigger_sell_k", "trigger_sell_pool_agrees",
+    "trigger_buy_pct", "trigger_buy_sigma", "trigger_buy_k", "trigger_buy_pool_agrees",
     "trigger_horizons_disagree",
 ]
 
 
-def nearest_trigger(symbol: str, *, sigma_daily: float, lookbacks=DEFAULT_LOOKBACKS,
-                    as_of=None) -> dict:
+def nearest_trigger(symbol: str, *, sigma_daily: float, pool_net: float | None = None,
+                    lookbacks=DEFAULT_LOOKBACKS, as_of=None) -> dict:
     """Distance to the nearest flip that forces flow, per side, in daily sigma.
 
     **The side convention matches `Q_sell` / `T_sell` / `damage_sell` exactly.** A signal
@@ -262,17 +262,41 @@ def nearest_trigger(symbol: str, *, sigma_daily: float, lookbacks=DEFAULT_LOOKBA
     # signal +1 (long now) flips down -> forced selling; -1 (short now) flips up -> buying
     sell_pct, sell_sigma, sell_k = _nearest(1)
     buy_pct, buy_sigma, buy_k = _nearest(-1)
+
+    # **Does the OBSERVED pool actually sit on the side the signal implies?**
+    #
+    # This module's departure from §A.7 is that the pool is observed rather than modelled,
+    # and a first version of this function then took the side from the price signal alone,
+    # which quietly reintroduced the modelled logic it exists to avoid. The signal says what
+    # a trend follower WOULD hold; COT says what levered money DOES hold, and measured on
+    # 2026-07-28 they agree on only **65.9%** of the 135 (market, horizon) pairs: 64.4% at
+    # 20d, 57.8% at 60d, 75.6% at 250d, with ZW, YM and DX opposite on every horizon
+    # (`2026-08-04 §D9`).
+    #
+    # Where they disagree the trigger is still a real price level and the pool it would
+    # force is not there. Canadian dollar on that week: the levered book is short 102,495
+    # while the 20-day signal is long, so its 2.4-sigma "forced selling" level describes a
+    # long book that does not exist. `None` when no pool was supplied, because unknown and
+    # disagreeing are different states.
+    def _agrees(signal: int) -> bool | None:
+        if pool_net is None or pd.isna(pool_net) or float(pool_net) == 0:
+            return None
+        return (float(pool_net) > 0) == (signal > 0)
+
     return {
         "symbol": symbol,
         "trigger_sell_pct": sell_pct, "trigger_sell_sigma": sell_sigma,
         "trigger_sell_k": sell_k,
+        "trigger_sell_pool_agrees": None if sell_pct is None else _agrees(1),
         "trigger_buy_pct": buy_pct, "trigger_buy_sigma": buy_sigma,
         "trigger_buy_k": buy_k,
+        "trigger_buy_pool_agrees": None if buy_pct is None else _agrees(-1),
         "trigger_horizons_disagree": bool(sell_pct is not None and buy_pct is not None),
     }
 
 
 def add_trigger_distance(frame: pd.DataFrame, *, on: str = "report_date", as_of=None,
+                         pool_column: str | None = None,
                          lookbacks=DEFAULT_LOOKBACKS) -> pd.DataFrame:
     """Join `nearest_trigger` onto a frame carrying `symbol` and `sigma_daily`.
 
@@ -285,8 +309,16 @@ def add_trigger_distance(frame: pd.DataFrame, *, on: str = "report_date", as_of=
 
     `as_of` defaults to the frame's latest date. `sigma_daily` must already be present, from
     `riskunits.add_risk_units`, and is not recomputed: see `nearest_trigger`.
+
+    `pool_column` names the observed net of the forceable category, and supplying it is
+    strongly recommended: without it the `*_pool_agrees` flags are null and a reader cannot
+    tell whether a trigger describes a book that is actually there. The pool and the signal
+    disagree on a third of (market, horizon) pairs (`2026-08-04 §D9`).
     """
-    missing = sorted({"symbol", "sigma_daily", on} - set(frame.columns))
+    needed = {"symbol", "sigma_daily", on}
+    if pool_column:
+        needed.add(pool_column)
+    missing = sorted(needed - set(frame.columns))
     if missing:
         raise TriggerError(
             f"missing columns {missing}. `symbol` comes from `ContractMaster.annotate` and "
@@ -307,8 +339,12 @@ def add_trigger_distance(frame: pd.DataFrame, *, on: str = "report_date", as_of=
         s = s[s > 0]
         if s.empty:
             continue
+        pool = None
+        if pool_column:
+            p = pd.to_numeric(out.loc[idx, pool_column], errors="coerce").dropna()
+            pool = float(p.iloc[0]) if not p.empty else None
         try:
-            got = nearest_trigger(str(sym), sigma_daily=float(s.iloc[0]),
+            got = nearest_trigger(str(sym), sigma_daily=float(s.iloc[0]), pool_net=pool,
                                   lookbacks=lookbacks, as_of=stamp)
         except TriggerError:
             # A market with too little price history to reach the longest lookback has no

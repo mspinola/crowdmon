@@ -242,3 +242,15 @@ def test_add_trigger_distance_only_populates_the_as_of_row():
     out = add_trigger_distance(frame)
     # An unresolvable symbol yields nulls everywhere rather than raising mid-run.
     assert out["trigger_sell_sigma"].isna().all()
+
+
+def test_pool_agreement_is_tri_state_and_unknown_is_not_false():
+    """"No pool supplied" and "the pool is on the other side" carry opposite implications
+    for whether a trigger means anything, so they must not collapse."""
+    frame = pd.DataFrame({
+        "report_date": [pd.Timestamp("2026-07-28")], "symbol": ["NOPE"],
+        "sigma_daily": [0.01]})
+    out = add_trigger_distance(frame)
+    assert out["trigger_sell_pool_agrees"].isna().all()
+    with pytest.raises(TriggerError, match="missing columns"):
+        add_trigger_distance(frame, pool_column="pool_net")

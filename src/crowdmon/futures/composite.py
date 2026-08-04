@@ -331,9 +331,8 @@ def damage_block(scored: pd.DataFrame, market_code: str, *, side: str = "sell",
             "distance_sigma": _f(r.get(f"trigger_{side}_sigma")),
             "distance_pct": _f(r.get(f"trigger_{side}_pct")),
             "lookback_days": _f(r.get(f"trigger_{side}_k")),
-            "horizons_disagree": (None if pd.isna(r.get("trigger_horizons_disagree",
-                                                        pd.NA))
-                                  else bool(r.get("trigger_horizons_disagree"))),
+            "pool_agrees": _b(r.get(f"trigger_{side}_pool_agrees", pd.NA)),
+            "horizons_disagree": _b(r.get("trigger_horizons_disagree", pd.NA)),
         },
     }
 
@@ -343,6 +342,18 @@ def _f(value):
     """`None` rather than `nan`, so a caller can test one thing instead of two."""
     v = pd.to_numeric(pd.Series([value]), errors="coerce").iloc[0]
     return None if pd.isna(v) else float(v)
+
+
+def _b(value):
+    """Tri-state: `True`, `False`, or `None` for unknown.
+
+    `pd.NA` and `False` are different answers here and collapsing them would be a real
+    error: "the observed pool is on the other side" and "no pool was supplied" carry
+    opposite implications for whether a trigger means anything.
+    """
+    if value is None or (not isinstance(value, bool) and pd.isna(value)):
+        return None
+    return bool(value)
 
 
 def _percentile_by_market(frame: pd.DataFrame, column: str, *, window, min_periods):

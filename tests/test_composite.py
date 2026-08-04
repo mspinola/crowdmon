@@ -352,3 +352,46 @@ def test_format_offside_names_the_quadrant_and_refuses_the_forecast_reading():
         {"distance_sigma": CLOSE_SIGMA, "distance_pct": 0.01, "lookback_days": 60,
          "horizons_disagree": False}, side="sell", damage_pct=0.95)
     assert "CLOSE and SEVERE" in edge
+
+
+def test_an_unscored_row_gets_its_own_reading_rather_than_a_broken_sentence():
+    """A null `D_pct` used to render "in this market,  looked less dangerous", which is not
+    a sentence. Lumber is the live case: four years of prices against the six `C = pct(z)`
+    needs, so `I` and `Phi` exist and the product cannot be formed."""
+    from crowdmon.futures.report import format_damage_block
+
+    fragility, extremity = _frames()
+    out = add_composite(fragility, extremity, min_periods=52)
+    text = format_damage_block(damage_block(out, "TEST01",
+                                            report_date=out["report_date"].min()))
+    assert "UNSCORED" in text
+    assert "looked less" not in text
+    assert "cannot be formed" in text
+
+
+def test_a_trigger_whose_pool_sits_on_the_other_side_is_flagged_not_shown_plainly():
+    """The signal says what a trend follower WOULD hold; COT says what levered money DOES.
+    They disagree on a third of (market, horizon) pairs, and where they do the level is real
+    while the book it would force is absent."""
+    from crowdmon.futures.report import format_offside
+
+    disagrees = format_offside(
+        {"distance_sigma": 0.5, "distance_pct": 0.004, "lookback_days": 20,
+         "pool_agrees": False, "horizons_disagree": True},
+        side="sell", damage_pct=0.95)
+    assert "OTHER side" in disagrees
+    # The quadrant is suppressed: calling it CLOSE and SEVERE would be exactly wrong.
+    assert "CLOSE and SEVERE" not in disagrees
+
+    unknown = format_offside(
+        {"distance_sigma": 0.5, "distance_pct": 0.004, "lookback_days": 20,
+         "pool_agrees": None, "horizons_disagree": False},
+        side="sell", damage_pct=0.95)
+    assert "no pool supplied" in unknown
+
+    agrees = format_offside(
+        {"distance_sigma": 0.5, "distance_pct": 0.004, "lookback_days": 20,
+         "pool_agrees": True, "horizons_disagree": False},
+        side="sell", damage_pct=0.95)
+    assert "CLOSE and SEVERE" in agrees
+    assert "OTHER side" not in agrees
