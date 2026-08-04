@@ -690,3 +690,94 @@ takes the instruction literally goes looking for a number that is not there, and
 something adjacent or concludes the instruction is stale in some larger way. Both rows are
 updated, and the completed step-2 row is **annotated rather than rewritten**, since its
 figures are the correct record of what `§C12` measured on 2026-07-28.
+---
+
+## D12. The trigger is a moving level, and a net-basis Legacy/TFF comparison isolates reclassification
+
+**Reproducer:** `docs/analysis/reproduce_single_number.py::d12_drift_and_net_reconciliation`.
+
+> **§D11 is deliberately skipped, not missing.** It is taken by an in-flight branch
+> (crowdmon#63) that had not merged when this was written. Four counter collisions have
+> already happened in this repo and the convention only says who renumbers *after* one; here
+> the number was visibly claimed, so reserving it costs nothing and avoids a fifth. If #63 is
+> abandoned, D11 stays unused and this note explains the gap.
+
+Four clarifications that came out of writing up §D9's trigger term for a non-technical
+audience. None changes a number already published; all four are things a reader would
+otherwise get wrong.
+
+### 1. It is time-series momentum, not a breakout
+
+`F* = F_{t-k}` compares today's price to **one bar**, the close exactly `k` sessions back. A
+breakout compares against the **extreme of a window**. On 6C, 2026-07-28, they are different
+levels:
+
+| | level | from spot |
+|---|---:|---:|
+| spot | 0.71050 | |
+| **TSMOM trigger `F_(t-250)`** | **0.73993** | **+4.14%** |
+| Donchian 250d high | 0.74826 | +5.31% |
+| Donchian 250d low | 0.70500 | -0.77% |
+
+There is no breakout logic anywhere in `src/`; `alignment.py` uses the same TSMOM.
+
+### 2. The level drifts on its own, so it is a snapshot rather than a countdown
+
+Because the reference is a single rolling bar, the trigger moves even when price does not.
+Measured on 6C over 120 sessions:
+
+| | daily sd | max daily move |
+|---|---:|---:|
+| reference bar `F_(t-250)` | **0.4256%** | 1.71% |
+| spot `F_t` | 0.2540% | 0.77% |
+
+**The reference bar moves 1.68x as much as spot**, so most of the variation in
+distance-to-trigger is last year's bars rolling off rather than price approaching a level.
+The last ten sessions ran 4.19, 3.87, 3.77, 4.45, 5.39, 5.29, 4.91, 4.51, 4.55, 4.14 percent.
+
+This matters for how the number is quoted. "4% away, 17 days of movement" reads as a
+countdown and is not one: it can close without the market doing anything.
+
+### 3. The rule reverses, it does not exit, so there are three "days" figures
+
+`s = sign(F_t - F_{t-k})` is always in the market. A flip is `Δs = 2`, not 1, which is why
+`trigger_block` has always reported `flow_close` and `flow_reverse` and picks neither. The
+consequence for a reader of `damage_block` is that three durations are in play and they are
+not interchangeable:
+
+| | contracts | days at `kV = 15,609` |
+|---|---:|---:|
+| whole fragility-weighted short side (`T_buy`) | 140,470 | **9.00** |
+| the levered pool alone, goes flat | 102,495 | 6.57 |
+| the levered pool alone, reverses | 204,990 | 13.13 |
+
+`T_buy` covers every short-side category weighted by forceability. The **trigger fires only
+the trend-following slice of the levered book.** Quoting `T_buy` beside a trigger distance
+therefore describes two different populations, which is fine as long as it is said.
+
+### 4. On NETS, the Legacy/TFF comparison is spreading-clean
+
+`§D7` measured that the two reports agree on open interest and non-reportables and on nothing
+else, with two compounding causes: different spreading conventions and different trader
+classification. **A net comparison removes the first.** A spread position is equal long and
+short, so it nets to zero and sits in its own column in both reports.
+
+6C, 2026-07-28:
+
+| | value |
+|---|---:|
+| non-reportable, Legacy vs TFF | -12,711 vs -12,711, **diff 0** |
+| Legacy non-commercial | -176,310 |
+| vs asset managers + leveraged | -203,655, **diff +27,345 (15.5%)** |
+| vs asset managers + leveraged + other reportables | -192,796, **diff +16,486 (9.4%)** |
+| Legacy commercial | +189,021 |
+| vs dealer | +205,507, **diff -16,486** |
+
+The two discrepancies are **exactly equal and opposite at 16,486**, which is the floor under
+any two-way grouping. So on this market **16,486 contracts of net position are classified on
+opposite sides of the line by the two reports**, with no spreading confound mixed in.
+
+**The practical rule this gives a reader**, which `§D7` could state only loosely: Legacy's
+speculative short reads roughly **9% smaller** than TFF's comparable grouping. Anyone
+presenting the two side by side should say they do not reconcile, because the subtraction is
+the first thing a reader tries.

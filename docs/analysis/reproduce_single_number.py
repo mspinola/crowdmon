@@ -1,4 +1,4 @@
-"""Reproducer for every figure in `docs/design/amendments-2026-08-04.md` (§D2-§D10).
+"""Reproducer for every figure in `docs/design/amendments-2026-08-04.md` (§D2-§D10, §D12).
 
     COTDATA_STORE=~/code/cotdata_store python docs/analysis/reproduce_single_number.py
 
@@ -20,6 +20,8 @@ what does it have to be published with?** The sections split into three groups.
   §D9  the offside term: built, and beside `D` rather than inside it
   §D10  the trigger side is signal-implied and the observed pool disagrees a third
        of the time
+  §D12  the trigger LEVEL drifts on its own, and a net-basis Legacy/TFF comparison
+       is spreading-clean where a totals comparison is not
 
 Blocks are named after their section: §D2 is `d2_t_ranking_is_structural`, and so on. The
 panels are expensive to build (every symbol's price history is read for the volume join),
@@ -538,6 +540,90 @@ def d10_pool_versus_signal() -> None:
     print("so its 0.8-sigma level would force a book that is actually held.")
 
 
+# ── §D12 ────────────────────────────────────────────────────────────────────
+def d12_drift_and_net_reconciliation() -> None:
+    """§D12: the trigger is a moving level, and nets isolate reclassification."""
+    import cotdata
+    from cotdata import vintage_ingest as vi
+
+    from crowdmon.futures import trigger_prices
+
+    rule("D12. The trigger drifts, and a NET comparison is spreading-clean")
+
+    print("--- 1. time-series momentum, not a breakout ---")
+    pa = cotdata.get_prices("6C", adjustment="propadj")["Close"].dropna()
+    pa = pa[pa.index <= "2026-07-28"]
+    k, spot = 250, float(pa.iloc[-1])
+    window = pa.iloc[-1 - k:]
+    print(f"  spot                     {spot:.5f}")
+    print(f"  TSMOM trigger F_(t-{k})  {pa.iloc[-1 - k]:.5f}   "
+          f"({pa.iloc[-1 - k] / spot - 1:+.2%})   <- what we use")
+    print(f"  Donchian {k}d high       {window.max():.5f}   "
+          f"({window.max() / spot - 1:+.2%})")
+    print(f"  Donchian {k}d low        {window.min():.5f}   "
+          f"({window.min() / spot - 1:+.2%})")
+    print("  One point versus the extreme of a window. Different questions.")
+
+    print("\n--- 2. the reference bar rolls, so the level moves without price ---")
+    ref, sp = pa.shift(k).dropna().tail(120), pa.tail(120)
+    d_ref = (ref / ref.shift(1) - 1).dropna()
+    d_spot = (sp / sp.shift(1) - 1).dropna()
+    print(f"  reference bar F_(t-{k})  daily sd {d_ref.std():.4%}   "
+          f"max |move| {d_ref.abs().max():.2%}")
+    print(f"  spot F_t                 daily sd {d_spot.std():.4%}   "
+          f"max |move| {d_spot.abs().max():.2%}")
+    print(f"  ratio {d_ref.std() / d_spot.std():.2f}x: most of the change in "
+          f"distance-to-trigger is the\n  LEVEL moving, not price. It is a snapshot, "
+          f"not a countdown.")
+    dist = (pa.shift(k) / pa - 1).dropna().tail(10)
+    print("  last 10 sessions, distance to the 250d trigger (%):")
+    print("   " + ", ".join(f"{100 * v:.2f}" for v in dist))
+
+    print("\n--- 3. the rule reverses, it does not exit ---")
+    tp = trigger_prices("6C", as_of="2026-07-28").dropna(subset=["flip_price"])
+    for _, r in tp.iterrows():
+        now = "LONG" if r.signal > 0 else "SHORT"
+        forces = "SELL" if r.signal > 0 else "BUY"
+        way = "falls" if r.move_from_spot < 0 else "rises"
+        print(f"  {int(r.lookback_days):>3}d: now {now:>5}  flips if price {way} "
+              f"{abs(r.move_from_spot):.2%}  => forces {forces}")
+    pool, kv = 102_495.0, 15_609.0
+    print(f"  observed levered net is SHORT {pool:,.0f}, so only the SHORT horizons "
+          f"describe a\n  book that is there. delta_s = 2 on a flip, so:")
+    print(f"    whole weighted short side  140,470 / {kv:,.0f} = "
+          f"{140470 / kv:5.2f} days")
+    print(f"    LF pool goes flat          {pool:,.0f} / {kv:,.0f} = {pool / kv:5.2f} days")
+    print(f"    LF pool reverses           {2 * pool:,.0f} / {kv:,.0f} = "
+          f"{2 * pool / kv:5.2f} days")
+
+    print("\n--- 4. Legacy vs TFF on NETS: spreading cancels, so this is pure "
+          "reclassification ---")
+    obs = vi.read_observations()
+    o = obs[(obs.market_code == CAD) & (obs.report_date == "2026-07-28")
+            & obs.report_type.isin(["legacy", "tff"])].copy()
+    for c in ("long_contracts", "short_contracts"):
+        o[c] = pd.to_numeric(o[c], errors="coerce")
+    o["net"] = o.long_contracts - o.short_contracts
+    n = o.set_index(["report_type", "category"])["net"]
+    lg, tf = n.loc["legacy"], n.loc["tff"]
+    nc, cm = lg["noncommercial"], lg["commercial"]
+    am, lf, orp, dl = (tf["asset_manager"], tf["leveraged"],
+                       tf["other_reportable"], tf["dealer"])
+    print(f"  non-reportable            legacy {lg['nonreportable']:>10,.0f}   "
+          f"tff {tf['nonreportable']:>10,.0f}   diff "
+          f"{lg['nonreportable'] - tf['nonreportable']:,.0f}")
+    print(f"  Legacy noncommercial      {nc:>10,.0f}")
+    print(f"    vs AM+LF                {am + lf:>10,.0f}   diff {nc - (am + lf):>+10,.0f}"
+          f"  ({abs(nc - (am + lf)) / abs(nc):.1%})")
+    print(f"    vs AM+LF+OR             {am + lf + orp:>10,.0f}   diff "
+          f"{nc - (am + lf + orp):>+10,.0f}  ({abs(nc - (am + lf + orp)) / abs(nc):.1%})")
+    print(f"  Legacy commercial         {cm:>10,.0f}")
+    print(f"    vs dealer               {dl:>10,.0f}   diff {cm - dl:>+10,.0f}")
+    print(f"  equal and opposite: {cm - dl:+,.0f} and {nc - (am + lf + orp):+,.0f}")
+    print("  A net excludes spreading in BOTH reports (a spread is equal long and short),")
+    print("  so unlike §D7's totals comparison nothing here is a convention difference.")
+
+
 def main() -> None:
     warnings.filterwarnings("ignore")
     pd.set_option("display.width", 240)
@@ -555,6 +641,7 @@ def main() -> None:
     d8_sterling_sign_conflict(priced)
     d9_offside_is_beside_not_inside()
     d10_pool_versus_signal()
+    d12_drift_and_net_reconciliation()
 
 
 if __name__ == "__main__":
