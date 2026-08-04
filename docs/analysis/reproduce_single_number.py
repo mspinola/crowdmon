@@ -17,6 +17,7 @@ what does it have to be published with?** The sections split into three groups.
   §D5  `Phi`'s effect on `D_pct` is not monotone
   §D6  Legacy and TFF share exactly two quantities and nothing else
   §D7  sterling: the levered book and Legacy non-commercial point opposite ways
+  §D8  the offside term: built, and beside `D` rather than inside it
 
 Blocks are named after their section: §D1 is `d1_t_ranking_is_structural`, and so on. The
 panels are expensive to build (every symbol's price history is read for the volume join),
@@ -412,6 +413,78 @@ def d7_sterling_sign_conflict(priced: pd.DataFrame) -> None:
     print("sign contradiction is unaffected; the supporting T figure needs the caveat.")
 
 
+# ── §D8 ─────────────────────────────────────────────────────────────────────
+def d8_offside_is_beside_not_inside() -> None:
+    """§D8: the trigger distance, why it is not a fourth factor, and the identity."""
+    import cotdata
+
+    from crowdmon.futures import add_trigger_distance, trigger_prices
+
+    rule("D8. The offside term: built, and kept beside D rather than inside it")
+
+    def build(rt: str) -> pd.DataFrame:
+        panel = ContractMaster.load().annotate(from_current_store(report_type=rt))
+        per_cat = add_volume(add_extremity(add_risk_units(add_notional(panel))))
+        agg = (per_cat.groupby(["report_date", "market_code"])
+               .agg(adv=("adv", "max"), adv_stress=("adv_stress", "max"),
+                    sigma_daily=("sigma_daily", "max"), symbol=("symbol", "first"))
+               .reset_index())
+        pm = market_fragility(panel).merge(agg, on=["report_date", "market_code"],
+                                           how="left")
+        r = rank_markets(pm, volume=pm["adv"], stress_volume=pm["adv_stress"])
+        return add_trigger_distance(add_composite(r, per_cat)).assign(report=rt)
+
+    s = pd.concat([build(rt) for rt in REPORTS], ignore_index=True)
+    cur = s[(s.report_date == s.report_date.max()) & s.dtl_sell.notna()].copy()
+    for c in ("trigger_sell_sigma", "trigger_buy_sigma", "trigger_sell_pct"):
+        cur[c] = pd.to_numeric(cur[c], errors="coerce")
+
+    print(f"week {cur.report_date.max().date()}, {len(cur)} markets with a live T")
+    print(f"  with a forced-SELL trigger : {int(cur.trigger_sell_sigma.notna().sum())}")
+    print(f"  with a forced-BUY trigger  : {int(cur.trigger_buy_sigma.notna().sum())}")
+    print(f"  horizons disagree          : "
+          f"{int(cur.trigger_horizons_disagree.fillna(False).sum())}")
+
+    print("\n--- the identity: F* = F_{t-k}, so the distance IS the k-day return ---")
+    for sym in ("RB", "ZC", "6B"):
+        tp = trigger_prices(sym, as_of="2026-07-28").dropna(subset=["flip_price"])
+        px = cotdata.get_prices(sym, adjustment="propadj")["Close"].dropna()
+        px = px[px.index <= "2026-07-28"]
+        for _, r in tp.iterrows():
+            k = int(r.lookback_days)
+            ret = px.iloc[-1] / px.iloc[-1 - k] - 1.0
+            print(f"  {sym:>4} k={k:>3}  move_from_spot {r.move_from_spot:+.6f}   "
+                  f"-r_k/(1+r_k) {-ret / (1 + ret):+.6f}")
+    print("  Exact on every row. So the distance carries no price information beyond")
+    print("  trailing momentum; what it adds is WHICH pool is forced at that level.")
+
+    d = cur.dropna(subset=["trigger_sell_sigma", "damage_sell_pct"])
+    print(f"\n--- why it is not a fourth multiplicand, {len(d)} markets ---")
+    for c in ("damage_sell_pct", "crowding_long", "illiquidity_sell", "fragility"):
+        print(f"  corr(trigger_sell_sigma, {c:18s}) = "
+              f"{d.trigger_sell_sigma.corr(d[c]):+.4f}   "
+              f"rank {d.trigger_sell_sigma.rank().corr(d[c].rank()):+.4f}")
+    print("  The -0.481 against C is the point: both are downstream of the same trend, so")
+    print("  a fourth factor would compound one signal twice. A.10 is the primary reason.")
+    print(f"\n  distance in sigma: median {d.trigger_sell_sigma.median():.1f}  "
+          f"p10 {d.trigger_sell_sigma.quantile(.1):.1f}  "
+          f"p90 {d.trigger_sell_sigma.quantile(.9):.1f}")
+
+    d = d.copy()
+    d["close"] = d.trigger_sell_sigma <= 1.5
+    d["severe"] = d.damage_sell_pct >= 0.75
+    print("\n--- the quadrant a product would collapse ---")
+    print(pd.crosstab(d["close"], d["severe"]).to_string())
+    hot = d[d.close & d.severe][["symbol", "market_name", "trigger_sell_sigma",
+                                 "trigger_sell_pct", "trigger_sell_k",
+                                 "damage_sell_pct", "dtl_sell"]]
+    print("\nCLOSE and SEVERE:")
+    print(hot.assign(market_name=hot.market_name.str.slice(0, 24)).to_string(
+        index=False, float_format=lambda x: f"{x:,.3f}"))
+    print("\nDJIA is in that cell on a T_sell of 0.27 days, so §D1's level floor still")
+    print("binds: the quadrant ranks, the level gates.")
+
+
 def main() -> None:
     warnings.filterwarnings("ignore")
     pd.set_option("display.width", 240)
@@ -427,6 +500,7 @@ def main() -> None:
     d5_phi_is_not_monotone(scored)
     d6_legacy_and_tff_share_two_things()
     d7_sterling_sign_conflict(priced)
+    d8_offside_is_beside_not_inside()
 
 
 if __name__ == "__main__":

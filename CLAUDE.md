@@ -322,8 +322,8 @@ figures, the appendix's live-cattle arithmetic (`test_appendix_live.py`, `2026-0
 the volume and trigger measurements, or
 `2026-08-03 §C1-C8` (`test_supplemental_live.py`, the most exposed of the set: three of its
 assertions read `cot_supplemental`, a domain one release old). From the
-**main checkout**, against `~/code/cotdata_store`, the same suite is **544 passed / 5
-skipped** rather than **477 / 72**.
+**main checkout**, against `~/code/cotdata_store`, the same suite is **552 passed / 5
+skipped** rather than **485 / 72**.
 
 **These four numbers are measured, so re-measure them rather than adjusting them by hand.**
 Any PR that adds or removes a `tests/*_live.py` assertion moves all four, and two PRs in
@@ -338,13 +338,13 @@ second re-runs both commands and updates this paragraph, `bin/check_skips.py`'s 
 > test moves all four as surely as a live one does, and the paragraph above named only
 > `tests/*_live.py`; it is the total that is quoted, so any added test counts.
 >
-> Moved again on **2026-08-04**, +5 on all four, by the five fixture tests
-> `test_composite.py` adds for `damage_block` / `format_damage_block`. The **67** live-only
-> assertions are unchanged, because none of the five needs the store: that count is the
-> difference between the two skip figures (72 - 5), not the total, so a fixture test moves
-> the four totals and leaves it alone.
+> Moved twice on **2026-08-04**, +5 then +8, by the fixture tests `test_composite.py` and
+> `test_trigger.py` add for `damage_block` / `format_damage_block` and then for the offside
+> term. The **67** live-only assertions are unchanged through both, because none of the
+> thirteen needs the store: that count is the difference between the two skip figures
+> (72 - 5), not the total, so a fixture test moves the four totals and leaves it alone.
 
-> **From a worktree those two figures are 542 / 7 and 475 / 74**, because `test_boundaries`
+> **From a worktree those two figures are 550 / 7 and 483 / 74**, because `test_boundaries`
 > resolves `../cotdata` and `../marketdata` relative to the test file and finds neither,
 > so the two producer-direction checks skip. Quote the main-checkout numbers: a worktree
 > reports two fewer passes and has one real seam unguarded. This note exists because an

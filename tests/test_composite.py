@@ -276,3 +276,79 @@ def test_format_damage_block_shows_the_factors_and_refuses_the_probability_readi
     assert "monotone" in text
     assert damage_band(0.95) == "top decile"
     assert damage_band(None) == "unscored"
+
+
+# ── The offside term travels beside D, never inside it ──────────────────────
+def test_damage_block_carries_offside_as_nulls_when_the_trigger_never_ran():
+    """`add_trigger_distance` is optional, so the key must exist and be null rather than
+    absent: a caller doing `block["offside"]["distance_sigma"]` should get `None`, not a
+    KeyError that reads as a bug in their code."""
+    fragility, extremity = _frames()
+    out = add_composite(fragility, extremity, min_periods=52)
+    block = damage_block(out, "TEST01")
+    assert block["offside"]["distance_sigma"] is None
+    assert block["offside"]["horizons_disagree"] is None
+
+
+def test_damage_block_reads_the_trigger_columns_for_the_matching_side():
+    """The side convention must line up with Q_sell/T_sell/damage_sell: a signal that is
+    long flips DOWN and forces SELLING. Pairing a trigger with the opposite side's severity
+    is the one error here that produces entirely plausible numbers."""
+    fragility, extremity = _frames()
+    out = add_composite(fragility, extremity, min_periods=52)
+    latest = out["report_date"] == out["report_date"].max()
+    out.loc[latest, "trigger_sell_sigma"] = 0.5
+    out.loc[latest, "trigger_sell_pct"] = 0.004
+    out.loc[latest, "trigger_sell_k"] = 20
+    out.loc[latest, "trigger_buy_sigma"] = 7.5
+    out.loc[latest, "trigger_buy_pct"] = 0.06
+    out.loc[latest, "trigger_buy_k"] = 250
+    out.loc[latest, "trigger_horizons_disagree"] = True
+
+    sell = damage_block(out, "TEST01", side="sell")["offside"]
+    buy = damage_block(out, "TEST01", side="buy")["offside"]
+    assert sell["distance_sigma"] == pytest.approx(0.5)
+    assert sell["lookback_days"] == pytest.approx(20)
+    assert buy["distance_sigma"] == pytest.approx(7.5)
+    assert buy["lookback_days"] == pytest.approx(250)
+    assert sell["horizons_disagree"] is True
+
+
+def test_the_offside_term_is_never_folded_into_the_damage_score():
+    """D must be exactly C x I x Phi whether or not a trigger distance is present. A.10
+    makes D a conditional severity; multiplying in a distance would make it unconditional,
+    and the distance is the trailing k-day return so it would also double-count C."""
+    fragility, extremity = _frames()
+    out = add_composite(fragility, extremity, min_periods=52)
+    before = out["damage_sell"].copy()
+    out["trigger_sell_sigma"] = 0.1          # as close to firing as it gets
+    out["trigger_sell_pct"] = 0.001
+    out["trigger_sell_k"] = 20
+    after = add_composite(fragility, extremity, min_periods=52)["damage_sell"]
+    pd.testing.assert_series_equal(before, after)
+    row = out[out["report_date"] == out["report_date"].max()].iloc[0]
+    assert row["damage_sell"] == pytest.approx(
+        row["crowding_long"] * row["illiquidity_sell"] * row["fragility"])
+
+
+def test_format_offside_names_the_quadrant_and_refuses_the_forecast_reading():
+    from crowdmon.futures.report import CLOSE_SIGMA, format_offside
+
+    close_severe = format_offside(
+        {"distance_sigma": 0.5, "distance_pct": 0.004, "lookback_days": 20,
+         "horizons_disagree": True}, side="sell", damage_pct=0.95)
+    assert "CLOSE and SEVERE" in close_severe
+    assert "not a forecast" in close_severe
+    assert "DISAGREE" in close_severe
+
+    far_severe = format_offside(
+        {"distance_sigma": 9.0, "distance_pct": 0.2, "lookback_days": 250,
+         "horizons_disagree": False}, side="sell", damage_pct=0.95)
+    assert "not close" in far_severe
+    assert "DISAGREE" not in far_severe
+
+    # The boundary is inclusive, so a market exactly at the threshold reads as close.
+    edge = format_offside(
+        {"distance_sigma": CLOSE_SIGMA, "distance_pct": 0.01, "lookback_days": 60,
+         "horizons_disagree": False}, side="sell", damage_pct=0.95)
+    assert "CLOSE and SEVERE" in edge

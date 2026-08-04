@@ -106,8 +106,26 @@ def trigger_prices(symbol: str, *, lookbacks=DEFAULT_LOOKBACKS, as_of=None,
             f"jump at every roll and would invent signal flips; `backadj` levels are not "
             f"prices. See this module's docstring.")
 
-    ratio_series = cotdata.get_prices(symbol, adjustment=adjustment)["Close"].dropna()
-    level_series = cotdata.get_prices(symbol, adjustment="unadj")["Close"].dropna()
+    def _close(adj: str) -> pd.Series:
+        """`Close` or a `TriggerError`, never a bare `KeyError`.
+
+        A symbol the price store does not carry returns an empty frame with no columns, so
+        the `["Close"]` access raised `KeyError('Close')` and killed the caller mid-run.
+        That matters because `add_trigger_distance` iterates over whatever symbols a frame
+        holds, and the coverage ladder is explicit that markets die at the price join: one
+        unresolvable symbol should null one row, not abort the panel.
+        """
+        frame = cotdata.get_prices(symbol, adjustment=adj)
+        if frame is None or frame.empty or "Close" not in frame.columns:
+            raise TriggerError(
+                f"no {adj!r} prices for {symbol!r}; the store has no usable Close series. "
+                f"A market can reach this legitimately by having a contract spec and no "
+                f"stored price tier, so callers scanning a panel should treat it as a null "
+                f"row rather than a failure.")
+        return frame["Close"].dropna()
+
+    ratio_series = _close(adjustment)
+    level_series = _close("unadj")
     if as_of is not None:
         stamp = pd.Timestamp(as_of)
         ratio_series = ratio_series[ratio_series.index <= stamp]
@@ -169,6 +187,136 @@ def vol_shock_reduction(sigma_now: float, sigma_shocked: float) -> float:
         raise TriggerError(
             f"volatilities must be positive, got {sigma_now!r} and {sigma_shocked!r}")
     return 1.0 - (sigma_now / sigma_shocked)
+
+
+#: Columns `add_trigger_distance` adds. Named `trigger_*` rather than `offside_*` because
+#: "offside" is a P&L word and this is not P&L: COT gives no entry price, so the distance to
+#: a rules-based flip is all that is measurable. A holder can be deeply underwater and
+#: nowhere near their trigger, and vice versa.
+TRIGGER_DISTANCE_COLUMNS = [
+    "trigger_sell_pct", "trigger_sell_sigma", "trigger_sell_k",
+    "trigger_buy_pct", "trigger_buy_sigma", "trigger_buy_k",
+    "trigger_horizons_disagree",
+]
+
+
+def nearest_trigger(symbol: str, *, sigma_daily: float, lookbacks=DEFAULT_LOOKBACKS,
+                    as_of=None) -> dict:
+    """Distance to the nearest flip that forces flow, per side, in daily sigma.
+
+    **The side convention matches `Q_sell` / `T_sell` / `damage_sell` exactly.** A signal
+    currently LONG flips DOWN, and a pool that was long and goes flat or short is a forced
+    SELLER, so it lands on the `sell` side. A signal currently SHORT flips UP and is a forced
+    BUYER. Getting this backwards would pair a trigger with the opposite side's severity,
+    which is the one error here that produces plausible numbers.
+
+    **Sigma is the unit that travels.** A 3% move means nothing across markets: 3% is a
+    routine day in natural gas and a large one in 2-year notes. Distance divided by daily
+    sigma is "how many ordinary days of movement until the rules fire", which is comparable,
+    and the raw percentage is kept beside it because it is what a reader recognises.
+
+    **Both sides usually exist at once, and that is the module's own point rather than a
+    defect.** The 20-, 60- and 250-day horizons routinely disagree in sign, measured at
+    **27 of 45** markets on 2026-07-28 (`2026-08-04 §D8`). `trigger_horizons_disagree` says
+    so per row, because "the trend book in gold" is not one pool with one trigger.
+
+    **The distance carries no price information beyond trailing momentum, and that is an
+    identity rather than a measurement.** Since `F* = F_{t-k}`, the move required to reach
+    the flip is exactly the `k`-day return that has already happened:
+
+        move_from_spot = F_{t-k}/F_t - 1 = -r_k / (1 + r_k)
+
+    verified to six decimals on every lookback of every market tested (`2026-08-04 §D8`).
+    So "how far to the trigger" is "how far it has already come", and this function adds
+    **the mapping, not the price**: which pool, on which side, is mechanically forced at that
+    level. That is the part positioning data supplies and a chart does not.
+
+    The consequence for the composite is in `composite.damage_block`: because both this and
+    `C` are downstream of the same trend, they are correlated (**-0.481** on 2026-07-28), so
+    a fourth multiplicand would compound one signal twice.
+
+    Returns nulls rather than raising when a side has no trigger: a market whose every
+    horizon is long genuinely has no forced-buy level, and that is an answer.
+    """
+    if sigma_daily is None or pd.isna(sigma_daily) or float(sigma_daily) <= 0:
+        raise TriggerError(
+            f"nearest_trigger needs a positive daily sigma for {symbol!r}, got "
+            f"{sigma_daily!r}. Sigma is the unit that makes the distance comparable across "
+            f"markets; without it there is a percentage and no way to read it. It comes "
+            f"from `riskunits.add_risk_units`, so it is not recomputed here: two "
+            f"definitions of sigma in one package is how the layer-2 trap started.")
+
+    frame = trigger_prices(symbol, lookbacks=lookbacks, as_of=as_of)
+    frame = frame.dropna(subset=["flip_price"])
+    sigma = float(sigma_daily)
+
+    def _nearest(signal: int) -> tuple:
+        part = frame[frame["signal"] == signal]
+        if part.empty:
+            return None, None, None
+        move = part["move_from_spot"].abs()
+        best = move.idxmin()
+        pct = float(move.loc[best])
+        return pct, pct / sigma, int(part.loc[best, "lookback_days"])
+
+    # signal +1 (long now) flips down -> forced selling; -1 (short now) flips up -> buying
+    sell_pct, sell_sigma, sell_k = _nearest(1)
+    buy_pct, buy_sigma, buy_k = _nearest(-1)
+    return {
+        "symbol": symbol,
+        "trigger_sell_pct": sell_pct, "trigger_sell_sigma": sell_sigma,
+        "trigger_sell_k": sell_k,
+        "trigger_buy_pct": buy_pct, "trigger_buy_sigma": buy_sigma,
+        "trigger_buy_k": buy_k,
+        "trigger_horizons_disagree": bool(sell_pct is not None and buy_pct is not None),
+    }
+
+
+def add_trigger_distance(frame: pd.DataFrame, *, on: str = "report_date", as_of=None,
+                         lookbacks=DEFAULT_LOOKBACKS) -> pd.DataFrame:
+    """Join `nearest_trigger` onto a frame carrying `symbol` and `sigma_daily`.
+
+    **This is a point-in-time overlay, not a history, and the reason is cost rather than
+    correctness.** `trigger_prices` is anchor-invariant and computes correctly as of any past
+    date, so a full history is well defined. It is also two price-store reads per
+    market-week: across 45 markets and 1,051 weeks that is roughly 95,000 reads against 90
+    for one week. So rows on `as_of` get a distance and every other row gets nulls, which is
+    stated here and visible in the output rather than discovered.
+
+    `as_of` defaults to the frame's latest date. `sigma_daily` must already be present, from
+    `riskunits.add_risk_units`, and is not recomputed: see `nearest_trigger`.
+    """
+    missing = sorted({"symbol", "sigma_daily", on} - set(frame.columns))
+    if missing:
+        raise TriggerError(
+            f"missing columns {missing}. `symbol` comes from `ContractMaster.annotate` and "
+            f"`sigma_daily` from `riskunits.add_risk_units`.")
+    out = frame.copy()
+    for column in TRIGGER_DISTANCE_COLUMNS:
+        out[column] = pd.NA
+    if out.empty:
+        return out
+
+    out[on] = pd.to_datetime(out[on])
+    stamp = out[on].max() if as_of is None else pd.Timestamp(as_of)
+    rows = out[on] == stamp
+    sigma = pd.to_numeric(out.loc[rows, "sigma_daily"], errors="coerce")
+
+    for sym, idx in out.loc[rows].groupby("symbol", dropna=True, sort=False).groups.items():
+        s = sigma.loc[idx].dropna()
+        s = s[s > 0]
+        if s.empty:
+            continue
+        try:
+            got = nearest_trigger(str(sym), sigma_daily=float(s.iloc[0]),
+                                  lookbacks=lookbacks, as_of=stamp)
+        except TriggerError:
+            # A market with too little price history to reach the longest lookback has no
+            # trigger, which is a null rather than a failure of the run.
+            continue
+        for column in TRIGGER_DISTANCE_COLUMNS:
+            out.loc[idx, column] = got[column]
+    return out
 
 
 def trigger_block(symbol: str, *, market_row: pd.Series, sigma_daily: float,

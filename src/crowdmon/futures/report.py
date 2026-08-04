@@ -162,7 +162,59 @@ def format_damage_block(block: dict) -> str:
         "  D is a product, so the smallest factor dominates. Phi's effect is NOT\n"
         "  monotone: a below-median Phi can raise or lower D_pct depending on the\n"
         "  market's own joint history (2026-08-04, corn up and sterling down).")
+
+    off = b.get("offside") or {}
+    if off.get("distance_sigma") is not None:
+        lines += ["", format_offside(off, side=side, damage_pct=dp)]
     return "\n".join(lines)
+
+
+#: The four cells of (how close is the trigger) x (how bad is the exit). Publishing `D_pct`
+#: and the trigger distance separately is what keeps these distinguishable; a product of the
+#: two collapses all four into one scalar. Thresholds are coarse for the same reason
+#: `DAMAGE_BANDS` is: both inputs are noisy and a fine grid implies precision neither has.
+QUADRANT = {
+    (True, True): "CLOSE and SEVERE. The cell the measure exists to find",
+    (True, False): "close but not severe. Likely to fire, unlikely to hurt",
+    (False, True): "severe but not close. Would hurt, is not imminent",
+    (False, False): "neither close nor severe",
+}
+
+#: A trigger within this many daily sigma is "close". Roughly one ordinary day's move.
+CLOSE_SIGMA = 1.5
+
+
+def format_offside(offside: dict, *, side: str, damage_pct: float | None) -> str:
+    """The trigger distance, rendered beside `D_pct` and explicitly not multiplied into it.
+
+    Two things this block must not let a reader do. It must not read the distance as a
+    forecast: it is the level at which a rules-based pool is mechanically forced, not a
+    prediction that price gets there. And it must not be combined with `D_pct` into a single
+    ranking, because the two are orthogonal (`2026-08-04 §D8`) and the quadrant is the
+    information.
+    """
+    d_sigma = offside.get("distance_sigma")
+    d_pct = offside.get("distance_pct")
+    k = offside.get("lookback_days")
+    forced = "selling" if side == "sell" else "buying"
+    out = [
+        f"    offside      {d_sigma:.1f} sigma   nearest {k:.0f}d flip that forces "
+        f"{forced}, {d_pct:.2%} away",
+    ]
+    if damage_pct is not None:
+        cell = QUADRANT[(d_sigma <= CLOSE_SIGMA, damage_pct >= 0.75)]
+        out.append(f"                 -> {cell}")
+    out += [
+        "  Not multiplied into D, and not a forecast. D says how bad an exit would be;",
+        "  this says how far price must move before the rules force one. Kept separate",
+        "  because D is a conditional severity (A.10) and because F* = F_{t-k} makes this",
+        "  the trailing k-day return, which already drives C (corr -0.481). Publishing",
+        "  both is what keeps the four cells above distinguishable.",
+    ]
+    if offside.get("horizons_disagree"):
+        out.append("  The 20/60/250d horizons DISAGREE here: there is a forced-buy level "
+                   "too.\n  This book is not one pool with one trigger.")
+    return "\n".join(out)
 
 
 def flow_sequence(flows: pd.DataFrame, market_code: str, category: str,

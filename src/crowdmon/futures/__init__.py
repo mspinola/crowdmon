@@ -236,8 +236,11 @@ from .seasonal import (
 )
 from .trigger import (
     DEFAULT_LOOKBACKS,
+    TRIGGER_DISTANCE_COLUMNS,
     TriggerError,
+    add_trigger_distance,
     format_block,
+    nearest_trigger,
     trigger_block,
     trigger_prices,
     vol_shock_reduction,
@@ -284,6 +287,7 @@ __all__ = [
     "RISK_ADJUSTMENT", "DEFAULT_VOL_WINDOW", "DEFAULT_MIN_PERIODS",
     # engines
     "trigger_prices", "trigger_block", "format_block", "vol_shock_reduction",
+    "nearest_trigger", "add_trigger_distance", "TRIGGER_DISTANCE_COLUMNS",
     "TriggerError", "DEFAULT_LOOKBACKS",
     "staircase", "bracket", "headline", "implied_gross_pool", "effective_lambda",
     "format_cascade_block", "ReflexivityError", "STAIRCASE_COLUMNS",

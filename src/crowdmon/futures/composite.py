@@ -304,6 +304,37 @@ def damage_block(scored: pd.DataFrame, market_code: str, *, side: str = "sell",
             "q": _f(r.get(f"q_{side}")),
             "open_interest": _f(r.get("open_interest")),
         },
+        # §A.7's trigger distance, present only when `trigger.add_trigger_distance` has run.
+        #
+        # **Deliberately beside `D` and never inside it, for two reasons.**
+        #
+        # 1. A.10 governs. `D` is a conditional severity: `D ⊥ E[r_{t+1}]` and `D -> skew,
+        #    ES`, so it answers "how bad if forced" and refuses "when". Distance to the flip
+        #    answers only "how close". Multiplying them turns `D` into an unconditional
+        #    quantity, which is exactly what A.10 declines to produce.
+        # 2. It would double-count `C`. Since `F* = F_{t-k}`, the distance IS the trailing
+        #    k-day return (an identity, see `trigger.nearest_trigger`), so it and positioning
+        #    extremity are both downstream of the same trend. Measured 2026-07-28: corr with
+        #    `crowding_long` is **-0.481** and with `damage_sell_pct` **-0.217**
+        #    (`2026-08-04 §D8`). That is the same defect as fragility sitting inside both `I`
+        #    and `Phi`, and there is no reason to add a third instance knowingly.
+        #
+        # An earlier draft of this comment claimed the two were orthogonal at -0.017. That
+        # figure came from reading triggers at the latest price bar against positioning at
+        # the report date, three days apart. Measured consistently it is -0.217, and the
+        # argument above does not rest on independence at all.
+        #
+        # Keeping them separate also preserves the quadrant, which is the actual deliverable:
+        # close-and-severe is the cell to act on, close-and-harmless fires often and does not
+        # matter, far-and-severe would hurt but is not imminent. One scalar cannot say which.
+        "offside": {
+            "distance_sigma": _f(r.get(f"trigger_{side}_sigma")),
+            "distance_pct": _f(r.get(f"trigger_{side}_pct")),
+            "lookback_days": _f(r.get(f"trigger_{side}_k")),
+            "horizons_disagree": (None if pd.isna(r.get("trigger_horizons_disagree",
+                                                        pd.NA))
+                                  else bool(r.get("trigger_horizons_disagree"))),
+        },
     }
 
 

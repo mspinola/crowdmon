@@ -20,13 +20,13 @@ Cross-file references carry the date: `2026-08-02 §B30`.
 Every figure below is reproduced by
 [`../analysis/reproduce_single_number.py`](../analysis/reproduce_single_number.py) against
 `COTDATA_STORE=~/code/cotdata_store`. Blocks are named after the section: §D1 is
-`d1_t_ranking_is_structural`, and so on through `d7_sterling_sign_conflict`.
+`d1_t_ranking_is_structural`, and so on through `d8_offside_is_beside_not_inside`.
 
 **The through-line.** Every section is one question: *what single number should this package
 deliver, and what does it have to be published with?* §D1 says the raw `T` ranking is not that
 number. §D2 and §D3 kill two candidate replacements by construction rather than by measurement.
 §D4 and §D5 are about the composite that already exists. §D6 and §D7 are why the input is TFF and
-not Legacy.
+not Legacy. §D8 builds the term all of that showed was missing.
 
 **What none of this settles.** Whether `Phi` belongs in `D` needs an outcome to score against.
 The §10 validation was pre-registered, executed by a session that had written none of the package,
@@ -341,3 +341,108 @@ against a smaller levered long and reports one negative number.
 The sign contradiction is untouched by this, and it is the claim worth making. The supporting
 duration figure needs the caveat, and §D5 shows the composite already applying it: `D_sell_pct`
 reads 0.611 rather than tracking the 1.000 illiquidity term.
+
+---
+
+## D8. The offside term is built, and it belongs beside `D` rather than inside it
+
+**Reproducer:** `docs/analysis/reproduce_single_number.py::d8_offside_is_beside_not_inside`.
+
+The framing that prompted this: crowding has three parts, **lopsided, offside, trapped**. `D`
+has `C` for lopsided and `I` for trapped and nothing for offside. `trigger.py` has computed
+`F*` since it was written, and **nothing consumed it**: `alignment.py` and `reflexivity.py`
+import it, `composite.py` does not.
+
+`trigger.nearest_trigger` and `trigger.add_trigger_distance` now supply it, and
+`composite.damage_block` publishes it beside `D_pct`.
+
+### The side convention, which is the one error that would look plausible
+
+A signal currently **long** flips **down**, so its pool becomes a forced **seller** and it
+lands on the `sell` side beside `Q_sell`, `T_sell` and `damage_sell`. A signal currently short
+flips up and is a forced buyer. Pairing a trigger with the opposite side's severity produces
+entirely reasonable-looking numbers, so it is asserted in
+[`../../tests/test_composite.py`](../../tests/test_composite.py) rather than left to review.
+
+### The unit is daily sigma, because a percentage does not travel
+
+A 3% move is a routine day in natural gas and a large one in 2-year notes. Distance divided by
+daily sigma is "how many ordinary days of movement until the rules fire". Measured on 45
+markets, week ending 2026-07-28:
+
+| | count |
+|---|---|
+| with a forced-**sell** trigger | **37** of 45 |
+| with a forced-**buy** trigger | **35** of 45 |
+| **horizons disagree** (both exist) | **27** of 45 |
+
+Distance to the nearest forced-sell trigger: median **1.8 sigma**, p10 0.6, p90 8.0.
+
+That 27 of 45 is the module's own claim, measured across the universe for the first time:
+"the trend book in gold" is not one pool with one trigger in 60% of markets.
+
+### The distance is the trailing return, and that is an identity
+
+Since `F* = F_{t-k}`, the move required to reach the flip is exactly the `k`-day return that
+has already happened:
+
+    move_from_spot = F_{t-k}/F_t - 1 = -r_k / (1 + r_k)
+
+Verified to six decimals on every lookback of every market checked. **So the trigger distance
+carries no price information beyond trailing momentum.** What it adds is the mapping: which
+pool, on which side, is mechanically forced at that level, and how large it is. That is the
+part positioning data supplies and a price chart does not.
+
+### Why it is not a fourth multiplicand
+
+Two reasons, and the first is the governing one.
+
+**A.10.** `D` is a conditional severity: the appendix states `D ⊥ E[r_{t+1}]` and
+`D → skew, ES`. It answers "how bad if forced" and deliberately refuses "when". A distance to
+the flip answers only "how close". Multiplying them turns `D` into an unconditional quantity,
+which is precisely what A.10 declines to produce.
+
+**It would double-count `C`.** Because the distance is the trailing return and positioning
+extremity is downstream of the same trend, the two co-move:
+
+| | corr | rank corr |
+|---|---:|---:|
+| `crowding_long` | **-0.4811** | -0.4560 |
+| `illiquidity_sell` | -0.2346 | -0.1575 |
+| `damage_sell_pct` | -0.2174 | -0.1617 |
+| `fragility` | +0.1134 | +0.2791 |
+
+A fourth factor would compound one signal twice, which is the same defect as fragility sitting
+inside both `I` and `Phi` (§D4). There is no reason to add a third instance knowingly.
+
+> **CORRECTED in the same session, before it shipped.** A first pass measured
+> `corr(distance, damage_sell_pct) = -0.017` and concluded the two were **orthogonal**, which
+> would have been a different and stronger argument. That figure was an artifact: it read
+> triggers at the **latest price bar** and positioning at the **report date**, three days
+> apart. Measured consistently at `as_of = report_date` it is **-0.217**, and gasoline moves
+> from 1.29 sigma to 4.8 sigma between the two readings. The decision does not rest on
+> independence and never did; the doctrinal reason above is sufficient on its own.
+
+### What is preserved by keeping them separate: the quadrant
+
+| | not severe | severe |
+|---|---:|---:|
+| **not close** | 16 | 5 |
+| **close** | 10 | **4** |
+
+Close and severe, week ending 2026-07-28: **corn** (0.25 sigma, `D_sell_pct` 0.955),
+**soybean meal** (0.64, 0.803), **Class III milk** (1.10, 0.764) and **DJIA** (0.93, 0.783).
+A product collapses all four cells into one scalar, and close-and-harmless is a genuinely
+different state from far-and-severe.
+
+**§D1's level floor still binds and this shows why.** DJIA sits in the close-and-severe cell on
+a `T_sell` of **0.27 days**. The quadrant ranks; the level gates.
+
+### A bug the tests found
+
+`trigger_prices` accessed `["Close"]` on whatever `cotdata.get_prices` returned, so a symbol
+the store does not carry raised a bare `KeyError('Close')` and killed the caller mid-run. That
+matters because `add_trigger_distance` iterates over whatever symbols a frame holds, and the
+coverage ladder is explicit that markets die at the price join: one unresolvable symbol should
+null one row, not abort the panel. It now raises `TriggerError` with the reason, and
+`add_trigger_distance` catches it per symbol.
