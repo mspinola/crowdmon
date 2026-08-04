@@ -1,0 +1,343 @@
+# Spec amendments, 2026-08-04
+
+Working agreement: measure, do not assume; if a measurement contradicts a doc, fix the doc and
+say so.
+
+Sections here carry a **`D` prefix**, per the per-day convention set in `f194c4e` and stated in
+[README.md](README.md). [`amendments-2026-08-03.md`](amendments-2026-08-03.md) is closed at C24.
+Cross-file references carry the date: `2026-08-02 §B30`.
+
+> **The letter now collides with the headline output variable, and that is survivable.**
+> `D = C x I x Phi` is the composite, so this file's `§D4` sits in prose beside a `D` that means
+> the damage score. The `§` sigil is the whole distinction, and the collision is not new: `C` has
+> been both the crowding factor and a section prefix since 2026-08-03 without incident. What was
+> NOT survivable without a change is
+> [`../../tests/test_references.py`](../../tests/test_references.py), whose two patterns hard-coded
+> `[ABC]`. A `D` section would have been silently unscanned and every `§D` citation silently
+> unresolvable, which is the exact failure mode that test exists to prevent, arriving through the
+> test itself. Both patterns are widened together and carry a note saying they must be.
+
+Every figure below is reproduced by
+[`../analysis/reproduce_single_number.py`](../analysis/reproduce_single_number.py) against
+`COTDATA_STORE=~/code/cotdata_store`. Blocks are named after the section: §D1 is
+`d1_t_ranking_is_structural`, and so on through `d7_sterling_sign_conflict`.
+
+**The through-line.** Every section is one question: *what single number should this package
+deliver, and what does it have to be published with?* §D1 says the raw `T` ranking is not that
+number. §D2 and §D3 kill two candidate replacements by construction rather than by measurement.
+§D4 and §D5 are about the composite that already exists. §D6 and §D7 are why the input is TFF and
+not Legacy.
+
+**What none of this settles.** Whether `Phi` belongs in `D` needs an outcome to score against.
+The §10 validation was pre-registered, executed by a session that had written none of the package,
+and returned `uninformative`; the clean episodes are spent. So §D4 measures what `Phi` *does* and
+is silent on whether it is *right*, and no amount of further work in this direction changes that.
+
+---
+
+## D1. The raw `T` ranking is substantially a statement about market structure, not about this week
+
+**Reproducer:** `docs/analysis/reproduce_single_number.py::d1_t_ranking_is_structural`.
+
+[`../analysis/2026-07-28-exit-capacity.md`](../analysis/2026-07-28-exit-capacity.md) publishes
+`T = Q / (kappa V)` as a cross-market ranking. That document is correct on every figure and its
+§9 says plainly that it makes no claim about whether a week is unusual. The defect is editorial:
+a table sorted by `T` descending is read as "where is the trouble", and that is not what it
+answers.
+
+Measured over the 45 markets that reach a live `dtl_sell`, week ending 2026-07-28:
+
+| test | value |
+|---|---|
+| rank correlation, this week's `T` vs each market's own long-run median `T` | **0.639** |
+| top-10 overlap, raw `T` vs 3-year percentile of own history | **3 of 10** |
+
+Seven of the top ten change. Four markets sit in the raw top ten while running **below** their own
+median:
+
+| symbol | `T_now` | own median | vs own normal | 3y pctile | rank raw -> pctile |
+|---|---:|---:|---:|---:|---:|
+| LE live cattle | 6.084 | 8.789 | 0.692x | **0.204** | 4 -> **35** |
+| OJ orange juice | 4.356 | 11.719 | **0.372x** | **0.191** | 10 -> **36** |
+| DC Class III milk | 8.980 | 11.662 | 0.770x | 0.758 | 2 -> 18 |
+| CT cotton | 7.120 | 9.986 | 0.713x | 0.815 | 3 -> 12 |
+
+And the five markets at or above their own 3-year p90 are buried in the middle. Sterling is at
+**1.000**, its highest exit time in three years and 2.29x its own median, and ranks **12th** on the
+raw table:
+
+| symbol | `T_now` | own median | vs own normal | 3y pctile | rank raw -> pctile |
+|---|---:|---:|---:|---:|---:|
+| 6B | 4.138 | 1.805 | 2.293x | **1.000** | 12 -> **1** |
+| 6C | 5.614 | 1.776 | **3.161x** | 0.994 | 6 -> 2 |
+| 6N | 4.012 | 2.523 | 1.590x | 0.975 | 13 -> 3 |
+| 6S | 4.402 | 1.833 | 2.401x | 0.962 | 9 -> 4 |
+| KE | 3.982 | 4.445 | 0.896x | 0.962 | 14 -> 4 |
+
+**History is not the constraint.** All 45 markets carry at least 156 weeks; the median is 1,051 and
+only lumber is short at 195. The percentile was available the whole time and was not used.
+
+### What follows
+
+**The level keeps exactly one job: a floor.** A percentile cannot say whether a level is trivial,
+and this week exactly one market is affected. DJIA reads `D_sell_pct` 0.783 on a `T_sell` of **0.27
+days**, and a quarter-session exit cannot be disorderly however unusual it is for that contract.
+So: rank on the percentile, gate on the level. That is one number and one threshold, not two
+numbers to reconcile.
+
+**Not a correction to the analysis document.** `docs/analysis/` is point-in-time and never amended.
+Its figures stand; this is the reading instruction that belongs beside them.
+
+---
+
+## D2. `T_sell / T_buy` **is** `Q_sell / Q_buy`, so a side-ratio index cannot see joint congestion
+
+**Reproducer:** `docs/analysis/reproduce_single_number.py::d2_the_ratio_is_t_over_t`.
+
+    T_sell / T_buy  =  [Q_sell / (kV)] / [Q_buy / (kV)]  =  Q_sell / Q_buy
+
+The volume term cancels exactly. Checked on all 1,051 sterling weeks: max
+`|T_sell/T_buy - Q_sell/Q_buy|` is **4.44e-16**.
+
+This has a pleasant consequence and a fatal one. Pleasant: because the raw long and short sides are
+always equal by zero-sum, the ratio is **size-free by construction** and is purely a statement about
+holder composition. Fatal: it moves only when the two sides **diverge**, and it is blind to both
+moving together.
+
+Sterling on 2026-07-28 is that blind spot:
+
+| | level | 3y pctile | share of 3y median |
+|---|---:|---:|---:|
+| `Q_sell` | 84,267 | **99.36** | **167%** |
+| `Q_buy` | 47,071 | **98.09** | **196%** |
+| `adv` | 101,825 | 12.10 | 93% |
+| `T_sell` | 4.138 | **100.00** | 181% |
+| `T_buy` | 2.311 | **98.09** | 214% |
+| **ratio** | 1.790 | **25.48** | 83% |
+
+Both weighted sides are at records and the ratio reads the 25th percentile, because the short side
+grew *more* (196% of its median against 167%), so the ratio moved against the long side while the
+long side set a record. Sterling's own 3-year median ratio is 2.17.
+
+**The configuration where everyone is stuck at once is arguably the most dangerous one available,
+and it is exactly the one a ratio divides out.** That is a stronger argument against a ratio
+headline than any measurement of its behaviour.
+
+---
+
+## D3. "At-risk vs not-at-risk" is one series twice, and so is the Legacy pair it would be modelled on
+
+**Reproducer:** `docs/analysis/reproduce_single_number.py::d3_the_partition_is_degenerate`.
+
+The proposal was an index of leveraged / at-risk TFF categories against non-leveraged / not-at-risk
+ones, by analogy with reading commercials against large specs in Legacy. It cannot work, and the
+analogy is the reason rather than the defence.
+
+Over 22,183 TFF market-weeks:
+
+    at_risk_net + not_at_risk_net  =  0.0000   (max, not mean)
+    corr(at_risk_net, not_at_risk_net) = -1.0000000000
+
+Futures are zero-sum, so **any** partition of the five categories into two groups gives `A = -B`
+exactly. The comparison contributes nothing. This is the same trap
+[`../../src/crowdmon/futures/fragility.py`](../../src/crowdmon/futures/fragility.py) already
+documents for `Phi`: nets sum to zero across categories, so a weighted net is not a share of
+anything.
+
+Excluding the two small categories buys a little independence and not much. Across the 24 markets
+with at least 156 weeks, `corr(leveraged, dealer + asset_manager)` has a median of **-0.919**,
+range -0.978 to -0.397.
+
+**The analogy is the finding.** Across 303 Legacy markets, `corr(commercial, noncommercial)` has a
+median of **-0.9939**, with 90% of markets below -0.854. The comms-versus-specs pair that everyone
+already reads is *also* one series printed twice. The redundancy is not introduced by the proposal;
+it is inherited from the convention, and two lines on a chart look like two pieces of information.
+
+### What is non-degenerate: one index per SIDE, not per camp
+
+Sterling, its record week:
+
+| week | lev idx | non-lev idx | `T_sell` idx | `T_buy` idx |
+|---|---:|---:|---:|---:|
+| 2026-07-07 | 14.6 | 87.3 | 97.5 | 98.7 |
+| 2026-07-21 | 36.3 | 62.4 | 92.4 | 86.6 |
+| **2026-07-28** | **45.9** | **62.4** | **100.0** | **98.1** |
+
+    corr(lev idx, non-lev idx)   = -0.9396   mirrors
+    corr(T_sell idx, T_buy idx)  = +0.6723   not mirrors
+
+On its most congested week on record, the category pair reads **46 and 62** and notices nothing.
+The two side indices read **100 and 98**. A category net is a difference and stays mid-range while
+both sides' weighted exposure goes to a record; and unlike the ratio in §D2, two side indices *can*
+both be maxed, which is the whole point.
+
+---
+
+## D4. `Phi` is NOT inert in `D`, which refutes the suspicion that prompted the test
+
+**Reproducer:** `docs/analysis/reproduce_single_number.py::d4_phi_is_not_inert`.
+
+`2026-08-01 §A22` and `2026-08-03 §C8` establish that `Phi` carries no signal independent of the
+weights, and its within-market standard deviation is 0.082 against roughly 0.29 for the two
+percentile terms beside it. The reasonable suspicion was that percentile-ising something that
+stable amplifies noise, or does nothing at all once `D` is itself percentile-ised per market.
+**Both are wrong.** Over 32,079 market-weeks and 46 markets:
+
+| side | corr(`D2_pct`, `D3_pct`) | rank corr | median abs diff | 90th pct abs diff |
+|---|---:|---:|---:|---:|
+| sell | 0.8059 | 0.8069 | 0.0892 | **0.3121** |
+| buy | 0.8438 | 0.8453 | 0.0764 | 0.2803 |
+
+where `D2 = C x I` and `D3 = C x I x Phi`, each percentile-ised within its own market. In one week
+in ten, including `Phi` moves the published percentile by more than 0.3.
+
+It is structural rather than jitter:
+
+| term | median lag-1 autocorrelation | within-market sd |
+|---|---:|---:|
+| `pct(Phi)` | **0.888** | 0.306 |
+| `C` | 0.950 | 0.311 |
+| `I` | 0.947 | 0.303 |
+
+And it reorders substantially: latest-week top-10 overlap **5 of 10** (sell) and 8 of 10 (buy), and
+across all 742 weeks the top-5 overlap averages **2.47 of 5**.
+
+### What this does not say
+
+It does not say `Phi` belongs there. There is no outcome to score against, so `Phi` could be
+systematically improving or systematically degrading the number and this comparison cannot
+distinguish them. The same session proposed the removal and ran the test, which is the arrangement
+workspace governance separates for a reason.
+
+**What survives from `§A22` and `§C8` is the interpretation, not a prediction of inertness:** the
+0.31 of reordering is the weight table talking. Whether that is a feature turns on whether the
+weights are believed, and they are configured judgement, deliberately never fitted.
+
+**Do not drop `Phi` on the strength of this.** It is doing too much for a change that cannot be
+justified by measurement, and removing a term because it is inconvenient to explain is the wrong
+reason.
+
+---
+
+## D5. `Phi`'s effect on `D_pct` is not monotone, so a lone percentile is uninterpretable
+
+**Reproducer:** `docs/analysis/reproduce_single_number.py::d5_phi_is_not_monotone`.
+
+Week ending 2026-07-28:
+
+| | `C` | `I` | `pct(Phi)` | `D2_pct` | `D3_pct` | effect |
+|---|---:|---:|---:|---:|---:|---:|
+| ZC corn | 0.930 | 0.841 | **0.395** | 0.917 | 0.955 | **+0.038** |
+| 6B sterling | 0.420 | 1.000 | **0.376** | 0.707 | 0.611 | **-0.096** |
+| 6C CAD | 0.389 | 0.994 | 0.739 | 0.771 | 0.885 | +0.115 |
+| YM DJIA | 0.752 | 0.516 | 0.287 | 0.796 | 0.783 | -0.013 |
+
+Corn and sterling both carry a **below-median** `pct(Phi)` and it moves them in **opposite
+directions**, because the percentile of a product is not monotone in each factor's percentile: what
+matters is the market's own joint history of the three terms, not this week's value of one of them.
+
+**Consequence, and it is a hard one: "more fragile means more damage" is not a sentence anyone may
+write.** A single `D_pct` therefore cannot be interpreted even by a reader who knows the formula.
+
+Sterling is also the case that shows the composite behaving well. Its `I` is 1.000, a record exit
+time, and `D_sell_pct` is only 0.611, because `C` is 0.420: the levered book is mid-range and, per
+§D7, half of `Q_sell` is the dealer book. **`D` correctly discounts a record `T` when the crowd
+driving it is not the fragile crowd.** Without the factors published that reads as the measure
+missing something; with them it reads as the measure working.
+
+### Acted on, same day
+
+`composite.damage_block` and `futures.report.format_damage_block` publish `C`, `I` and `pct(Phi)`
+beside `D_pct` on every render, with the multiplication written out, the raw `T` in days for the
+§D1 floor, and explicit denials of the probability and monotonicity readings. Five fixture tests in
+[`../../tests/test_composite.py`](../../tests/test_composite.py) pin it, one of them asserting the
+denial text is present so it cannot be edited out silently. Bands are deliberately coarse: `D_pct`
+is a percentile of a product of percentiles and a two-decimal label implies precision the
+construction does not have.
+
+---
+
+## D6. Legacy and TFF agree on exactly two quantities, and neither is a category
+
+**Reproducer:** `docs/analysis/reproduce_single_number.py::d6_legacy_and_tff_share_two_things`.
+
+Over 6,279 overlapping market-weeks:
+
+| test | result |
+|---|---|
+| `open_interest` identical | **100.0000%**, max difference **0** |
+| `nonreportable` long identical | **100.0000%** |
+| `nonreportable` short identical | **100.0000%** |
+| TFF category sum == Legacy category sum | 34.6% |
+| `dealer` == `commercial` | **15.3%** long, 14.5% short |
+| `asset_manager + leveraged + other_reportable` == `noncommercial` | **15.6%** long, 15.8% short |
+
+So the two reports describe the same pool of contracts and agree exactly on where the
+reportable line falls. Above that line, the obvious mapping fails about 85% of the time, for two
+compounding reasons.
+
+**Spreading is counted differently.** Legacy breaks out spreading only for non-commercial traders
+and nets commercial spreading into long and short; TFF breaks it out for every category. Canadian
+dollar, 2026-07-28, open interest 372,447:
+
+    TFF     long 348,849 + spread 23,598 = 372,447   residual 0
+    Legacy  long 362,728 + spread      0 = 362,728   residual 9,719
+    gap between the two long totals     = 13,879 = 23,598 - 9,719
+
+exact to the contract. Note that cotdata's `canonicalize_legacy` sets `spread_contracts` to `NA`
+on every row, so the Legacy 9,719 is **derived as the identity residual, not read**. Summing an
+all-null column returns 0, which would print as a measurement of zero spreading and is not one.
+Store-wide: the identity `long + spread == OI` closes on **99.984%** of TFF market-weeks and
+**19.857%** of Legacy ones, median residual 912.
+
+**The traders in each bucket are different people, and this is the reason no correction recovers
+the mapping.** If Legacy's `noncommercial` were the same traders as TFF's buy side, their spreading
+would match:
+
+    Legacy non-commercial spreading (derived)          =  9,719
+    TFF asset_manager + leveraged + other_reportable   = 15,278
+
+### What follows
+
+**Any quantity built by subtracting one report's category from another's mixes a classification
+difference with a spreading-convention difference, and neither is recoverable from published data.**
+Same shape as the Supplemental trap in the root `CLAUDE.md`: Index Traders does not nest inside
+Disaggregated's Swap Dealer. The only quantities that carry across are open interest and
+`nonreportable`.
+
+This also puts numbers behind two claims `core/config.py` and `io.from_current_store` already make
+about refusing Legacy. Its `noncommercial` bucket would fuse `leveraged` at weight 1.0 with
+`asset_manager` at 0.3, which in sterling this week are -102,495 and -101,160: two positions within
+1.3% of each other in size and opposite in forceability. And `Phi`'s denominator would hold
+contracts its numerator cannot see on 80% of market-weeks.
+
+---
+
+## D7. Sterling: the levered book and Legacy non-commercial point opposite ways, 12 weeks running
+
+**Reproducer:** `docs/analysis/reproduce_single_number.py::d7_sterling_sign_conflict`.
+
+Legacy reports non-commercial in sterling net **short 64,814** contracts on 2026-07-28. Leveraged
+funds are net **long 41,097**. The short is institutional: asset managers at -140,911.
+
+This is not a one-week artifact. The sign conflict holds in **all 12 of the last 12 weeks** and in
+**57 of the 82 weeks** the vintage store holds (69.5%).
+
+It is the sharpest available demonstration of §D6: a Legacy reader is not merely missing detail,
+they are pointed at the wrong side of the market, because Legacy nets a large institutional short
+against a smaller levered long and reports one negative number.
+
+### The caveat, and it belongs beside the finding
+
+`Q_sell` decomposes as:
+
+    dealer            107,350 x 0.4 =  42,940.0    51.0% of Q_sell
+    leveraged          41,097 x 1.0 =  41,097.0    48.8%
+    other_reportable      460 x 0.5 =     230.0     0.3%
+                                       --------
+                                        84,267.0
+
+**Half of sterling's record `T_sell` is the dealer book at weight 0.4**, not a levered-fund crowd.
+The sign contradiction is untouched by this, and it is the claim worth making. The supporting
+duration figure needs the caveat, and §D5 shows the composite already applying it: `D_sell_pct`
+reads 0.611 rather than tracking the 1.000 illiquidity term.
