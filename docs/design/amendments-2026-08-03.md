@@ -1399,3 +1399,114 @@ question about the rule; it is not grounds to override it after seeing the numbe
 the failure the rule exists to prevent.
 
 Reproducer: [`../analysis/reproduce_report_gate.py`](../analysis/reproduce_report_gate.py)`::c24_already_exposed`.
+
+---
+
+## C25. The brief carries one of the five reading instructions, two at best, and names the rest
+
+**§3 of [`../handoffs/2026-08-03-report-layer.md`](../handoffs/2026-08-03-report-layer.md),
+executed.** §5 of that handoff pre-registered negative #4: a brief that carries some caveats
+and silently omits others is worse than no brief, because a bare frame announces that it is
+bare while a partial one reads as complete. The rule fixed in advance was that the brief
+ships only if it prevents every misreading on `README.md`'s list, **or names in its own
+output the ones it does not carry**.
+
+**It does not prevent them all, so it names them.** Over the enumerated five, on the latest
+current-state week for LIVE CATTLE:
+
+| reading instruction | status | why |
+|---|---|---|
+| `2026-08-01 §A17`, a falling `D` is not safety | **carried** (partial) | `composite.add_unwind_state`, decisive on 40.2% of falling weeks per `§C21` |
+| `2026-08-01 §A21`, `Phi` has no signal independent of the weights | **named** | per-row and identical on every row (`§C22`), so it separates nothing |
+| `2026-08-01 §A22`, the rankings survive wrong weights, not reordering | **named** | a property of a pooled ranking under a sweep of whole weight tables. A row has neither a panel nor variants |
+| `2026-08-02 §B2`, exits are not independent across markets | **carried, but only after `add_commonality`** | `beta` attaches on 100% of rows (`§C24`) and the composite chain does not attach it |
+| `2026-08-03 §C3`, the population is part of the sensitivity result | **named** | needs a population and a sweep, and `§C23` shows no panel holds both a `pct(D)` and the markets `§C8`'s rule points at |
+
+**The default chain carries one of five, not two.** `add_commonality` is not part of the
+composite chain and never will be, because `2026-08-02 §B2` measured `pct(T_eff)` as
+bit-identical to `pct(T)` under a constant `beta_bar`. So a caller assembling a brief the
+obvious way has no `beta`, and the ledger's `not_carried` entry naming `add_commonality` is
+the only thing that says so. One extra call closes it; nothing in the chain makes that call.
+
+**Three of the five are not carryable at all, and none of the three is an effort problem.**
+Each fails for a reason a measurement already established: a value identical on every row, a
+property of a ranking rather than of a row, and a property of a population. That is the
+substantive answer to §2's question, arriving a level below where §2 asked it. §2 classified
+caveats by whether a per-row value exists; §3 finds that for three of the five the honest
+per-row artifact is a **declaration of absence**, which is a different kind of output and had
+to be built as one.
+
+**Consequence, and it is the reason the footer exists.** With `E = 1` from `§C24` and two of
+five carried here, the brief's safety case is thin by construction. `format_brief` states
+that in its own output rather than leaving a reader to infer safety from a full-looking page,
+and there is deliberately no flag to suppress the ledger: a `include_caveats=False` would
+turn the artifact back into the bare number it exists to stop travelling alone.
+
+Reproducer: [`../analysis/reproduce_brief.py`](../analysis/reproduce_brief.py)`::c25_the_ledger_over_the_five`.
+Asserted in [`../../tests/test_brief.py`](../../tests/test_brief.py)`::test_a_frame_with_no_carriers_still_names_all_five`.
+
+---
+
+## C26. A third of market-weeks have no `D` to print, and the blank cell was two states
+
+`§C20` measured the split and this is what it means for an artifact. Of 27,194 current-state
+market-weeks, **8,831 (32.5%)** carry no `damage_sell_pct` at all, so a third of all possible
+briefs have no headline number:
+
+| `score_state_sell` | rows |
+|---|---|
+| `scored` | 18,363 |
+| `no_crowding` | 6,256 |
+| `warmup` | 2,575 |
+
+**Before the state column every one of those 8,831 rendered as a blank cell**, and a blank
+beside three factor columns reads as a low value rather than as an absence. The two causes
+say opposite things: `warmup` is a series that will score later, `no_crowding` is a market
+that may never and whose rung `coverage.drops_at` names. `composite.damage_report` counted
+both across a panel and no column named either on a row, which is the whole of `§C24`'s
+`E = 1`.
+
+**It is not a historical problem.** On the latest week, 2026-07-28, 24 of 25 markets score
+and one does not, so the state is load-bearing on current output and not only on backfill.
+
+`add_score_state` raises rather than guessing when a null has no cause, which is the property
+that makes the column worth trusting: `damage` is the product of three factors and is null
+iff a factor is, so a row labelled `scored` with nothing to score cannot occur unless
+`add_composite` stops propagating null. That is asserted on every computation rather than
+only in tests, matching `fragility`'s `Phi` bound.
+
+Reproducer: [`../analysis/reproduce_brief.py`](../analysis/reproduce_brief.py)`::c26_a_third_of_briefs_have_no_number`.
+Pinned live in [`../../tests/test_brief_live.py`](../../tests/test_brief_live.py).
+
+---
+
+## C27. `indeterminate` has two causes and `§C21` measured only one of them
+
+`§C21` established that the `§A17` marker is silent on 59.8% of falling-`D` weeks because the
+flow state carries nothing, and concluded that silence must be rendered out loud. Building
+the marker surfaced a **second, unrelated** cause of the same verdict, which `§C21` did not
+separate because it only looked at falling weeks.
+
+| cause | rows | share of `indeterminate` |
+|---|---|---|
+| no prior scored week, so there is no `ΔD` to read | **8,856** | 63.4% |
+| `ΔD` exists and the flow state carries nothing | **5,118** | 36.6% |
+
+The second group is `mixed` on 4,985 rows and `gap` on 133, and **every one of them is a
+falling week** — a rising week under a silent flow state is `not_falling`, correctly, because
+`§A17` is a warning about falls only. The 5,118 reproduces `§C21`'s falling-week arithmetic
+exactly: 8,559 falling weeks, 3,441 decisive, 5,118 silent.
+
+**The two are not interchangeable and a reader acts differently on each.** "This series is
+too young to difference" is a statement about coverage and resolves with time; "this week's
+move cannot be interpreted" is a statement about the week and never resolves. Collapsing them
+into one word would be the same error one level down as rendering `warmup` and `no_crowding`
+identically, so `brief.NO_DELTA_NOTE` renders the first and `UNWIND_NOTES` the second, both
+under the same `indeterminate` label because the label is the marker's answer and the note is
+its reason.
+
+**The marker over every row**, for scale: 13,974 `indeterminate`, 9,779 `not_falling`, 1,913
+`falling_not_exit`, 1,528 `mid_exit`. The most common single verdict this carrier gives is
+"I cannot say", which is the honest shape of `§C21`'s finding rather than a defect in it.
+
+Reproducer: [`../analysis/reproduce_brief.py`](../analysis/reproduce_brief.py)`::c27_indeterminate_is_two_states`.
