@@ -838,3 +838,59 @@ Nothing about whether `D` or the trigger measures anything. Both halves are stat
 the code and the configured weights, and this section only composes two of them. It is also
 one week: the 46% contradiction rate is not a property of the universe, and `§D10`'s three
 never-agree markets are the only part with any history behind it.
+
+## D14. Only the Norgate producer can write a store this package can read, and that is a tier fact rather than an OS fact
+
+**Reproducer:** none needed, and that is the point: every input is already recorded in this
+repo and in `../../../cotdata`. This section composes them, because nothing had.
+
+Surfaced on 2026-08-04 while deciding which machine publishes the damage panel. Work order
+filed as
+[`cotdata/docs/handoffs/2026-08-04-adr7-step2-price-producer-split.md`](../../../cotdata/docs/handoffs/2026-08-04-adr7-step2-price-producer-split.md)
+§4, in `cotdata` rather than here because the code that moves is `cotdata`'s.
+
+### The composition
+
+Three facts, each already written down separately:
+
+1. **This package needs two stored tiers.** `notional` refuses anything but `unadj`,
+   `riskunits` anything but `propadj`, and `propadj` is **derived on read** from `unadj` +
+   `backadj`. `ContractMaster.coverage()` already encodes it: `joinable` means specs plus
+   `unadj` plus `backadj`, and its docstring is explicit that the `backadj` requirement is
+   the precondition for the derived tier rather than a claim that `backadj` returns are
+   usable. They are not, and `riskunits` raises on them.
+2. **Norgate is the only vendor supplying all tiers, and it is Windows-only.** Not by
+   licence but by mechanism: `norgatedata` talks to a locally installed Norgate Data Updater
+   application rather than an API (`cotdata/src/cotdata/providers/norgate.py:207,325`).
+3. **databento owes exactly one series per symbol**, `backadj`, because crucible-stack
+   ADR-0007 scopes it to the Linux dashboard's needs and says its coverage "should not be
+   broadened toward parity with Norgate".
+
+Composed: **a databento-backed futures store cannot feed this package at all.** One stored
+tier cannot produce `propadj`, and the refusal is a `raise` rather than a warning precisely
+because the error survives a spot check (`backadj` percent vol is 201x too high for soybeans
+and **0.47x for gold**, which never goes negative).
+
+### What that means for deployment, stated as a table because two things were being conflated
+
+| box | Python >= 3.10 | Norgate | can produce a store this package reads |
+|---|---|---|---|
+| Windows | yes | **yes** | **yes** |
+| macOS | yes, runs 3.11 under uv and builds the full panel today | no | no |
+| Linux server | **no, runs 3.9** | no | no |
+
+The three fail for three different reasons, which is why lumping them under "Windows-only"
+was misleading. **macOS has no Python problem**: it runs the whole price-dependent chain,
+47 markets with `beta` and both trigger sides, and `2026-08-04 §D13`'s figures were measured
+there. Its blocker is one vendor application that does not exist for the platform.
+
+So the sentence to carry is not "crowdmon needs Windows". It is **"crowdmon needs a
+full-tier store, and today exactly one machine can write one."**
+
+### The trap this creates for ADR-0007 step 2
+
+`marketdata` has no futures provider yet, so step 2 writes one rather than moving one. If
+that provider ships databento-first, or ships Norgate but stores only `backadj` to match the
+server's needs, **this package stops working and does so as a `raise` inside a weekly
+scheduled job**. `unadj` and `backadj` both stored is a hard requirement of the new provider,
+not a coverage nicety, and the handoff's §4 says so where whoever writes it will be reading.
