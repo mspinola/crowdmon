@@ -40,28 +40,47 @@ the copies of the templates, outside both repos, so a `git pull` never touches i
 REM crowdmon nightly chain. Lives in the scheduler directory, not in either repo.
 REM Substitute your own scheduler path for C:\Users\you\scheduler below.
 
-call "C:\Users\you\scheduler\run-prices.cmd"
-if %ERRORLEVEL% NEQ 0 ( echo prices deferred or failed, code %ERRORLEVEL% & exit /b %ERRORLEVEL% )
+set "LOG=C:\Users\you\scheduler\nightly.log"
+echo.>> "%LOG%"
+echo === %DATE% %TIME% ===>> "%LOG%"
 
-call "C:\Users\you\scheduler\run-publish.cmd"
-if %ERRORLEVEL% NEQ 0 ( echo publish FAILED, code %ERRORLEVEL% & exit /b %ERRORLEVEL% )
+call "C:\Users\you\scheduler\run-prices.cmd" >> "%LOG%" 2>&1
+if %ERRORLEVEL% NEQ 0 ( echo prices deferred or failed, code %ERRORLEVEL%>> "%LOG%" & exit /b %ERRORLEVEL% )
 
-call "C:\Users\you\scheduler\push-to-server.cmd"
-if %ERRORLEVEL% NEQ 0 ( echo store push FAILED, code %ERRORLEVEL% & exit /b %ERRORLEVEL% )
+call "C:\Users\you\scheduler\run-publish.cmd" >> "%LOG%" 2>&1
+if %ERRORLEVEL% NEQ 0 ( echo publish FAILED, code %ERRORLEVEL%>> "%LOG%" & exit /b %ERRORLEVEL% )
 
-call "C:\Users\you\scheduler\push-panel.cmd"
-if %ERRORLEVEL% NEQ 0 ( echo panel push FAILED, code %ERRORLEVEL% & exit /b %ERRORLEVEL% )
+call "C:\Users\you\scheduler\push-to-server.cmd" >> "%LOG%" 2>&1
+if %ERRORLEVEL% NEQ 0 ( echo store push FAILED, code %ERRORLEVEL%>> "%LOG%" & exit /b %ERRORLEVEL% )
 
-echo nightly chain ok
+call "C:\Users\you\scheduler\push-panel.cmd" >> "%LOG%" 2>&1
+if %ERRORLEVEL% NEQ 0 ( echo panel push FAILED, code %ERRORLEVEL%>> "%LOG%" & exit /b %ERRORLEVEL% )
+
+echo nightly chain ok>> "%LOG%"
 exit /b 0
 ```
+
+**The log is not optional bookkeeping, it is the only way to tell two outcomes apart.** A
+chain that stopped after step 1 and a chain that ran all four look identical in Task
+Scheduler: both leave one Last Run Result on one task, and the three steps that never
+executed have no representation anywhere. The log's last line is the answer, and
+`nightly chain ok` is the only line that means all four ran. It appends a handful of lines
+per run, so it needs no rotation.
+
+**Do not "simplify" this by wrapping the body in a parenthesised block with one redirect at
+the end.** `cmd` expands `%ERRORLEVEL%` for an entire block at parse time, so every guard
+inside it would test the value from *before* the block started, and the chain would run all
+four steps regardless of failure while still reporting success. Fixing that needs
+`setlocal enabledelayedexpansion` and `!ERRORLEVEL!` throughout. Redirecting each line is
+longer and has no such trap.
 
 **The `call` is load-bearing and its absence is silent.** `cmd` treats a bare `.cmd`
 invocation from inside another `.cmd` as a **transfer of control**, not a subroutine: it runs
 the second script and then exits, never returning to the parent. Without `call` on the first
 line, this file is an elaborate way to run `run-prices.cmd` alone, the publish and both
-pushes never execute, and the task reports success. There is no error and nothing in the log
-to look at.
+pushes never execute, and the task reports success. Nothing raises, and the only trace is
+the absence of a line: the log ends after the price output with no `nightly chain ok`. That
+absence is the whole reason the log is there.
 
 The store push sits between publish and panel push so the server never briefly holds a panel
 derived from data it has not received. Drop that line if this box does not also push the
