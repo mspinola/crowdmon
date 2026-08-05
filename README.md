@@ -355,6 +355,31 @@ record. This is the package's first and only writer; `core/store.py` is still ab
 an artifact is a statement made once a week and forgotten while a store is state this package
 would read back.
 
+### Scheduling it on the Windows producer
+
+`bin/publish_damage.sh` and the launchd agent beside it are macOS/Linux, and what they
+feed is a **local** cot-analyzer. The panel that reaches the public dashboard is built and
+pushed on the Windows/Norgate box, because that is the only machine that can produce a
+store this package can read at all (`2026-08-04 §D14`) and the only one the dash server's
+sync originates from (`cotdata/docs/SYNCING.md`).
+
+Two templates, following cotdata's convention exactly: copy them **out of the repo** into
+a scheduler directory, fill in the `REPLACE_WITH_*` markers there so a `git pull` never
+clobbers your paths, and wire them to Task Scheduler.
+
+| template | does |
+|---|---|
+| [`docs/examples/windows/run-publish.cmd`](docs/examples/windows/run-publish.cmd) | builds the panel via the portable `bin/publish_damage.py` |
+| [`docs/examples/windows/push-panel.cmd`](docs/examples/windows/push-panel.cmd) | rsyncs `CROWDMON_STORE` to the dash server over SSH |
+
+**Chain them behind `errorlevel` guards, after the cotdata producer task:** prices, then
+publish, then push. Publishing before the prices land builds last week's panel; pushing
+before publishing ships it. Nothing enforces the ordering.
+
+`CROWDMON_STORE` is a separate store **root** from `COTDATA_STORE`, so cotdata's own
+`push-to-server.cmd` does not carry the panel and no change to its exclusion list would
+make it. That is why the push is a second script rather than a flag.
+
 **Three things a reader of the panel must be told, and the artifact carries all three as
 data rather than leaving them to prose on this page.** The trigger columns are the **latest
 week only** (a full history is ~95,000 price-store reads against 90 for one week), so there
