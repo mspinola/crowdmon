@@ -96,6 +96,28 @@ FACTOR_QUESTIONS = {
     "fragility": "how much of the market sits in forceable hands, vs its own 3 years",
 }
 
+#: What each of the OTHER published columns is, in the same one-line voice. Deliberately a
+#: sibling of `FACTOR_QUESTIONS` rather than more entries in it: that name means the three
+#: factors of `D = C x I x Phi`, a consumer reads it that way, and folding a level or a
+#: caveat carrier in beside them would say four things multiply where three do.
+#:
+#: Keyed by the PANEL column name, with `<side>` where the panel carries a `sell` and a
+#: `buy` copy, because the reader looking a term up has the column in front of it and not
+#: the concept. `publish.panel_manifest` ships this verbatim, so a UI that cannot import
+#: this package still renders the producer's own words rather than its own paraphrase.
+COLUMN_DEFINITIONS = {
+    "damage_<side>_pct": "how damaging a forced exit on that side would be (C x I x Phi), "
+                         "vs this market's own 3 years",
+    "trigger_<side>_sigma": "how far spot sits from the nearest trend flip that forces this "
+                            "side, in days of ordinary movement (daily sigma)",
+    "trigger_<side>_pct": "the same distance as a plain percent move from spot, which reads "
+                          "naturally and does not compare across markets",
+    "dtl_<side>": "days for that side's fragility-weighted position to leave at 20% of a "
+                  "252-day average daily volume (kappa 0.2), a level and not a percentile",
+    "beta": "how much this market's illiquidity moves with the rest of the universe, 0 its "
+            "own exit door and 1 the same door as everything else, and not a factor of D",
+}
+
 #: Bands for the headline. Deliberately coarse: `D_pct` is a percentile of a product of
 #: percentiles, so a two-decimal reading implies a precision the construction does not have.
 DAMAGE_BANDS = ((0.90, "top decile"), (0.75, "high"), (0.50, "above middling"),

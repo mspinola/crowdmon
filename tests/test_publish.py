@@ -114,6 +114,48 @@ def test_the_quadrant_and_its_threshold_travel_together():
     assert set(got["quadrant"].values()) == set(QUADRANT.values())
 
 
+def test_the_column_definitions_come_from_their_owning_module():
+    """Verbatim, for the same reason `reading_instructions` is: the consumer renders these
+    as prose and `cot-analyzer/tests/test_damage_vocabulary.py` fails its build if any of
+    this package's vocabulary is typed into that repo instead."""
+    from crowdmon.futures.report import COLUMN_DEFINITIONS
+
+    assert panel_manifest(_build())["column_definitions"] == dict(COLUMN_DEFINITIONS)
+
+
+def test_every_defined_column_is_a_column_the_panel_actually_publishes():
+    """A definition for a column that does not exist is worse than none: it reads as
+    complete and nothing downstream can render it, so the gap stays invisible. `<side>`
+    expands to the `sell` and `buy` copies the panel really carries."""
+    from crowdmon.futures.report import COLUMN_DEFINITIONS
+
+    for key in COLUMN_DEFINITIONS:
+        names = ([key.replace("<side>", side) for side in ("sell", "buy")]
+                 if "<side>" in key else [key])
+        for name in names:
+            assert name in PANEL_COLUMNS, f"{key!r} names {name!r}, which is not published"
+
+
+def test_the_definitions_stay_out_of_the_factor_questions():
+    """`factor_questions` means the three factors of `D = C x I x Phi` and a consumer reads
+    it that way. Folding `beta` or a level in beside them would say four things multiply
+    where three do, so the two keys are separate and their key sets are disjoint."""
+    from crowdmon.futures.report import COLUMN_DEFINITIONS
+
+    got = panel_manifest(_build())
+    assert set(got["factor_questions"]) == {"crowding", "illiquidity", "fragility"}
+    assert not set(COLUMN_DEFINITIONS) & set(got["factor_questions"])
+
+
+def test_a_new_optional_key_does_not_bump_the_schema_version():
+    """The trap this key was added under. `cot-analyzer` degrades the whole page to an
+    "unavailable" card on an unrecognised `schema_version`, so a bump for an ADDITIVE key
+    takes the page down rather than shipping it without the key, which is what a reader that
+    has never heard of the key does on its own."""
+    assert SCHEMA_VERSION == 1
+    assert "column_definitions" in panel_manifest(_build())
+
+
 def test_the_schema_version_is_in_the_manifest_and_the_meta(tmp_path):
     publish_panel(_build(), tmp_path)
     base = tmp_path / "damage"

@@ -86,6 +86,7 @@ from .notional import add_notional
 from .pressure import rank_markets
 from .report import (
     CLOSE_SIGMA,
+    COLUMN_DEFINITIONS,
     DAMAGE_BANDS,
     FACTOR_QUESTIONS,
     QUADRANT,
@@ -100,6 +101,13 @@ from .volume import add_volume
 #: Bumped whenever `PANEL_COLUMNS` or the manifest shape changes in a way a reader must
 #: notice. A consumer refuses a version it does not know rather than rendering columns it
 #: half-understands, so this is a contract and not a build number.
+#:
+#: **An additive optional key is NOT such a change, and bumping for one takes the consumer
+#: down.** `cot-analyzer` degrades the whole `/damage` page to an "unavailable" card on a
+#: version it does not recognise, so a bump shipped ahead of a consumer release loses the
+#: page rather than losing the new key, while a reader that has never heard of the key
+#: simply does not render it. `column_definitions` was added under version 1 for exactly
+#: that reason. Bump when an existing key changes MEANING, shape or units.
 SCHEMA_VERSION = 1
 
 #: The environment variable naming the output root. **Raises when unset rather than
@@ -404,6 +412,7 @@ def panel_manifest(build: DamageBuild, *, available=()) -> dict:
             "strata": list(STRATA),
         },
         "factor_questions": dict(FACTOR_QUESTIONS),
+        "column_definitions": dict(COLUMN_DEFINITIONS),
         "damage_bands": [[float(floor), label] for floor, label in DAMAGE_BANDS],
         "quadrant": {f"{int(close)}{int(severe)}": text
                      for (close, severe), text in QUADRANT.items()},

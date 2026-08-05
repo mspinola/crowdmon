@@ -342,6 +342,19 @@ rendered as the same blank cell. Detail in `2026-08-03 §C25-§C27`, reproducer
 plus the latest week's `format_damage_block` output pre-rendered, plus a manifest carrying
 every vocabulary and every reading instruction generated from the live constants.
 
+The manifest also carries the **words for each column**, in two keys that are deliberately not
+one. `factor_questions` is the three factors of `D = C x I x Phi` and means only those;
+`column_definitions` is everything else the panel measures (`damage_<side>_pct`,
+`trigger_<side>_sigma`, `trigger_<side>_pct`, `dtl_<side>`, `beta`), keyed by panel column
+because the reader looking a term up has the column and not the concept. A consumer that may
+not write down this package's vocabulary has nowhere else to get them: before `2026-08-05
+§E3` the `/damage` page rendered "not defined in the panel, so not defined here" against four
+of its own columns, which is what got them published.
+
+**Adding a key to that manifest does not bump `SCHEMA_VERSION`.** The consumer refuses a
+version it does not know and degrades the whole page, so a bump for an additive key takes the
+page down rather than shipping it a week early without the key.
+
 ```bash
 COTDATA_STORE=~/code/cotdata_store CROWDMON_STORE=~/code/crowdmon_store bin/publish_damage.sh
 ```
