@@ -103,11 +103,19 @@ one in cotdata: a deferred `--require-final` price run exits non-zero by design.
 manifest instead.
 
 ```powershell
-Get-Content C:\Users\you\crowdmon_store\damage\manifest.json | ConvertFrom-Json |
-  Select-Object current_report_date,
-    @{n='built_at'; e={$_.provenance.built_at}},
-    @{n='markets';  e={$_.counts.markets}}
+$m = Get-Content -Raw C:\Users\you\crowdmon_store\damage\manifest.json | ConvertFrom-Json
+$m.current_report_date
+$m.provenance.built_at
+$m.counts.markets
 ```
+
+**`-Raw` is required, not tidiness.** Windows PowerShell 5.1 is what ships with Windows and is
+what the producer box runs. Without `-Raw`, `Get-Content` emits an array of lines rather than
+one string, and 5.1's `ConvertFrom-Json` does not reassemble them the way PowerShell 7 does:
+the properties come back empty, so the query prints its column headers, prints no values, and
+**raises no error**. A verification command that silently returns nothing is worse than no
+command at all, since a blank result reads as "checked it" rather than as a failure to look.
+Measured on the producer box, 2026-08-05, against a panel that had published correctly.
 
 Three fields, answering three different questions:
 
