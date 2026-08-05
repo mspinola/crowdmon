@@ -357,15 +357,13 @@ assertions read `cot_supplemental`, a domain one release old). From the
 **main checkout**, against `~/code/cotdata_store`, the same suite is **654 passed / 5
 skipped** rather than **566 / 93**.
 
-> **Measured 2026-08-05 the live half reads 648 passed / 6 failed / 5 skipped, and the six
-> failures are store drift rather than a defect** (`docs/design/amendments-2026-08-05.md`
-> §E1). They reproduce on `main` at the same commit, so they predate any branch in flight.
-> Every one pins a market COUNT the store has outgrown: `test_publish_live` expects 47
-> covered markets against 49, `test_stratum_live` 27 outright against 29, and the two
-> `test_brief_live` null-cause splits move with them. **654 is what a green run reads**, and
-> quoting it here rather than 648 is deliberate: the four numbers are a collection total, and
-> subtracting a currently-failing test from them would make the next PR's arithmetic wrong
-> the moment the pins are refreshed.
+> **The live half read 648 passed / 6 failed / 5 skipped for a day, and `§E4` closed all
+> six.** They were never a defect and never store drift in general: every one moved by
+> exactly the contribution of `2026-08-04 §D11`'s two-market tranche, which landed its specs
+> and prices on one day and its `cot_disagg` parquets on the next, so any figure measured
+> between the two runs recorded a half-landed state. The refreshed pins are 49 markets, 45
+> scored, 39 / 37 triggers, 29 outright, and the `§C20` split at 2,781 / 6,668. Detail and
+> the full reconciliation in `docs/design/amendments-2026-08-05.md` §E4.
 
 **These four numbers are measured, so re-measure them rather than adjusting them by hand.**
 Any PR that adds or removes a `tests/*_live.py` assertion moves all four, and two PRs in
@@ -453,13 +451,14 @@ bin/publish_damage.sh --dry-run
 bin/publish_damage.sh
 ```
 
-Roughly 8 seconds for 47 markets over both report types, of which 1.3 is the Amihud panel
+Roughly 8 seconds for 49 markets over both report types, of which 1.3 is the Amihud panel
 behind `beta`.
 
 **The constraint is the sync origin, not the operating system.** This package runs anywhere
 the store is READABLE, macOS included, and does so on the full price-dependent chain: a local
-run builds all 47 markets with `beta` attached and both trigger sides. Norgate being
-Windows-only constrains who can PRODUCE prices, not who can read a synced copy of them.
+run builds all 49 markets, 47 of them with `beta` attached and both trigger sides (the other
+two are the spec-less pair `2026-08-05 §E4` names, and no machine can score them). Norgate
+being Windows-only constrains who can PRODUCE prices, not who can read a synced copy of them.
 
 What matters is that the panel is built **upstream of whatever ships it**. Today the Linux
 server's sync originates on the **Windows/Norgate producer**, so in practice that means

@@ -4,7 +4,7 @@
   launchd agent for the weekly damage-panel publish (macOS).
 
   THIS FEEDS THE LOCAL APP, NOT PRODUCTION, and the reason is topology rather than capability.
-  This package runs perfectly well here: a run on this machine builds all 47 markets on the
+  This package runs perfectly well here: a run on this machine builds all 49 markets on the
   full price-dependent chain. But the Linux server's sync originates on the WINDOWS/Norgate
   box, and a panel built downstream of the sync is one the sync never sees.
   `cot-analyzer/server-side/README.md` already said so and this agent was installed anyway,
@@ -19,8 +19,10 @@
   Uninstall:
     launchctl unload ~/Library/LaunchAgents/com.mspinola.crowdmon-publish.plist
 
-  Run it once by hand first and read the log. It should report 47 markets and a report
-  week matching the latest CFTC release:
+  Run it once by hand first and read the log. It should report 49 markets and a report
+  week matching the latest CFTC release. A count BELOW that is the thing to look at: the
+  publisher refuses a panel short by more than a fifth, and a smaller shortfall is a
+  well-formed panel with markets missing (2026-08-05 E4 is what moved it from 47):
     bin/publish_damage.sh --dry-run
 
   Schedule: 09:30 local, daily, fifteen minutes after com.mspinola.crowdmon-live-tests.

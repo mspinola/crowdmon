@@ -24,7 +24,13 @@ DIFFERENTIAL_CODES = {"0676A5", "067A71", "022A13", "0676A6", "111A34", "86465A"
 
 #: `§C23`'s two panel shapes, which are why `§C8`'s obligation cannot fire today.
 VINTAGE_CERTIFICATE_MARKETS = 263
-CURRENT_STATE_MARKETS = 27
+
+#: 27 when `§C23` measured it, **29 since `§D11`'s tranche** added rough rice and ICE Europe
+#: WTI to the current-state store (`2026-08-05 §E4`). The number moved; the finding did not,
+#: and the finding is the line below it: still 0 certificates and 0 differentials, so the
+#: covered set remains the COMPLEMENT of what makes the vintage panel hard to reason about
+#: rather than a sample of it.
+CURRENT_STATE_MARKETS = 29
 
 
 @pytest.fixture(scope="module")
@@ -72,8 +78,12 @@ def test_the_seven_differentials_are_still_exactly_seven_and_still_those_seven(p
 
 
 def test_no_covered_market_is_a_certificate_or_a_differential(panels):
-    """`§C13`: the covered set is 25 of 25 real outright, and it is the COMPLEMENT of the
-    thing that made the panel hard to reason about rather than a sample of it."""
+    """`§C13`: the covered set is real outright throughout, and it is the COMPLEMENT of the
+    thing that made the panel hard to reason about rather than a sample of it.
+
+    25 of 25 when `§C13` measured it, 27 of 27 at `§D11`, **29 of 29 now**. The count is the
+    part that moves; the zero on both other strata is the claim.
+    """
     from crowdmon.futures import classify, stratum_summary
 
     _, current = panels
