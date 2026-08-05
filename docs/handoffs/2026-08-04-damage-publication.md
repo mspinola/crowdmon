@@ -1,7 +1,8 @@
 # Handoff: publish the damage panel, so a UI can read `D` without importing this package
 
-**Status:** **COMPLETE** for §1-§3 (the publisher, the ADR, the tests). §4, the asset-class
-rollup, is **OPEN and unclaimed**, with its gate measured below
+**Status:** **CLOSED.** §1-§3 complete (the publisher, the ADR, the tests). **§4, the
+asset-class rollup, is WITHDRAWN as not wanted** (2026-08-04, by the requester). Its gate
+passed; that was never the question. See the second outcome section
 **Date:** 2026-08-04
 **Claimed by:** the session asked how to visualise crowdmon's weekly findings in
 `cot-analyzer`
@@ -163,3 +164,52 @@ aggregates `D`, `READING_INSTRUCTIONS` is unchanged, and `core/store.py` is stil
 **§4 remains open.** Its gate is measured and passes; nobody has claimed it.
 
 **Status: §1-§3 closed. §4 open.**
+
+---
+
+## Outcome, appended 2026-08-04 (second): §4 is WITHDRAWN
+
+**Not deferred, not blocked. Not wanted.** The requester, asked directly whether to build
+it: *"i don't think the asset class rollup is necessary. if i said that i meant assets."*
+
+**The requirement was per-MARKET all along.** The original ask was to visualise the output
+"per asset class", and that phrase was a wording slip for "per asset". The delivered page
+already does the right thing: one row per market, **grouped** by asset class for layout, and
+grouping a published value by a published key is presentation rather than a metric. No
+class-level number was ever wanted.
+
+### The lesson, which is about gates and not about rollups
+
+§4's gate passed. Median scored markets per asset class measured **4.5** against a
+pre-registered bar of 3, so the work was cleared to proceed, and it sat here as an open
+invitation with a green light attached.
+
+**A feasibility gate cannot answer a desirability question, and this one was never asked.**
+The gate tested whether a class-level statistic *could* be computed honestly given the
+cardinality. It could. Nobody tested whether anyone wanted it, and the answer was no. Writing
+the gate made the work look more justified than it was, because a passed pre-registration
+reads like a decision when it is only a permission.
+
+That is worth carrying beyond this file: **pre-registering a gate is not the same as
+establishing a requirement**, and a handoff section that carries a passing gate and no named
+consumer is the shape most likely to be built by a session that never asks who asked for it.
+
+### What is deliberately NOT reverted
+
+- **`asset_class` stays on the published panel.** It is a column
+  `ContractMaster.annotate` already produced, the page groups by it, and it costs nothing.
+  Withdrawing the rollup is not a reason to remove a grouping key.
+- **`futures/rollup.py` was never written**, so there is nothing to delete. The name stays
+  free, and if a class-level object is ever genuinely wanted, §4's body below still records
+  the correct construction (counts within `report.QUADRANT`'s own cells, never a mean of
+  `D`) and the `§B2` exposure it inherits. Read it as a design note, not as a work order.
+
+### A trap left in place on purpose
+
+**§4's heading below still reads "OPEN, unclaimed"**, because this directory preserves
+handoff bodies verbatim and appends outcomes rather than editing them. A session that skims
+to the section heading and stops will read a live work order with a passing gate. The
+front-matter `Status` line and the row in [`README.md`](README.md) both say WITHDRAWN, and
+they are what a session is supposed to read first.
+
+**Status: CLOSED. §1-§3 shipped, §4 withdrawn.**
