@@ -20,12 +20,29 @@
 # 09:15 slot (shared with the live tests, clear of the observed write windows) is why it
 # should rarely fire.
 #
+# WHERE THIS RUNS, and the constraint is narrower than "Windows".
+#
+# This package runs anywhere the store is READABLE, macOS included, and does so on the full
+# price-dependent chain: a local run builds all 47 markets with beta attached and both
+# trigger sides. Norgate being Windows-only constrains who can PRODUCE prices, not who can
+# read a synced copy of them.
+#
+# What matters is that the panel is built UPSTREAM OF WHATEVER SHIPS IT. The dash server's
+# sync originates on the Windows/Norgate box, so in practice that means publishing there;
+# a panel built downstream of the sync is one the sync never sees. If the sync origin ever
+# moves, this moves with it and no code changes.
+#
+# THIS SCRIPT AND THE LAUNCHD AGENT BESIDE IT ARE macOS/LINUX, and what they feed is a LOCAL
+# cot-analyzer. Useful, and not a deploy. The production path is Windows Task Scheduler
+# running scheduler copies of docs/examples/windows/run-publish.cmd and push-panel.cmd,
+# chained behind errorlevel guards after the cotdata producer task. See README.md,
+# "Scheduling it on the Windows producer".
+#
 # Usage:
 #   ./bin/publish_damage.sh                  # build and write
 #   ./bin/publish_damage.sh --dry-run        # build and summarise, write nothing
 #
-# Wire to launchd: copy bin/com.mspinola.crowdmon-live-tests.plist.example, change the
-# program argument to this script and the hour to taste.
+# Wire to launchd (local only): see bin/com.mspinola.crowdmon-publish.plist.example.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
