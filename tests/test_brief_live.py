@@ -18,11 +18,20 @@ import pytest
 
 pytestmark = pytest.mark.needs_vintage
 
-#: `§C20`, on the 27,194-week current-state Disaggregated panel. Historical rows, so these
-#: do not move when a new week lands: a change means the store was restated or backfilled,
-#: and the amendment needs re-measuring rather than the numbers here nudging.
-WARMUP_NULLS = 2_575
-MISSING_TERM_NULLS = 6_256
+#: `§C20`, measured on a 27,194-week current-state Disaggregated panel and re-measured on
+#: **29,133 weeks** at `2026-08-05 §E4`. Historical rows, so these do not move when a new
+#: WEEK lands, and the note here used to stop there: it said a change meant the store was
+#: restated or backfilled. **It missed the third way, which is the one that happened.** A
+#: new MARKET arrives with twenty years of its own history attached, so it moves a
+#: historical count without restating a single existing row.
+#:
+#: `§D11`'s tranche is the whole of the difference and it reconciles exactly: rough rice
+#: contributes 1,051 weeks and ICE Europe WTI 888, summing to the 1,939 the panel grew by,
+#: and each contributes 103 warm-up and 206 missing-term rows. Nothing already in the panel
+#: changed, which is what a restatement WOULD have done and is the reason these are still
+#: exact equalities rather than bands.
+WARMUP_NULLS = 2_781
+MISSING_TERM_NULLS = 6_668
 
 #: `§C21`. Falling weeks accumulate as the panel grows, so the count is a floor and the
 #: share is a band. The share is the finding: the marker answers on two falling weeks in

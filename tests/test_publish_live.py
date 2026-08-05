@@ -29,6 +29,19 @@ WEEK = "2026-07-28"
 #: `--profile live` and merely allowed under `ci`.
 NO_PANEL = "the damage panel cannot be built from this store"
 
+#: The two markets on the panel that no contract spec reaches, so they can never produce a
+#: `dtl`, a `D` or a trigger. Both are `Role: heldout` in cotdata's registry and Norgate
+#: carries neither specs nor prices for them (`tests/test_contract_master_live.py`). Named
+#: rather than counted: "49 markets" and "47 that can be scored" are different populations,
+#: and a consumer reading row counts off the panel sees the first.
+UNSCOREABLE = {"244041", "244042"}          # MSCI EAFE, MSCI EM INDEX
+
+#: The scoreable markets with no forced-SELL level, week ending 2026-07-28. Every one is a
+#: market whose every horizon is currently short, which is an answer rather than a gap
+#: (`trigger.nearest_trigger` returns nulls for it on purpose). This set is what did NOT
+#: move when the universe grew, which is why it is pinned beside the counts that did.
+NO_SELL_TRIGGER = {"ZB", "ZT", "ZN", "ZF", "SB", "6S", "6J", "6E"}
+
 
 @pytest.fixture(scope="module")
 def build():
@@ -61,17 +74,42 @@ def test_both_report_types_are_present_so_the_financials_are_reachable(week):
     assert len(classes) == 10, sorted(classes)
 
 
-def test_the_universe_is_the_47_covered_markets(week):
-    """`2026-08-04 §D11` landed the backlog tranche at 47 covered markets."""
-    assert week["market_code"].nunique() == 47
-    assert int((week["score_state_sell"] == "scored").sum()) == 43
+def test_the_universe_is_the_49_covered_markets(week):
+    """`2026-08-05 §E4`: 49 on the panel, of which 47 can be scored at all.
+
+    Was 47 / 43, from a base that did not include `§D11`'s tranche. **The count is not the
+    finding, the decomposition is**: a market on the panel with no contract spec cannot
+    reach `dtl` and so cannot reach `D`, and it is still a row a consumer counts. Asserted
+    as `panel = scoreable + unspec'd` with the unspec'd pair NAMED, so the next addition
+    fails saying which market arrived and whether it can be scored, rather than saying only
+    that a number moved.
+    """
+    assert week["market_code"].nunique() == 49
+    assert int((week["score_state_sell"] == "scored").sum()) == 45
+
+    unspecd = set(week.loc[week["symbol"].isna(), "market_code"])
+    assert unspecd == UNSCOREABLE, f"the unspec'd pair moved: {sorted(unspecd)}"
+    assert int(week["symbol"].notna().sum()) == 47, "scoreable = panel minus the unspec'd"
+    assert dict(week.groupby("report_type")["market_code"].nunique()) == {
+        "disaggregated": 27, "tff": 22}
 
 
 def test_the_trigger_counts_reproduce_d9(week):
-    """37 forced-sell levels and 35 forced-buy, week ending 2026-07-28 (`2026-08-04 §D9`)."""
+    """39 forced-sell levels and 37 forced-buy, week ending 2026-07-28.
+
+    **`§D9` measured 37 and 35 of 45, and that denominator is why this drifted** (`§E4`).
+    The scoreable universe went 45 -> 47 when `§D11`'s tranche joined, and both new markets
+    carry a trigger on each side, so both counts moved by exactly two while the eight
+    markets with NO forced-sell level did not change at all. That set is the stable thing
+    here, so it is what is asserted beside the counts.
+    """
     assert str(pd.Timestamp(week["report_date"].iloc[0]).date()) == WEEK
-    assert int(week["trigger_sell_sigma"].notna().sum()) == 37
-    assert int(week["trigger_buy_sigma"].notna().sum()) == 35
+    assert int(week["trigger_sell_sigma"].notna().sum()) == 39
+    assert int(week["trigger_buy_sigma"].notna().sum()) == 37
+
+    scoreable = week[week["symbol"].notna()]
+    no_sell = set(scoreable.loc[scoreable["trigger_sell_sigma"].isna(), "symbol"])
+    assert no_sell == NO_SELL_TRIGGER, f"the no-trigger set moved: {sorted(no_sell)}"
 
 
 def test_the_pool_column_is_supplied_so_the_agreement_flag_is_not_null(week):
@@ -83,7 +121,10 @@ def test_the_pool_column_is_supplied_so_the_agreement_flag_is_not_null(week):
     `2026-08-04 §D10` measures that the answer is often no.
     """
     agrees = week["trigger_sell_pool_agrees"]
-    assert agrees.notna().sum() == 37, "a pool answer for every market with a sell trigger"
+    assert agrees.notna().sum() == 39, "a pool answer for every market with a sell trigger"
+    assert int(agrees.notna().sum()) == int(week["trigger_sell_sigma"].notna().sum()), (
+        "the pool answer and the sell level must cover the same rows, or one of them is "
+        "being computed on a different population than the other")
     assert bool((agrees == False).any()), "no disagreements at all means the pool went unsupplied"  # noqa: E712
 
 

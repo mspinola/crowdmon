@@ -23,9 +23,10 @@
 # WHERE THIS RUNS, and the constraint is narrower than "Windows".
 #
 # This package runs anywhere the store is READABLE, macOS included, and does so on the full
-# price-dependent chain: a local run builds all 47 markets with beta attached and both
-# trigger sides. Norgate being Windows-only constrains who can PRODUCE prices, not who can
-# read a synced copy of them.
+# price-dependent chain: a local run builds all 49 markets, 47 of them with beta attached
+# and both trigger sides. The other two carry no contract spec at all, so no machine can
+# score them (2026-08-05 E4). Norgate being Windows-only constrains who can PRODUCE prices,
+# not who can read a synced copy of them.
 #
 # What matters is that the panel is built UPSTREAM OF WHATEVER SHIPS IT. The dash server's
 # sync originates on the Windows/Norgate box, so in practice that means publishing there;

@@ -217,8 +217,10 @@ def nearest_trigger(symbol: str, *, sigma_daily: float, pool_net: float | None =
 
     **Both sides usually exist at once, and that is the module's own point rather than a
     defect.** The 20-, 60- and 250-day horizons routinely disagree in sign, measured at
-    **27 of 45** markets on 2026-07-28 (`2026-08-04 §D9`). `trigger_horizons_disagree` says
-    so per row, because "the trend book in gold" is not one pool with one trigger.
+    **29 of 47** markets on 2026-07-28 (`2026-08-05 §E4`, re-measured from `2026-08-04 §D9`'s
+    27 of 45 after `§D11`'s tranche joined and both new markets disagreed).
+    `trigger_horizons_disagree` says so per row, because "the trend book in gold" is not one
+    pool with one trigger. The share is the finding and it barely moved, 60% to 62%.
 
     **The distance carries no price information beyond trailing momentum, and that is an
     identity rather than a measurement.** Since `F* = F_{t-k}`, the move required to reach
