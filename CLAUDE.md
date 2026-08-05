@@ -429,7 +429,28 @@ bin/publish_damage.sh
 ```
 
 Roughly 8 seconds for 47 markets over both report types, of which 1.3 is the Amihud panel
-behind `beta`. **Scheduled daily at 09:30**, fifteen minutes after the live tests, by
+behind `beta`.
+
+**The constraint is the sync origin, not the operating system.** This package runs anywhere
+the store is READABLE, macOS included, and does so on the full price-dependent chain: a local
+run builds all 47 markets with `beta` attached and both trigger sides. Norgate being
+Windows-only constrains who can PRODUCE prices, not who can read a synced copy of them.
+
+What matters is that the panel is built **upstream of whatever ships it**. Today the Linux
+server's sync originates on the **Windows/Norgate producer**, so in practice that means
+publishing there, with the portable driver (`python bin/publish_damage.py`) since Windows has
+no bash. If the sync origin ever moves, this moves with it and no code changes.
+
+The panel is also the one payload with no producer-origin argument of its own: prices are
+vendor data and can only come from the machine holding the subscription, while the panel is
+derived output that any machine with the store regenerates identically.
+
+`bin/publish_damage.sh` and the launchd agent are macOS/Linux, and what they feed is a
+**local** cot-analyzer. Both are useful; do not mistake a green run on the Mac for a
+deployed panel. The ordering constraint nothing enforces: publish **before** the
+Windows -> Linux sync, or the sync ships last week's panel beside this week's prices.
+
+Locally, **scheduled daily at 09:30**, fifteen minutes after the live tests, by
 `bin/com.mspinola.crowdmon-publish.plist.example`. The order is the point rather than the
 hour: the 09:15 run is what would already have alarmed if the store were mid-write or this
 package broken, so a panel is never written from a tree whose own suite is failing.

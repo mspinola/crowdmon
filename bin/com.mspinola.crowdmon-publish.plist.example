@@ -3,6 +3,14 @@
 <!--
   launchd agent for the weekly damage-panel publish (macOS).
 
+  THIS FEEDS THE LOCAL APP, NOT PRODUCTION, and the reason is topology rather than capability.
+  This package runs perfectly well here: a run on this machine builds all 47 markets on the
+  full price-dependent chain. But the Linux server's sync originates on the WINDOWS/Norgate
+  box, and a panel built downstream of the sync is one the sync never sees.
+  `cot-analyzer/server-side/README.md` already said so and this agent was installed anyway,
+  which is worth recording rather than quietly correcting. Keep it: a local panel is what a
+  development cot-analyzer reads. Just do not mistake a green run here for a deployed one.
+
   Install:
     cp bin/com.mspinola.crowdmon-publish.plist.example \
        ~/Library/LaunchAgents/com.mspinola.crowdmon-publish.plist
