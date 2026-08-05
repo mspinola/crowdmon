@@ -33,7 +33,8 @@ not about next week's return. Positioning extremes persist for quarters.
 | [`amendments-2026-08-01.md`](docs/design/amendments-2026-08-01.md) — A1-A22, **closed** | here |
 | [`amendments-2026-08-02.md`](docs/design/amendments-2026-08-02.md) — B1-B37, commonality through the template follow-ups and §A.2's real worked example. **Closed** | here |
 | [`amendments-2026-08-03.md`](docs/design/amendments-2026-08-03.md) — C1-C30, template classification stability, the `w_SD` sweep, the report-layer gate, the brief and the stratum. **Closed** | here |
-| [`amendments-2026-08-04.md`](docs/design/amendments-2026-08-04.md) — D1 the Norgate vendor-coverage answer, D2-D10 what single number the package delivers. **The open file** | here |
+| [`amendments-2026-08-04.md`](docs/design/amendments-2026-08-04.md) — D1 the Norgate vendor-coverage answer, D2-D10 what single number the package delivers. **Closed** | here |
+| [`amendments-2026-08-05.md`](docs/design/amendments-2026-08-05.md) — E1 the six live pins failing on store drift, E2 the wrong worktree suite figures, E3 `column_definitions`. **The open file** | here |
 | `crowdmon_step2_normalisation.md` — layer 2, **accepted and shipped**. History, not instructions | `../cotdata/docs/design/` |
 | `cot_vintage.md` — the vintage store this reads | `../cotdata/docs/design/` |
 
@@ -353,8 +354,18 @@ figures, the appendix's live-cattle arithmetic (`test_appendix_live.py`, `2026-0
 the volume and trigger measurements, or
 `2026-08-03 §C1-C8` (`test_supplemental_live.py`, the most exposed of the set: three of its
 assertions read `cot_supplemental`, a domain one release old). From the
-**main checkout**, against `~/code/cotdata_store`, the same suite is **650 passed / 5
-skipped** rather than **562 / 93**.
+**main checkout**, against `~/code/cotdata_store`, the same suite is **654 passed / 5
+skipped** rather than **566 / 93**.
+
+> **Measured 2026-08-05 the live half reads 648 passed / 6 failed / 5 skipped, and the six
+> failures are store drift rather than a defect** (`docs/design/amendments-2026-08-05.md`
+> §E1). They reproduce on `main` at the same commit, so they predate any branch in flight.
+> Every one pins a market COUNT the store has outgrown: `test_publish_live` expects 47
+> covered markets against 49, `test_stratum_live` 27 outright against 29, and the two
+> `test_brief_live` null-cause splits move with them. **654 is what a green run reads**, and
+> quoting it here rather than 648 is deliberate: the four numbers are a collection total, and
+> subtracting a currently-failing test from them would make the next PR's arithmetic wrong
+> the moment the pins are refreshed.
 
 **These four numbers are measured, so re-measure them rather than adjusting them by hand.**
 Any PR that adds or removes a `tests/*_live.py` assertion moves all four, and two PRs in
@@ -392,14 +403,28 @@ second re-runs both commands and updates this paragraph, `bin/check_skips.py`'s 
 > above. The live-only figure is 77 -> **88**, the eleven new live assertions.
 > The live-only count is the difference between the two skip figures (80 - 5), never a
 > total, so a fixture test moves the four totals and leaves it alone.
+>
+> Moved on **2026-08-05** by the column-definitions branch, **+4**, all four fixture tests
+> in `test_publish.py` for the new `column_definitions` manifest key. The live-only figure
+> stays at **88** for the same reason as the entry two above: a fixture test moves the four
+> totals and never the difference between the skip figures.
 
-> **From a worktree those two figures are 613 / 7 and 536 / 84**, because `test_boundaries`
+> **From a worktree those two figures are 652 / 7 and 564 / 95**, because `test_boundaries`
 > resolves `../cotdata` and `../marketdata` relative to the test file and finds neither,
 > so the two producer-direction checks skip. Quote the main-checkout numbers: a worktree
 > reports two fewer passes and has one real seam unguarded. This note exists because an
 > earlier version of this paragraph quoted the worktree pair without saying so, which is
 > hazard 5 of the editable-install list arriving as a documentation bug rather than a test
 > failure.
+>
+> **The pair quoted here was 613 / 7 and 536 / 84 until 2026-08-05, and both halves were
+> wrong** (`docs/design/amendments-2026-08-05.md` §E2). Measured against the same commit the
+> worktree runs 646 passed / 6 failed / 7 skipped and 564 / 95, so the relationship the
+> sentence above states is exact and is the thing to reason from: **a worktree is the main
+> figures with 2 passes moved into skips, nothing else**. The old pair was neither
+> re-measured with the four totals above nor derivable from them (536 / 84 sits 26 passes
+> and 9 skips from a main of 562 / 93), which is how a note warning about stale counts came
+> to carry the stalest pair in the file. Derive this pair rather than quoting an old one.
 
 The data cannot be committed to close the gap: `manifests/prices.json` records
 `"source": "norgate"` for both the bars and `contract_specs`, Norgate is a commercial
