@@ -389,6 +389,13 @@ clobbers your paths, and wire them to Task Scheduler.
 publish, then push. Publishing before the prices land builds last week's panel; pushing
 before publishing ships it. Nothing enforces the ordering.
 
+[`docs/WINDOWS_SCHEDULING.md`](docs/WINDOWS_SCHEDULING.md) is how, including the chain
+wrapper itself and the `call` that a `.cmd` calling another `.cmd` needs (without it the
+first script never returns, the rest never run, and the task reports success). It is
+deliberately thin and defers to
+[`cotdata/docs/WINDOWS_SCHEDULING.md`](../cotdata/docs/WINDOWS_SCHEDULING.md) for everything
+not specific to this package.
+
 `CROWDMON_STORE` is a separate store **root** from `COTDATA_STORE`, so cotdata's own
 `push-to-server.cmd` does not carry the panel and no change to its exclusion list would
 make it. That is why the push is a second script rather than a flag.
