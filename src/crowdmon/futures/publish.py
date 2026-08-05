@@ -61,6 +61,7 @@ import pathlib
 import shutil
 import tempfile
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 
 import pandas as pd
 
@@ -376,7 +377,18 @@ def panel_manifest(build: DamageBuild, *, available=()) -> dict:
         "schema_version": SCHEMA_VERSION,
         "current_report_date": build.report_date.date().isoformat(),
         "available_report_dates": sorted(available),
-        "provenance": build.provenance,
+        # `built_at` is stamped HERE rather than in `build_damage_panel`, so that it exists
+        # on every manifest however the `DamageBuild` was assembled. It answers a question
+        # `current_report_date` cannot: COT is weekly, so a schedule that quietly stopped
+        # produces no new report week to notice, and a panel can be current on the week and
+        # months old on the clock. The consumer reads it with `.get()`, which means its
+        # absence degrades SILENTLY to a provenance line one field shorter. It went missing
+        # exactly that way once: it lived only in a worktree, was never committed, and the
+        # merged publisher shipped without it while the page kept rendering.
+        "provenance": {
+            "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            **build.provenance,
+        },
         "counts": {
             "markets": int(week["market_code"].nunique()),
             "rows": int(len(panel)),

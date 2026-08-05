@@ -201,3 +201,18 @@ def test_blocks_are_json_serialisable_with_timestamps_and_nulls(tmp_path):
         (tmp_path / "damage" / "2026-07-28" / "blocks.json").read_text())
     assert back["001"]["sell"]["block"]["report_date"] == "2026-07-28"
     assert back["001"]["sell"]["block"]["damage_pct"] is None
+
+
+def test_the_manifest_carries_a_wall_clock_build_time():
+    """`built_at` answers a question `current_report_date` cannot.
+
+    A panel can be current on the report week and months old on the clock, because COT is
+    weekly and a schedule that quietly stopped produces no new week to notice. The consumer
+    reads this with `.get()`, so its absence degrades **silently** to a provenance line with
+    one fewer field, which is how it went missing in the first place: it lived only in a
+    worktree, was never committed, and the merged publisher shipped without it.
+    """
+    prov = panel_manifest(_build())["provenance"]
+    assert "built_at" in prov, "a manifest with no build time cannot report a dead schedule"
+    stamp = pd.Timestamp(prov["built_at"])
+    assert stamp.tzinfo is not None, "a naive timestamp is ambiguous across the sync hop"

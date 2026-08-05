@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd agent for the weekly damage-panel publish (macOS).
+
+  Install:
+    cp bin/com.mspinola.crowdmon-publish.plist.example \
+       ~/Library/LaunchAgents/com.mspinola.crowdmon-publish.plist
+    launchctl load ~/Library/LaunchAgents/com.mspinola.crowdmon-publish.plist
+
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.mspinola.crowdmon-publish.plist
+
+  Run it once by hand first and read the log. It should report 47 markets and a report
+  week matching the latest CFTC release:
+    bin/publish_damage.sh --dry-run
+
+  Schedule: 09:30 local, daily, fifteen minutes after com.mspinola.crowdmon-live-tests.
+
+  ORDER IS THE POINT, not the hour. The live-test run at 09:15 is the thing that would
+  already have alarmed if the store were mid-write or this package broken, and it takes
+  around 70 seconds. Publishing after it means a panel is never written from a tree whose
+  own suite is failing. Both are clear of the cotdata overnight sync (observed landing
+  ~06:25) and of com.mspinola.cotdata-verify at 08:45, so a failure here is about this
+  package rather than about a store that had not arrived yet. Neither collides with
+  npf-weekly-setups (Fri 17:00), npf-orchestrate (Fri 18:00) or livebook-daily
+  (weekdays 07:30).
+
+  DAILY, THOUGH THE DATA IS WEEKLY, and that is deliberate. The panel is anchored on the
+  report date: `add_trigger_distance` takes `as_of` from the frame's latest report_date,
+  not from today, so a re-run between releases reproduces the same numbers and rewrites the
+  same dated directory. It is idempotent, and the repetition buys the thing that matters:
+  **a failed publish repairs itself the next morning instead of leaving a stale panel up
+  for a week.** On a weekly schedule one bad Friday is seven days of a dashboard showing
+  the wrong week, which the consuming page can only report, not fix.
+
+  UNLIKE the live-test agent, this one WRITES. Two consequences follow.
+
+  First, the failure that matters is not an exception. A run that reads the store while it
+  is being written produces a SHORT panel, which is a perfectly well-formed panel that
+  nothing downstream would question; `bin/live-tests.sh` documents the observed incident
+  (2026-08-03, a run reporting 480 passed / 12 skipped against the usual 487 / 5). The
+  guard is `publish._refuse_a_short_panel`, which refuses a market count below 80% of the
+  previous publish and exits non-zero, so that case arrives as this notification rather
+  than as a quietly wrong dashboard.
+
+  Second, a failure here is louder than it looks in the consumer. cot-analyzer's /damage
+  page renders a "not available" card and a staleness banner rather than an error, which is
+  the right behaviour and also means **nobody finds out from the dashboard**. This
+  notification is the only channel that says the publisher stopped.
+
+  The log is append-only beside the live-test log, same convention.
+
+  FIRST RUN FAILED, AND THE REASON IS WORTH KEEPING. The agent points at an absolute path
+  into the MAIN checkout, which had not been pulled after the publisher merged, so it died
+  on "No such file or directory" while the branch that added it sat green in a worktree.
+  That is `CLAUDE.md`'s editable-install hazard 5 arriving as a scheduled-job failure rather
+  than a test failure: the worktree and the checkout are different trees, and only one of
+  them is what launchd runs. Anything scheduled here runs the MAIN checkout at whatever
+  commit it happens to be on, so merging a change is not the same as deploying it.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.mspinola.crowdmon-publish</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>{ echo "===== $(date) ====="; /Users/matts/code/trading_workspace/crowdmon/bin/publish_damage.sh; rc=$?; echo; } &gt;&gt; /Users/matts/code/trading_workspace/crowdmon/publish.log 2&gt;&amp;1; [ "$rc" -eq 0 ] || osascript -e 'display notification "damage panel publish FAILED — see crowdmon/publish.log" with title "crowdmon" sound name "Basso"'</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Hour</key><integer>9</integer>
+            <key>Minute</key><integer>30</integer>
+        </dict>
+    </array>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

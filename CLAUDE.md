@@ -353,8 +353,8 @@ figures, the appendix's live-cattle arithmetic (`test_appendix_live.py`, `2026-0
 the volume and trigger measurements, or
 `2026-08-03 §C1-C8` (`test_supplemental_live.py`, the most exposed of the set: three of its
 assertions read `cot_supplemental`, a domain one release old). From the
-**main checkout**, against `~/code/cotdata_store`, the same suite is **649 passed / 5
-skipped** rather than **561 / 93**.
+**main checkout**, against `~/code/cotdata_store`, the same suite is **650 passed / 5
+skipped** rather than **562 / 93**.
 
 **These four numbers are measured, so re-measure them rather than adjusting them by hand.**
 Any PR that adds or removes a `tests/*_live.py` assertion moves all four, and two PRs in
@@ -377,6 +377,11 @@ second re-runs both commands and updates this paragraph, `bin/check_skips.py`'s 
 > **That is the collision this paragraph warns about, and it happened again**: both
 > branches re-measured from a base that did not include the other, and the figures above
 > are a third measurement taken after the merge rather than either branch's arithmetic.
+>
+> Moved once more the same day by the scheduling branch, **+1** and a **fixture** test, so
+> the four go to 650 / 5 and 562 / 93 while the live-only figure stays at **88**. That is
+> the paragraph above's own rule working: the live-only count is the DIFFERENCE between the
+> two skip figures, not a total, so a fixture test moves the four and leaves it alone.
 >
 > Moved again on **2026-08-04** by the publisher branch, **+34**: 17 fixture tests in
 > `test_publish.py`, 11 live in `test_publish_live.py`, and **6 that nobody added by hand**.
@@ -424,11 +429,22 @@ bin/publish_damage.sh
 ```
 
 Roughly 8 seconds for 47 markets over both report types, of which 1.3 is the Amihud panel
-behind `beta`. Schedule it beside the live tests at 09:15: `bin/live-tests.sh` records an
-observed incident where reading the store mid-write made panels momentarily unreadable, and
-the failure mode differs between the two. A test run fails loudly; **a publisher would write
-a short panel, and a short panel is a perfectly well-formed panel that nothing downstream
-would question**. `publish._refuse_a_short_panel` is the interlock.
+behind `beta`. **Scheduled daily at 09:30**, fifteen minutes after the live tests, by
+`bin/com.mspinola.crowdmon-publish.plist.example`. The order is the point rather than the
+hour: the 09:15 run is what would already have alarmed if the store were mid-write or this
+package broken, so a panel is never written from a tree whose own suite is failing.
+
+Daily though the data is weekly, because the panel is anchored on the report date and a
+re-run between releases is idempotent, while **a failed weekly publish would leave a stale
+panel up for seven days**.
+
+`bin/live-tests.sh` records an observed incident where reading the store mid-write made
+panels momentarily unreadable, and the failure mode differs between the two jobs. A test run
+fails loudly; **a publisher would write a short panel, and a short panel is a perfectly
+well-formed panel that nothing downstream would question**.
+`publish._refuse_a_short_panel` is the interlock, and the launchd notification is the only
+channel that reports it: `cot-analyzer`'s page renders a staleness banner rather than an
+error, which is correct and also means nobody finds out from the dashboard.
 
 Regenerate the analysis figures (needs the real store):
 
