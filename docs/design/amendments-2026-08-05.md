@@ -207,3 +207,117 @@ current-state markets are classic outright, 0 certificates and 0 differentials.*
 set remains the complement of what makes the vintage panel hard to reason about rather than a
 sample of it, and the two additions are a grain and an energy outright, which is the
 character it already had.
+
+---
+
+## E5. The damage panel prices at the report date, not at the latest bar, and that stands
+
+Raised as a question about the `/damage` chart in `cot-analyzer`: is the plot using the most
+recent price available, and would using it make the chart more accurate? Measured rather than
+argued, then **decided as no change**. Recorded here because the reasoning is not written down
+anywhere else and the question will recur: "use fresher data" is a reasonable-sounding
+suggestion that nothing in the code refuses out loud.
+
+### What the code actually does, measured
+
+`publish` calls `add_trigger_distance(scored, pool_column="pool_net")` with no `as_of`, so
+`stamp = frame["report_date"].max()` ([trigger.py:354](../../src/crowdmon/futures/trigger.py:354)).
+That stamp reaches `trigger_prices`, which truncates before taking spot:
+
+```python
+ratio_series = ratio_series[ratio_series.index <= stamp]
+level_series = level_series[level_series.index <= stamp]
+spot = float(level_series.iloc[-1])
+```
+
+Volatility takes the same discipline by a different route: `add_risk_units` joins `sigma_daily`
+with `merge_asof(..., direction="backward", tolerance=tol)`, so a row gets the most recent sigma
+at or before its own report date and never one after it. It also publishes `sigma_date` and
+`sigma_staleness_days`, so the gap is a value a reader inspects rather than an assumption.
+
+The gap is not cosmetic. Panel anchored on 2026-07-28 against a price store running to
+2026-08-04:
+
+| symbol | store's latest close | close actually used |
+|---|---|---|
+| GC | 4152.60 | 4038.70 |
+| NG | 2.68 | 2.66 |
+| ZC | 442.25 | 458.50 |
+
+Gold 2.8% away, corn 3.5% in the other direction.
+
+### What repricing to the latest bar would do
+
+Recomputing every trigger at 2026-08-04, 47 markets, **70 (market, side) pairs with a trigger on
+both dates**:
+
+| | |
+|---|---|
+| median absolute change | **1.742 sigma** (p90 5.901, max 65.256) |
+| new/old ratio | median 0.903, range 0.025 to 328.567 |
+| **cross the 1.5 close line** | **29 of 70, 41%** |
+| nearest lookback `k` changes | 27 of 70 |
+| a side gains / loses a trigger entirely | 6 / 6 |
+
+Worst individual moves: `LBR` buy 66.906 -> 1.650 sigma as the nearest horizon flips 250d to
+60d, `ZL` sell 1.604 -> 11.916, `ZR` sell 10.239 -> 1.321.
+
+**That 41% is the argument against repricing, not for it.** A quantity where two fifths of
+readings cross the threshold defining the quadrant column in five sessions is not a precise
+measurement being degraded by staleness. It is a noisy one, and refreshing it yields fresher
+noise. This is `nearest_trigger`'s "snapshot, never a countdown" measured on the panel rather
+than on one market.
+
+### Why the anchor stands
+
+1. **The pool would still be stale.** COT is weekly, published Friday for Tuesday. Fresh price
+   against a week-old position trades "both inputs one week old" for "one current, one stale",
+   which is vintage skew inside a single row rather than between rows. It lands hardest on
+   `trigger_*_pool_agrees`, which compares the sign of the price signal to the sign of the
+   observed pool: at matched vintage those already disagree on a third of (market, horizon)
+   pairs (`2026-08-04 §D10`), and refreshing one side of a comparison stops it meaning what it
+   says.
+2. **The history would break at its last point.** Every historical week is computed at its own
+   report date, so a latest-price current week would be defined differently from all 1,050
+   before it, at exactly the observation a reader looks at hardest. A "latest price" history
+   cannot be rebuilt retrospectively without lookahead, which is what release-date indexing,
+   `pit_complete` and the §10 pre-registration exist to prevent.
+3. **Daily publishing stops being idempotent.** The publisher runs daily against weekly data
+   *because* the panel is anchored on the report date, so a re-run between releases is a no-op
+   while a failed weekly publish would leave a stale panel up for seven days. Price-at-run-time
+   makes every day's panel differ for the same report week, which also collides with the
+   additive-only rule.
+4. **It is bigger than the trigger column.** `D` is price-dependent through `C`
+   (notional x sigma) and `I` (sigma, volume). Repricing only the trigger puts `D` and the
+   trigger at different vintages within one row; repricing everything marks Tuesday's contracts
+   at today's price.
+
+### One expectation that did not survive contact
+
+`nearest_trigger` records that the reference bar drifts faster than spot, measured on 6C over
+120 sessions at a daily standard deviation of 0.4256% against 0.2540%, **1.68x**. The natural
+inference is that most of the drift in distance-to-trigger is last year's bars rolling off
+rather than price moving.
+
+Over 2026-07-28 to 2026-08-04 across 47 markets it is the other way round: **|spot move| median
+2.705%, |F\* move| median 1.527%, a ratio of 0.56x.** These are different measurements (one week
+cross-sectionally against a 120-session daily dispersion on one market), so this does not
+contradict the docstring and the docstring is left as it stands. It does mean the reassuring
+version, that the drift is mostly bookkeeping, is **not established**, and nobody should quote
+it as though it were.
+
+### What would be legitimate, if the live read is ever wanted
+
+An **additional** `trigger_*_sigma_live` column beside the anchored one, labelled as a different
+vintage, never a replacement. `trigger_prices` is anchor-invariant and takes `as_of`, so
+`publish` would call `add_trigger_distance` a second time. It has to happen in `crowdmon` on the
+price-holding machine: `cot-analyzer` computes no metrics and cannot reach a price store
+([ADR-0001](../adr/ADR-0001-crowdmon-publishes-a-panel-rather-than-being-imported.md)).
+
+### Reproducer
+
+Not in `docs/analysis/reproduce.py`. Every figure above came from ad-hoc scripts in the session
+of record, against `~/code/cotdata_store` and `~/code/crowdmon_store/damage/2026-07-28`, and the
+store was **not pinned**. Norgate restates history on every roll, so the repricing table is a
+point-in-time observation that will not reproduce exactly. It is recorded at this fidelity
+deliberately: the decision rests on the 41% being large, not on it being 41%.
