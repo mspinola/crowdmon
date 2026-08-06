@@ -179,16 +179,36 @@ cot-analyzer's damage page both treat `pool_agrees == False` as a **suppression*
 quadrant label is withheld and replaced with "the pool is on the other side, so this level
 would force a book that is not there".
 
-That is half right. The forced book is not there. But price still reaches the level, and flow
-of comparable net size still follows; what differs is its composition. Suppressing the row
-hides a real event rather than describing it.
+That is half right. The forced book is not there. But price still reaches the level and flow
+still follows, of a size the verdict measures as only slightly smaller.
 
-The shape of the change, for whoever picks it up: lead with the level and its two existing
-docstring caveats (time-series momentum rather than a breakout; a moving reference that closes
-distance without the market moving); replace suppression with **re-labelling**, so a
-contradicted row reads as "level live, flow expected, arriving as fresh exposure rather than
-as an exit"; and demote `pool_agrees` from a gate to a composition flag, stating what it is,
-the sign of `pool_net` and nothing more, with no lookback dependence.
+**Two corrections to an earlier draft of this section, both narrowing it.** They are made
+here rather than left standing because an overstated work order is how a copy change becomes
+a claim the data does not carry.
+
+- **"Suppressing the row hides a real event" was wrong.** The row is not hidden. It is
+  plotted with a hollow marker and named, and the grid cell says `(pool on the other side)`.
+  What is wrong is narrower and only about the copy: "would force a book that is not there"
+  implies nothing follows, and something does.
+- **The quadrant suppression itself is correct and must stay.** Reading instruction 1 of
+  cot-analyzer's damage page has this right for a reason this section does not overturn: the
+  quadrant's severe axis is `D`, which is a conditional severity for the *named* pool, so
+  placing a contradicted row in it would attach the wrong pool's severity to a real level.
+  The change is that the row should carry its own positive description instead of an
+  absence, not that it should be given a cell.
+
+The shape of the change, for whoever picks it up, and see the work order in
+[`2026-08-06-trigger-contradicted-copy.md`](2026-08-06-trigger-contradicted-copy.md): lead
+with the level and its two existing docstring caveats (time-series momentum rather than a
+breakout; a moving reference that closes distance without the market moving); replace the
+absence with a statement resting **only on what the verdict tested**, which is that flow
+follows either way and the difference between the groups is small; and demote `pool_agrees`
+from a gate to a composition flag, stating what it is, the sign of `pool_net` and nothing
+more, with no lookback dependence.
+
+**§3's composition split may not enter user-facing copy.** "It arrives as fresh shorts rather
+than as long liquidation" is the untested part of this file, and a rendered surface asserting
+it would convert an advisory crosstab into a published claim.
 
 ---
 
