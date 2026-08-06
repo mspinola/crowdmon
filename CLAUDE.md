@@ -104,7 +104,7 @@ paragraph said it did.
 | Directory | Lifecycle |
 |---|---|
 | `docs/design/` | **living.** Amended as measurements land. Amendments are **one dated file per day** (`amendments-YYYY-MM-DD.md`), because a shared section counter collided three times in one afternoon across parallel sessions |
-| `docs/handoffs/` | **append-only.** Dated work orders, status-tracked. Preserved verbatim; append an outcome, never edit the body |
+| `docs/handoffs/` | **append-only.** Dated work orders, status-tracked. Preserved verbatim; append an outcome, never edit the body. A correction needed **before** execution that touches no threshold, statistic, universe or claim is recorded in the file as a dated note saying what changed, never applied silently ([`2026-08-02-validation-prereg.md`](docs/handoffs/2026-08-02-validation-prereg.md) §7.7 is the precedent) |
 | `docs/analysis/` | **point-in-time.** Computed against a named report week. **Never amended** — a later week gets a new file |
 | `docs/adr/` | **immutable once accepted.** Superseded by a new ADR rather than edited |
 
@@ -115,6 +115,34 @@ present erases the evidence that anything changed.
 
 **A handoff without a completion status will be re-executed by a future session.** Closing
 one out is what stops the same analysis being run twice with different results.
+
+### There are now two registers, and picking the wrong one is silent
+
+`npf` grew its own at `npf/docs/handoffs/` on 2026-08-05, sharing this convention so a session
+moving between the repos does not learn two. The split is by **subject, not by where the work
+runs**, which is the part that catches people:
+
+| Work order about | Register |
+|---|---|
+| this package, **even when it runs in `npf`** | here. The normal case, and the §10 pattern: authored here, executed there, verdict written there |
+| `npf`'s book | `npf/docs/handoffs/`. This package ships no strategy and must not read as commissioning strategy research |
+
+**A moved handoff leaves a pointer row and no copy.** One document, one lineage. The first move
+was [`2026-08-05-fragility-orthogonality.md`](docs/handoffs/README.md), authored here and
+relocated the same day, before execution; its qualified citations and the record of what changed
+are in its own §0 in `npf`. Duplicating it would have rebuilt the exact hazard
+[`2026-08-03-index-share.md`](docs/handoffs/2026-08-03-index-share.md) records, where a stale
+`OPEN, unclaimed` row sat on top of finished analysis and invited a second execution whose
+numbers would not have matched the first.
+
+**A citation that crosses repos must carry its repo and file.** A bare `§C7` resolves here,
+where [`tests/test_references.py`](tests/test_references.py) checks it, and resolves **nowhere**
+from `npf`. That test scans this repo only, so moving a document out moves its citations beyond
+the reach of the thing that was checking them.
+
+[`docs/handoffs/README.md`](docs/handoffs/README.md) is the authoritative status table and this
+file deliberately does not restate it. A second copy of a status list is the failure this
+document keeps catching elsewhere: it goes stale silently and reads as current.
 
 ## Working agreement
 
