@@ -1,6 +1,6 @@
 # Handoff: pre-registration for the forced-flow mechanism test, to be executed by a cold session
 
-**Status:** open
+**Status:** complete (executed 2026-08-06 in `npf`, PR #79). Verdict a **marginal lean**, see §8.
 
 Written 2026-08-05, before computing any statistic below.
 
@@ -342,4 +342,66 @@ copy: `2026-08-03-index-share.md` records what two lineages of one document cost
 
 ## 8. Outcome
 
-*To be appended by the executing session. Leave `Status: open` until then.*
+**Executed 2026-08-06 in `npf`**, by a session that has written none of this package. Verdict
+and every number: `npf/docs/crowdmon/2026-08-06-forced-flow-mechanism-verdict.md`, reproducer
+beside it. A pointer and a one-line result, never a copy.
+
+**§5.6's criteria return `supported` on both report types, and the headline should not be
+quoted on its own.** §5.3's own placebo carries **73.8%** (Disaggregated) and **51.9%** (TFF) of
+the effect and is itself significant, where §5.3 says it "should be near zero if the crossing is
+what matters rather than the group label". Removing the label leaves a real but small residual:
+a difference-in-differences of **-0.001388 (p 0.047)** and **-0.002657 (p 0.0099)**, roughly
+1.2% and 1.9% of the pool against headline figures of 4.5% and 4.0%. Disaggregated would not
+survive a correction across even the two report types. **A marginal lean, not a clean
+confirmation.**
+
+§3.1's equivalence check reproduced **exactly**, 2.220446049250313e-16 over 96 comparisons
+rather than the required 12, all 96 signals matching. Store pinned per §5.9: 267 parquets,
+**zero moved during the run**, byte copy at
+`~/code/cotdata_store_snapshots/2026-08-06-forced-flow-mechanism`.
+
+**Four places this specification was wrong or unexecutable, each with the measurement that
+shows it.** They are recorded here rather than corrected above, because the body is the record
+of what was actually asked.
+
+- **§5.6 has no placebo condition, and that is the gap the run found.** §5.3 pre-registers the
+  expectation and attaches no criterion, so the criteria can be satisfied, and here are
+  satisfied, by an effect that is mostly the group label. Anything re-running this should fix
+  that first; the difference-in-differences is the shape the fix should take.
+- **§4's control cannot be read from the panel, and §3 already says why.** §4 says the control
+  "is already in the panel"; §3's own table measures `trigger_*_pool_agrees` at 39 rows over one
+  week, because `add_trigger_distance` is a point-in-time overlay. §3 is the correct one. The
+  control was recomputed over all 1,051 weeks from published `pool_net` plus `propadj`, along
+  §3.1's vectorisation. Worth carrying: **`pool_agrees` reduces to the SIGN of `pool_net` and
+  does not depend on the lookback at all**, which is what makes the placebo indispensable rather
+  than a courtesy.
+- **§4's central design claim is false as measured.** "The two groups share the price mechanics
+  exactly and differ only in whether a forceable holder is present": the contradicted group
+  crosses **more often** in both report types, 25.60% against 20.11% (Disaggregated) and 24.20%
+  against 21.80% (TFF), because agreement selects weeks whose trend is less likely to reverse
+  inside five sessions.
+- **§5.5's p-value cannot be computed as written.** A bootstrap resampling the observed data is
+  centred on the observed statistic, so "the fraction of draws at least as negative as observed"
+  is ~0.5 whatever is true. Measured, it is: `p_literal` runs 0.465 to 0.526 across all six
+  variants, including those whose recentred `p_null` is 0.0000. Both are reported; the criteria
+  use the recentred one. Precedent for recording rather than silently applying: §7.7 of
+  [`2026-08-02-validation-prereg.md`](2026-08-02-validation-prereg.md).
+
+**Variant count: 8, not §5.8's 6**, and §5.8 requires saying so. The two additions are the
+difference-in-differences, one per report type. Also added and carrying no statistic: a per-side
+descriptive table, and the equivalence check widened from 1 symbol to 8 (its reported figure is
+a maximum, so widening can only tighten the gate).
+
+**One declared deviation from §6.** The equivalence check runs in **crowdmon's own venv** rather
+than installing crowdmon into `npf/.venv`. That venv is shared by the main checkout and every
+worktree, and installing into it changes what a concurrent session imports for the duration of a
+run that does not need it. §6 is setup guidance rather than a threshold, statistic, universe or
+criterion, so nothing frozen by §2 moved, and §6's own text says no crowdmon computation is
+needed for Stages A and B. The phantom-package check §6 asks for is asserted in code before
+anything is computed.
+
+**§7's premise about where this lives has since changed, and the file stays here anyway.** §7
+says it lives here because "`npf` has no equivalent" register. `npf` grew one on 2026-08-06 and
+its companion, `2026-08-05-fragility-orthogonality.md`, moved there. This one does not move: it
+is tracked here, it has now been executed and closed here, and moving a closed handoff would buy
+nothing and cost a second lineage of one document.
