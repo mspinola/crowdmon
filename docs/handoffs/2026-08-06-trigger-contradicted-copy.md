@@ -1,6 +1,13 @@
 # Handoff: a contradicted trigger row is described as an absence, and it is not one
 
-**Status:** open
+**Status:** **open, BLOCKED on one decision. Do not start it until that decision is made.**
+`crowdmon` was deprecated 2026-08-07 ([`../../DEPRECATED.md`](../../DEPRECATED.md) §3). This is
+a copy fix to a page whose future is undecided: **worth doing if `cot-analyzer`'s `/damage`
+page keeps being read, moot if it does not**, in which case close it unstarted rather than
+leaving it open. Nothing in the work below changed; only whether it is worth doing.
+
+The register's rule is that a handoff without a completion status gets executed by a future
+session, so this marker exists to stop that happening to a page that may be on its way out.
 
 Written 2026-08-06. Released by §6 of
 [`2026-08-06-forced-flow-respecification.md`](2026-08-06-forced-flow-respecification.md),
