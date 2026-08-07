@@ -65,12 +65,41 @@ Identified and owned, still readable only here. **These are the remainder of the
 
 | finding | owner | what carries |
 |---|---|---|
-| **A11** | `cotmetrics`, consumed by `npf` / `crucible` | **Extreme positioning readings persist far longer than a percentile implies.** Over 117,940 scored market-weeks: 10.11% above the 95th percentile against a nominal 5%, mean run 4.8 weeks, 90th percentile 12, longest 42, and **57.6% of hot weeks inside runs of 8+ weeks**. A 95th-percentile reading is the middle of an episode. **Anything treating "weeks above the 95th" as a sample size has an effective sample roughly a fifth of nominal.** A11's own text says the measurement belongs downstream |
-| **C16** | `cotmetrics` | **Correlating positioning LEVELS across markets is spurious**, and an earlier section here led with exactly that error |
-| **B33, B34** | `cotmetrics` | Managed Money's coin flip is in the **sign**, not the size, and is a mixture rather than a per-week 50%. A median asymmetry of 0.993 is **direction cancelling**: the same book measured without a direction gives 3.0237 |
+| **A11** | `cotmetrics`, cited by `npf` / `crucible` | **Extreme positioning readings persist far longer than a percentile implies.** Over 117,940 scored market-weeks: 10.11% above the 95th percentile against a nominal 5%, mean run 4.8 weeks, 90th percentile 12, longest 42, and **57.6% of hot weeks inside runs of 8+ weeks**. A 95th-percentile reading is the middle of an episode. **Anything treating "weeks above the 95th" as a sample size has an effective sample roughly a fifth of nominal.** A11's own text says the measurement belongs downstream |
+| **C16** | `cotmetrics` | **Correlating positioning LEVELS is spurious.** Managed Money net positioning is near unit-root: lag-1 autocorrelation median **0.956** across the covered 25, 0.211 first-differenced. An independent random walk scores a maximum level correlation of **0.773** against the panel half the time, and 33.5% of cross-complex pairs whose true correlation is zero come back above 0.5 on levels against **0.0%** on first differences. Corrected rule: **test on first differences, against a noise band computed from the same panel** |
 
 `cotmetrics` has no `docs/` directory today, so these need a home created rather than a file
 appended, which is why they are not in this pass.
+
+### Two things for whoever does it
+
+**A11's fact and A11's consequence have different owners, and splitting them is how one goes
+stale.** The fact is a property of COT positioning series, which `cotmetrics` owns. The
+consequence, that an exceedance count is not a sample size, is a validation concern belonging
+to `crucible` and `npf`. Recommended: state it **once**, in `cotmetrics` where the series
+lives, and have npf's methodology docs cite rather than restate it.
+
+**C16 has a live neighbour in `cotmetrics`, and it is a check to run rather than a defect to
+report.** `cotmetrics/src/cotmetrics/indicators.py::calculate_spearman_correlation` correlates
+price levels against positioning levels over a rolling 13-week window, feeding `comms_spearman`
+and the regime-shift signal. That is the same statistical structure C16 describes, and three
+differences matter enough that nothing should be concluded without measuring:
+
+- it is a **within-market** price-against-positioning question, not C16's cross-market
+  positioning-against-positioning one;
+- the window is 13 points rather than a full sample;
+- the downstream signal thresholds velocity against a rolling baseline, which absorbs some of
+  the level effect.
+
+**What is missing is the null.** That statistic's noise band has never been measured on this
+data, while a neighbouring package has now measured a very wide band for a close relative. The
+cheap settling check is C16's own procedure run against a synthetic independent series over the
+same 13-week window.
+
+**Stakes, so this is not over-read:** `npf` does not consume `comms_spearman`. Its only
+`spearman` is `wfc_gate.correlation_method`, which correlates in-sample against out-of-sample
+performance and touches no positioning level. This is a displayed indicator in `cotmetrics` and
+`cot-analyzer`, not a traded input.
 
 ---
 
@@ -101,8 +130,16 @@ B15, C2, C3, C6, C7, C8, C10, C23, C29, D2, D3, D4, D5, D6.
 that a single weight was doing opposite work in two regimes, is a statement about the weight
 table and does not survive it.
 
-**Template shapes**: B28, B31, B32, B35, B36, B37, C1. The producer-short / fund-long
-"template" is a crowdmon construct.
+**Template shapes**: B28, B31, B32, B33, B34, B35, B36, B37, C1. The producer-short /
+fund-long "template" is a crowdmon construct, and so is `A = Q_sell/Q_buy`.
+
+> **B33 and B34 were classified TO PORT in the first draft of this file and that was wrong.**
+> The classification was made from their headers, which name a statistical shape ("the coin
+> flip is in the sign, not the size"; "0.993 is direction cancelling") and read as general
+> facts about positioning. Read in full they are about the template and about `Q_sell/Q_buy`,
+> both of which die here. The correction is recorded rather than applied silently because it
+> is the same error this whole harvest is designed against: **a header is a claim, not a
+> reading.** Every row that stayed in PORTED was read in full before being restated.
 
 **The trigger and the offside term**: D9, D10, D12, D13, and both 2026-08-06 handoffs. See
 the deprecation notice for what happens to the one presentation change left unstarted.
@@ -116,11 +153,22 @@ identified, and a signed cosine reports the flip as news" is a general numerical
 crowdmon one. It is filed as DIES because nothing in a surviving package currently runs a PCA.
 If one ever does, this is the section to read.
 
-**Two more that are general rather than local, filed as DIES for the same reason: B13** (`l·g`
-grows as the square root of the pool, not linearly, and the linear reading invented a blow-up)
-and **B14** (which cascade step is worst is a race, and both written-down answers were wrong).
-Both are about reasoning by analogy failing against measurement, which is the lesson this repo
-produced most often and the one least tied to its hypothesis.
+**Four more that are general rather than local, filed as DIES for the same reason.** Each is a
+reasoning trap wearing a crowdmon quantity, and the trap outlives the quantity:
+
+- **B13**: `l·g` grows as the square root of the pool, not linearly, and the linear reading
+  invented a blow-up.
+- **B14**: which cascade step is worst is a race, and both written-down answers were wrong.
+- **B33**: a 50% sign frequency is consistent with two opposite worlds, a book that is small
+  and directionless or one that swings between large long and large short. Per market it
+  turned out to be a mixture of always and never rather than a weekly coin flip, so the
+  frequency invites a per-week probability reading the data does not support.
+- **B34**: a signed ratio whose direction is near a coin flip has a median close to 1 whether
+  or not the two sides differ in size. The same book measured without a direction gave 3.0237
+  against a directional median of 0.993.
+
+All four are about reasoning by analogy failing against measurement, which is the lesson this
+repo produced most often and the one least tied to its hypothesis.
 
 ---
 
