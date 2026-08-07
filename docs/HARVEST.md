@@ -1,0 +1,209 @@
+# Harvest: what outlives this package, and where it went
+
+`crowdmon` is being deprecated: its hypothesis is unproven and out of testable evidence, four
+pre-registered tests having returned `uninformative`, two genuine nulls, and one marginal lean
+that was mostly artifact. The decision itself and the conditions under which it would be
+revisited are recorded separately, and this file is **only the map of what its measurements
+left behind**.
+
+That distinction is the point of the harvest. The hypothesis failing says nothing about the
+measurements made along the way, several of which are durable facts about data that other
+packages own. They would be orphaned by a repo going quiet rather than by being wrong.
+
+This file is the map. It classifies every numbered finding in
+[`design/amendments-*.md`](design/) as one of:
+
+| class | meaning |
+|---|---|
+| **PORTED** | a durable fact a sibling owns, **restated in that sibling and merged**, with provenance back here |
+| **TO PORT** | identified, owner named, **not yet restated**. Still only readable here |
+| **RESOLVED** | already fixed or already moved before this harvest. Nothing to do |
+| **DIES** | true, and about the composite hypothesis, the weight table, or this package's own internals. It has no consumer once the hypothesis is parked |
+
+**PORTED and TO PORT are kept apart on purpose**, and the distinction is kept even now that
+nothing is left in TO PORT. A harvest that marked everything done on the day it was planned is
+the same failure as a status line that goes stale, so the two categories exist to be checkable
+rather than to be reassuring. Every row that says PORTED has been written somewhere else and
+names where.
+
+**The amendments files are not edited by this harvest and must not be.** `analysis/` and the
+amendment series are point-in-time records under this repo's doc lifecycle: a harvest that
+rewrote them would destroy the record of when each thing was learned, which is the only reason
+a reader can check the claim "the data contradicted the brief". Porting means **restating the
+fact in the owning repo and citing the section here**, never moving or deleting the section.
+
+**A DIES classification is not a claim that the finding is wrong.** Most of them are correct
+and were expensive to establish. It means no surviving package reads them.
+
+---
+
+## PORTED to `cotdata`
+
+Two documents, both read in full and restated rather than summarised from headers.
+
+**[`cotdata/docs/design/cross-report-comparability.md`](../../cotdata/docs/design/cross-report-comparability.md)**
+
+| finding | what carries |
+|---|---|
+| **D7** | **Legacy and TFF agree on exactly two quantities**, `open_interest` and `nonreportable`, over 6,279 overlapping market-weeks at 100.0000%. Above the reportable line the obvious mapping fails ~85% of the time, for two compounding reasons that no correction recovers: spreading is counted differently (Legacy breaks it out for non-commercial only), and the buckets hold different traders. **Any quantity built by subtracting one report's category from another's is not interpretable.** Same shape as the Supplemental trap |
+| **D7, second half** | **`canonicalize_legacy` sets `spread_contracts` to `NA` on every row**, so summing that column returns 0, which prints as a measurement of zero spreading and is not one. The identity `long + spread == OI` closes on 99.984% of TFF market-weeks and **19.857%** of Legacy ones. A live trap in cotdata's own API, not a crowdmon concern, and confirmed still live at harvest time |
+| **A1** | The Oct-Nov 2025 shutdown left COT **report** dates intact and broke only **release** dates |
+| **A2** | Gaps come from **thin markets falling out of the report**, not from data loss. Oats (`004603`), 294-day interval ending 2025-09-09 |
+
+**[`cotdata/docs/design/reading-the-store.md`](../../cotdata/docs/design/reading-the-store.md)**
+
+| finding | what carries |
+|---|---|
+| **A5** | **76% of the 279-market Disaggregated universe is ICE Energy Div / Nodal power and gas basis.** A cross-market result over the full universe is mostly about ERCOT and PJM |
+| **A14**, **C12** | **A coverage ratio whose denominator nobody chose is not a measurement.** Withdrawn twice now, in two packages. Ported as the rule plus the warning that the count itself moves (25, then 45, then 47), rather than as any one number |
+| **A13** | **The fuller-sounding volume parameter is the narrower series.** `reconstructed` is exactly two expiries; `front` is whole-market, established by open interest matching the CFTC on 25 of 26 markets at a median ratio of 1.000 |
+| **B26, B27, B30** | **A hole in a code's series is two different things**, and only one is a migration. RTY worked example, the lumber contrast, and the ordering rule: the merge across sibling codes must precede any differencing, because the other order fails silently |
+| **D14** | **`propadj` is derived on read, Norgate is the only vendor supplying all tiers and is Windows-only by mechanism, and databento owes only `backadj`.** Composed: a databento-backed store cannot produce `propadj` at all. A live constraint on ADR-0007 step 2, and a **tier fact rather than an OS fact** |
+
+## PORTED to `cotmetrics`
+
+**[`cotmetrics/docs/positioning-series-properties.md`](../../cotmetrics/docs/positioning-series-properties.md)**,
+which created that repo's `docs/` directory. Both sections read in full before restating.
+
+| finding | what carries |
+|---|---|
+| **A11** | **Extreme positioning readings persist far longer than a percentile implies.** Over 117,940 scored market-weeks: 10.11% above the 95th percentile against a nominal 5%, mean run 4.8 weeks, 90th percentile 12, longest 42, and **57.6% of hot weeks inside runs of 8+ weeks**. A 95th-percentile reading is the middle of an episode. **Anything treating "weeks above the 95th" as a sample size has an effective sample roughly a fifth of nominal** |
+| **C16** | **Correlating positioning LEVELS is spurious.** Managed Money net positioning is near unit-root: lag-1 autocorrelation median **0.956** across the covered 25, 0.211 first-differenced. An independent random walk scores a maximum level correlation of **0.773** against the panel half the time, and 33.5% of cross-complex pairs whose true correlation is zero come back above 0.5 on levels against **0.0%** on first differences. Corrected rule: **test on first differences, against a noise band computed from the same panel** |
+
+Two things settled in the porting, both recorded in the destination rather than here:
+
+- **A11's fact and consequence were kept together in one place.** The fact is a cotmetrics
+  property; the consequence, that an exceedance count is not a sample size, is a validation
+  concern belonging to `crucible` and `npf`. It is stated once, in `cotmetrics`, and
+  consumers are asked to cite rather than restate it.
+- **A11's scope is stated, because it limits the transfer.** The figures were measured on a
+  z-score percentile panel over Managed Money positioning, **not on cotmetrics' own index**.
+  The cause transfers; the specific rates have not been re-measured there, and the
+  destination names that re-measurement as cheap and worth doing before anyone quotes 10.11%
+  of a cotmetrics index.
+
+**The port also produced a finding that is not in this repo at all**, found while checking
+whether anything live does what C16 forbids. `cotmetrics` emits six price-against-positioning
+level correlations per lookback and has never measured their null. It is written up in the
+destination as **a check to run, not a defect report**, with the reasons nothing should be
+concluded without measuring, and with the observation that longer windows are *more* exposed
+rather than less, so the 52-week columns are the ones a reader is likeliest to trust and the
+ones most at risk.
+
+## TO PORT, not yet done
+
+**Nothing.** Every finding classified as needing a new home has one. What remains of the
+deprecation is operational rather than documentary: the two launchd jobs, the `/damage` page,
+and whether the open copy work order is done or closed unstarted.
+
+### Two things for whoever does it
+
+**A11's fact and A11's consequence have different owners, and splitting them is how one goes
+stale.** The fact is a property of COT positioning series, which `cotmetrics` owns. The
+consequence, that an exceedance count is not a sample size, is a validation concern belonging
+to `crucible` and `npf`. Recommended: state it **once**, in `cotmetrics` where the series
+lives, and have npf's methodology docs cite rather than restate it.
+
+**C16 has a live neighbour in `cotmetrics`, and it is a check to run rather than a defect to
+report.** `cotmetrics/src/cotmetrics/indicators.py::calculate_spearman_correlation` correlates
+price levels against positioning levels over a rolling 13-week window, feeding `comms_spearman`
+and the regime-shift signal. That is the same statistical structure C16 describes, and three
+differences matter enough that nothing should be concluded without measuring:
+
+- it is a **within-market** price-against-positioning question, not C16's cross-market
+  positioning-against-positioning one;
+- the window is 13 points rather than a full sample;
+- the downstream signal thresholds velocity against a rolling baseline, which absorbs some of
+  the level effect.
+
+**What is missing is the null.** That statistic's noise band has never been measured on this
+data, while a neighbouring package has now measured a very wide band for a close relative. The
+cheap settling check is C16's own procedure run against a synthetic independent series over the
+same 13-week window.
+
+**Stakes, so this is not over-read:** `npf` does not consume `comms_spearman`. Its only
+`spearman` is `wfc_gate.correlation_method`, which correlates in-sample against out-of-sample
+performance and touches no positioning level. This is a displayed indicator in `cotmetrics` and
+`cot-analyzer`, not a traded input.
+
+---
+
+## RESOLVED before this harvest
+
+| finding | where it went |
+|---|---|
+| **A8** | Volatility needs `propadj`, not `backadj`. Corrected on cotdata `main` in `ff2b755`, which also fixed the cause: the availability table listed two options where there were three |
+| **A9** | `propadj` is not strictly positive (crude, 2020-04-20). `cotdata/src/cotdata/prices.py` now states the correction in the docstring itself |
+| **B29** | The two flow decompositions were one function. Deduplicated in cotdata #93; `zero_sum_check` stayed in cotdata as a claim about its own parse |
+| **C5** | "There is no volume" survived in three places after volume shipped, one of them in code. Fixed at the time |
+| **C9** | The stale PyPI inference did not propagate here. The root `CLAUDE.md` carries the corrected version |
+| **B10** | The vintage store held zero point-in-time observations. Superseded by time: vintages accumulate forward from 2026-07-31, and §7.8's replay is date-gated to 2026-11-01 rather than blocked |
+| Supplemental report facts | Authored in `cotdata` from the start (`cotdata/docs/analysis/2026-08-03-cit-supplemental-measurements.md`). Nothing to move |
+
+---
+
+## DIES with the hypothesis
+
+Correct, and with no consumer once the composite is parked. Listed so that a future reader
+can see they were considered rather than missed.
+
+**The composite and its terms**: A3, A4, A15, A17, A19, A21, A22, B2, B5, B8, B11, B13, B14,
+B15, C2, C3, C6, C7, C8, C10, C23, C29, D2, D3, D4, D5, D6.
+
+**The weight table**: A21, A22, C6, C7, C8, C10, and the whole
+`2026-08-03-swap-dealer-weight-decision.md` lineage. The one durable part of that lineage,
+that a single weight was doing opposite work in two regimes, is a statement about the weight
+table and does not survive it.
+
+**Template shapes**: B28, B31, B32, B33, B34, B35, B36, B37, C1. The producer-short /
+fund-long "template" is a crowdmon construct, and so is `A = Q_sell/Q_buy`.
+
+> **B33 and B34 were classified TO PORT in the first draft of this file and that was wrong.**
+> The classification was made from their headers, which name a statistical shape ("the coin
+> flip is in the sign, not the size"; "0.993 is direction cancelling") and read as general
+> facts about positioning. Read in full they are about the template and about `Q_sell/Q_buy`,
+> both of which die here. The correction is recorded rather than applied silently because it
+> is the same error this whole harvest is designed against: **a header is a claim, not a
+> reading.** Every row that stayed in PORTED was read in full before being restated.
+
+**The trigger and the offside term**: D9, D10, D12, D13, and both 2026-08-06 handoffs. See
+the deprecation notice for what happens to the one presentation change left unstarted.
+
+**Package internals, engines, and reporting**: A6, A7, A10, A12, A16, A18, A20, B1, B3, B4,
+B6, B7, B9, B12, B16, B17, B18, B19, B20, B21, B22, B23, B25, C11, C13, C14, C15, C17, C18,
+C19, C20, C21, C22, C24, C25, C26, C27, C30, D8, D11, E1, E2, E3, E4, E5.
+
+**One in that list is worth a second look before it goes: B24.** "An eigenvector's sign is not
+identified, and a signed cosine reports the flip as news" is a general numerical fact, not a
+crowdmon one. It is filed as DIES because nothing in a surviving package currently runs a PCA.
+If one ever does, this is the section to read.
+
+**Four more that are general rather than local, filed as DIES for the same reason.** Each is a
+reasoning trap wearing a crowdmon quantity, and the trap outlives the quantity:
+
+- **B13**: `l·g` grows as the square root of the pool, not linearly, and the linear reading
+  invented a blow-up.
+- **B14**: which cascade step is worst is a race, and both written-down answers were wrong.
+- **B33**: a 50% sign frequency is consistent with two opposite worlds, a book that is small
+  and directionless or one that swings between large long and large short. Per market it
+  turned out to be a mixture of always and never rather than a weekly coin flip, so the
+  frequency invites a per-week probability reading the data does not support.
+- **B34**: a signed ratio whose direction is near a coin flip has a median close to 1 whether
+  or not the two sides differ in size. The same book measured without a direction gave 3.0237
+  against a directional median of 0.993.
+
+All four are about reasoning by analogy failing against measurement, which is the lesson this
+repo produced most often and the one least tied to its hypothesis.
+
+---
+
+## What this harvest deliberately does not do
+
+- **It does not delete anything.** The amendments, the analyses and the handoffs stay exactly
+  as they are. Deprecation is not deletion, and a reader arriving from a citation in another
+  repo has to land on the real text.
+- **It does not re-verify the DIES list.** Those findings were measured once, recorded with
+  reproducers, and are being parked rather than retracted.
+- **It does not carry the hypothesis forward in a new home.** If the composite is ever
+  revisited, it starts from the deprecation notice's stated conditions, not from a fragment ported
+  into a package that never asked for it.
