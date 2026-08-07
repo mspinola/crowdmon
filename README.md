@@ -1,5 +1,23 @@
 # crowdmon
 
+> ## DEPRECATED, 2026-08-07
+>
+> **Development has stopped.** The thesis below was tested four times against frozen
+> pre-registrations and produced no positive result: the core claim came back
+> `uninformative` with its evidence **spent**, two further tests were genuine nulls, and the
+> fourth was mostly artifact. See [`DEPRECATED.md`](DEPRECATED.md) for the evidence, what
+> "frozen, not deleted" means in practice, and the three conditions under which reopening
+> would be worth it.
+>
+> **The measurements outlived the thesis and have been rehoused.**
+> [`docs/HARVEST.md`](docs/HARVEST.md) maps all 108 findings; the durable ones now live in
+> `cotdata` and `cotmetrics`. Nothing here was deleted, and the facts were restated rather
+> than moved, so citations still land on real text.
+>
+> **Everything below this box describes the package as designed.** It is left unedited on
+> purpose: a deprecated project rewritten to sound modest is a worse record than one that
+> states what it set out to do and what happened.
+
 A crowding and forced-exit monitor.
 
 **Damage = crowding x illiquidity x holder fragility.** Crowding is a property of the
