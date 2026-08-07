@@ -20,10 +20,11 @@ This file is the map. It classifies every numbered finding in
 | **RESOLVED** | already fixed or already moved before this harvest. Nothing to do |
 | **DIES** | true, and about the composite hypothesis, the weight table, or this package's own internals. It has no consumer once the hypothesis is parked |
 
-**PORTED and TO PORT are kept apart on purpose.** A harvest that marked everything done on the
-day it was planned is the same failure as a status line that goes stale: the next reader would
-have no way to tell which facts had actually reached a surviving package. Only the rows below
-that say PORTED have been written somewhere else.
+**PORTED and TO PORT are kept apart on purpose**, and the distinction is kept even now that
+nothing is left in TO PORT. A harvest that marked everything done on the day it was planned is
+the same failure as a status line that goes stale, so the two categories exist to be checkable
+rather than to be reassuring. Every row that says PORTED has been written somewhere else and
+names where.
 
 **The amendments files are not edited by this harvest and must not be.** `analysis/` and the
 amendment series are point-in-time records under this repo's doc lifecycle: a harvest that
@@ -59,17 +60,41 @@ Two documents, both read in full and restated rather than summarised from header
 | **B26, B27, B30** | **A hole in a code's series is two different things**, and only one is a migration. RTY worked example, the lumber contrast, and the ordering rule: the merge across sibling codes must precede any differencing, because the other order fails silently |
 | **D14** | **`propadj` is derived on read, Norgate is the only vendor supplying all tiers and is Windows-only by mechanism, and databento owes only `backadj`.** Composed: a databento-backed store cannot produce `propadj` at all. A live constraint on ADR-0007 step 2, and a **tier fact rather than an OS fact** |
 
+## PORTED to `cotmetrics`
+
+**[`cotmetrics/docs/positioning-series-properties.md`](../../cotmetrics/docs/positioning-series-properties.md)**,
+which created that repo's `docs/` directory. Both sections read in full before restating.
+
+| finding | what carries |
+|---|---|
+| **A11** | **Extreme positioning readings persist far longer than a percentile implies.** Over 117,940 scored market-weeks: 10.11% above the 95th percentile against a nominal 5%, mean run 4.8 weeks, 90th percentile 12, longest 42, and **57.6% of hot weeks inside runs of 8+ weeks**. A 95th-percentile reading is the middle of an episode. **Anything treating "weeks above the 95th" as a sample size has an effective sample roughly a fifth of nominal** |
+| **C16** | **Correlating positioning LEVELS is spurious.** Managed Money net positioning is near unit-root: lag-1 autocorrelation median **0.956** across the covered 25, 0.211 first-differenced. An independent random walk scores a maximum level correlation of **0.773** against the panel half the time, and 33.5% of cross-complex pairs whose true correlation is zero come back above 0.5 on levels against **0.0%** on first differences. Corrected rule: **test on first differences, against a noise band computed from the same panel** |
+
+Two things settled in the porting, both recorded in the destination rather than here:
+
+- **A11's fact and consequence were kept together in one place.** The fact is a cotmetrics
+  property; the consequence, that an exceedance count is not a sample size, is a validation
+  concern belonging to `crucible` and `npf`. It is stated once, in `cotmetrics`, and
+  consumers are asked to cite rather than restate it.
+- **A11's scope is stated, because it limits the transfer.** The figures were measured on a
+  z-score percentile panel over Managed Money positioning, **not on cotmetrics' own index**.
+  The cause transfers; the specific rates have not been re-measured there, and the
+  destination names that re-measurement as cheap and worth doing before anyone quotes 10.11%
+  of a cotmetrics index.
+
+**The port also produced a finding that is not in this repo at all**, found while checking
+whether anything live does what C16 forbids. `cotmetrics` emits six price-against-positioning
+level correlations per lookback and has never measured their null. It is written up in the
+destination as **a check to run, not a defect report**, with the reasons nothing should be
+concluded without measuring, and with the observation that longer windows are *more* exposed
+rather than less, so the 52-week columns are the ones a reader is likeliest to trust and the
+ones most at risk.
+
 ## TO PORT, not yet done
 
-Identified and owned, still readable only here. **These are the remainder of the harvest.**
-
-| finding | owner | what carries |
-|---|---|---|
-| **A11** | `cotmetrics`, cited by `npf` / `crucible` | **Extreme positioning readings persist far longer than a percentile implies.** Over 117,940 scored market-weeks: 10.11% above the 95th percentile against a nominal 5%, mean run 4.8 weeks, 90th percentile 12, longest 42, and **57.6% of hot weeks inside runs of 8+ weeks**. A 95th-percentile reading is the middle of an episode. **Anything treating "weeks above the 95th" as a sample size has an effective sample roughly a fifth of nominal.** A11's own text says the measurement belongs downstream |
-| **C16** | `cotmetrics` | **Correlating positioning LEVELS is spurious.** Managed Money net positioning is near unit-root: lag-1 autocorrelation median **0.956** across the covered 25, 0.211 first-differenced. An independent random walk scores a maximum level correlation of **0.773** against the panel half the time, and 33.5% of cross-complex pairs whose true correlation is zero come back above 0.5 on levels against **0.0%** on first differences. Corrected rule: **test on first differences, against a noise band computed from the same panel** |
-
-`cotmetrics` has no `docs/` directory today, so these need a home created rather than a file
-appended, which is why they are not in this pass.
+**Nothing.** Every finding classified as needing a new home has one. What remains of the
+deprecation is operational rather than documentary: the two launchd jobs, the `/damage` page,
+and whether the open copy work order is done or closed unstarted.
 
 ### Two things for whoever does it
 
