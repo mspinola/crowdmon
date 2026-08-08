@@ -88,18 +88,42 @@ expects `2026-07-28`.
 This is the same failure mode `docs/design/amendments-2026-08-05.md` §E1 already recorded, and
 it was six pins then too.
 
+**Re-measured 2026-08-08, two days later: 9 failed, 643 passed, 7 skipped.** The count is
+recorded rather than the figure above being edited, because the change *is* the point. Three
+more pins broke in two days, in two files the original six did not touch:
+
+```
+tests/test_stratum_live.py::test_the_latest_week_partitions_exactly_where_C14_partitioned_it
+tests/test_stratum_live.py::test_the_seven_differentials_are_still_exactly_seven_and_still_those_seven
+tests/test_supplemental_live.py::test_c2_template_rate_cannot_move_with_w_sd
+```
+
+Point 2 below predicted this in general terms and understated it: the drift does not merely
+widen existing deltas, it **recruits new tests** as the store advances into weeks the pinned
+counts never saw. Anyone reading "6 of 654" as the standing number will be wrong, and more so
+each week.
+
 **Three things follow, and the third is the one that matters.**
 
 1. **Red does not mean broken here.** Nothing regressed. A frozen package pinned against a
    moving store fails by construction.
-2. **It gets worse, not better.** Every week the store advances widens the gap. A reader
-   running the suite in six months will see the same six failures with larger deltas.
-3. **It is downstream of the §3 decision, not independent of it.** If the publish job keeps
-   running, the panel keeps pace and these pass again; if it is switched off, they fail
-   permanently. **Whichever way that goes, the fix is to neutralise the pins rather than to
-   chase them**, because a frozen repo should not have tests that depend on data collected
-   after it was frozen. That work is deliberately not done here: it belongs with whoever makes
-   the §3 call, and doing it first would presume the answer.
+2. **It gets worse, not better, and in two ways rather than one.** Every week the store
+   advances widens the gap. This point originally said a reader running the suite in six
+   months would see "the same six failures with larger deltas", which the 2026-08-08
+   re-measurement above shows was too kind: the count itself grows as the store reaches weeks
+   the pins never saw. Six became nine in two days.
+3. **It was downstream of the §3 decision, and that decision has now been made.** The
+   reasoning stood as written: if the publish job kept running the panel would keep pace and
+   these would pass again, and if it was switched off they would fail permanently. **It was
+   switched off on 2026-08-08** (§3), so they now fail permanently and no longer flap.
+
+   **The fix remains what it always was: neutralise the pins rather than chase them**, because
+   a frozen repo should not have tests that depend on data collected after it was frozen. It is
+   still not done here, but the reason has changed. It was withheld because doing it would
+   presume the §3 answer; now it is simply unclaimed work on an inert package, and the daily
+   job that used to surface the failures is gone, so nothing reports them any more. Anyone
+   running the suite should expect a growing set of red `*_live` pins, nine as of 2026-08-08,
+   and read this section rather than debug them.
 
 **The harvest is complete.** [`docs/HARVEST.md`](docs/HARVEST.md) classifies all 108 numbered
 findings in `docs/design/amendments-*.md` as PORTED, RESOLVED or DIES, and nothing remains
@@ -125,23 +149,31 @@ mechanism test a byte copy of the store at
 
 ---
 
-## 3. What is still running, and what is open
+## 3. Nothing is still running, and nothing is open
 
-**Two launchd jobs and one consumer page**, listed rather than switched off, because turning
-them off is a decision about whether the panel is still worth reading and that is not a
-research question:
+**Resolved 2026-08-08. This section previously listed two launchd jobs, one consumer page and
+one open work order, left running because switching them off was a decision about whether the
+panel is still worth reading rather than a research question.** That decision was made and it
+went against the panel:
 
-- `com.mspinola.crowdmon-publish` and `com.mspinola.crowdmon-live-tests`.
-- `cot-analyzer`'s `/damage` page, this package's only consumer. Nothing in `npf` or
-  `livebook` imports it.
+- `com.mspinola.crowdmon-publish` and `com.mspinola.crowdmon-live-tests` were unloaded and
+  their plists deleted. `live-tests` had been failing every morning since deprecation, on the
+  drifting live pins §2.1 describes, notifying about a package nobody is developing.
+- `cot-analyzer`'s `/damage` page was removed in that repo's PR #22, along with its artifact
+  reader and both test files. This package now has **no consumers at all**; nothing in `npf`
+  or `livebook` ever imported it.
+- [`docs/handoffs/2026-08-06-trigger-contradicted-copy.md`](docs/handoffs/2026-08-06-trigger-contradicted-copy.md)
+  was **closed unstarted**, which is what its own §1 instructed for exactly this case. Outcome
+  appended as its §8.
 
-**One open work order**,
-[`docs/handoffs/2026-08-06-trigger-contradicted-copy.md`](docs/handoffs/2026-08-06-trigger-contradicted-copy.md).
-It is a copy and vocabulary fix, not a research task: when `pool_agrees` is `False`, both
-renderers say the level "would force a book that is not there", and the measurement says flow
-follows either way with the difference between groups small. **Its status depends entirely on
-the page**: worth doing if the panel keeps being read, moot if it does not, and it should be
-closed unstarted rather than left open in that case.
+`~/code/crowdmon_store` is now written by nothing and read by nothing. It is left in place
+rather than deleted, on the same reasoning as §2: it costs 8.7M and removing it is not
+reversible.
+
+**None of this is evidence about the thesis.** Per §4, removing a consumer meets none of the
+three conditions for revisiting, and it retracts nothing. The package still builds, its
+measurements still stand, and §5's harvest is untouched. What changed is that it is now
+genuinely inert rather than quietly scheduled.
 
 ---
 
