@@ -1,13 +1,19 @@
 # Handoff: a contradicted trigger row is described as an absence, and it is not one
 
-**Status:** **open, BLOCKED on one decision. Do not start it until that decision is made.**
-`crowdmon` was deprecated 2026-08-07 ([`../../DEPRECATED.md`](../../DEPRECATED.md) §3). This is
-a copy fix to a page whose future is undecided: **worth doing if `cot-analyzer`'s `/damage`
-page keeps being read, moot if it does not**, in which case close it unstarted rather than
-leaving it open. Nothing in the work below changed; only whether it is worth doing.
+**Status:** **CLOSED UNSTARTED 2026-08-08. The decision went the other way and the page is
+gone.** See §8. Nothing below was executed and the work order is preserved verbatim.
 
-The register's rule is that a handoff without a completion status gets executed by a future
-session, so this marker exists to stop that happening to a page that may be on its way out.
+*The previous marker, kept because the outcome only makes sense against it:*
+
+> **open, BLOCKED on one decision. Do not start it until that decision is made.**
+> `crowdmon` was deprecated 2026-08-07 ([`../../DEPRECATED.md`](../../DEPRECATED.md) §3). This
+> is a copy fix to a page whose future is undecided: **worth doing if `cot-analyzer`'s
+> `/damage` page keeps being read, moot if it does not**, in which case close it unstarted
+> rather than leaving it open. Nothing in the work below changed; only whether it is worth
+> doing.
+>
+> The register's rule is that a handoff without a completion status gets executed by a future
+> session, so this marker exists to stop that happening to a page that may be on its way out.
 
 Written 2026-08-06. Released by §6 of
 [`2026-08-06-forced-flow-respecification.md`](2026-08-06-forced-flow-respecification.md),
@@ -145,4 +151,40 @@ render an empty state.
 
 ## 8. Outcome
 
-*To be appended by the executing session. Leave `Status: open` until then.*
+**Closed unstarted, 2026-08-08. No code was written and none of §5 was executed.**
+
+§1's own condition decided this rather than a judgment made here. The handoff said it was
+worth doing if `cot-analyzer`'s `/damage` page kept being read and moot if it did not, with
+the instruction to close it unstarted in the second case. On 2026-08-08 that page was removed
+(`cot-analyzer` PR #22): `pages/analytics/damage.py`, `components/crowdmon_artifact.py` and
+both test files are gone, and the two macOS launchd jobs that published the panel and ran the
+live suite were unloaded and deleted the same day. `DEPRECATED.md` §3 had listed exactly those
+three things as the open question, and it has now been answered.
+
+**Both surfaces this handoff names are gone, so there is nothing left to make consistent.**
+`report.format_offside` still carries the contradicted-state copy in this package, and it is
+left exactly as it was: crowdmon is frozen, not retracted, and editing a renderer nobody calls
+would be a change for its own sake.
+
+**What does not survive the closure, recorded so it is not rediscovered as new.** §5 was the
+part worth keeping and it is now unreachable:
+
+- The defect it identified was real. `pool on the other side` was authored locally in
+  `damage.py` in two places and was absent from `test_damage_vocabulary.py`'s `FRAGMENTS`, so
+  a session changing only crowdmon's copy would have shipped a producer and a page saying
+  different things with every test green. That gap died with the file rather than being fixed.
+- The generalisable lesson outlived both. `cot-analyzer`'s `docs/ARCHITECTURE.md` keeps it in
+  the note that replaced its crowdmon section: a producer's vocabulary travels in the
+  artifact's own manifest and is never typed into the consumer, with a test that fails if it
+  is. That is the pattern to copy if another published artifact ever arrives there.
+
+**What this closure does NOT do.** It retracts nothing. The measurements in §2 stand, the
+verdict they cite (`npf/docs/crowdmon/2026-08-06-forced-flow-mechanism-verdict.md`) stands, and
+the sharp edge in §2 about what may not be said stands for anyone who reopens this. The five
+constraints in §4 remain correct statements about the system they describe. Per
+`DEPRECATED.md` §4, none of the three conditions for revisiting this package is met by
+removing a page, so this closure is not evidence about the thesis in either direction.
+
+**If the page ever returns**, this handoff is executable as written apart from step 2 of §5,
+which names files that no longer exist. Start from §5 step 1, which is entirely within this
+package and unaffected.
